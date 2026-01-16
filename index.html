@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema de gestión de parqueo">
+    <meta name="theme-color" content="#4F46E5">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🅿️</text></svg>">
+    <title>ParkingPro - Gestión de Parqueo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 8px 12px rgba(0,0,0,0.15); }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4); }
+        .status-active { background: #10b981; }
+        .status-expired { background: #ef4444; }
+        .status-pending { background: #f59e0b; }
+        .sidebar { width: 280px; background: white; box-shadow: 2px 0 8px rgba(0,0,0,0.1); position: fixed; left: 0; top: 0; height: 100vh; overflow-y: auto; z-index: 100; transition: transform 0.3s; }
+        .sidebar.hidden { transform: translateX(-100%); }
+        .main-content { margin-left: 280px; min-height: 100vh; background: #f9fafb; transition: margin-left 0.3s; }
+        .main-content.full-width { margin-left: 0; }
+        .sidebar-item { padding: 12px 20px; margin: 4px 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 12px; }
+        .sidebar-item:hover { background: #f3f4f6; }
+        .sidebar-item.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .notification { position: fixed; top: 20px; right: 20px; padding: 16px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; animation: slideIn 0.3s ease; }
+        .notification.success { background: #10b981; color: white; }
+        .notification.error { background: #ef4444; color: white; }
+        @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.show { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar">
+        <div class="p-6 gradient-bg text-white">
+            <h1 class="text-2xl font-bold">🅿️ ParkingPro</h1>
+            <p class="text-sm opacity-90 mt-1" id="userInfo">Cargando...</p>
+        </div>
+        <nav class="py-4">
+            <div class="sidebar-item active" onclick="showSection('dashboard')">
+                <span>📊</span>
+                <span>Dashboard</span>
+            </div>
+            <div class="sidebar-item" onclick="showSection('clientes')">
+                <span>👥</span>
+                <span>Clientes</span>
+            </div>
+            <div class="sidebar-item" onclick="showSection('suscripciones')">
+                <span>📝</span>
+                <span>Suscripciones</span>
+            </div>
+            <div class="sidebar-item" onclick="showSection('planes')">
+                <span>📋</span>
+                <span>Planes</span>
+            </div>
+            <div class="sidebar-item" onclick="showSection('acceso')">
+                <span>🚪</span>
+                <span>Control de Acceso</span>
+            </div>
+            <div class="sidebar-item" onclick="showSection('pagos')">
+                <span>💳</span>
+                <span>Pagos</span>
+            </div>
+            <div class="sidebar-item" onclick="showSection('reportes')">
+                <span>📊</span>
+                <span>Reportes</span>
+            </div>
+            <div class="sidebar-item" onclick="showSection('config')">
+                <span>⚙️</span>
+                <span>Configuración</span>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div id="mainContent" class="main-content">
+        <!-- Header -->
+        <div class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-50">
+            <button onclick="toggleSidebar()" class="md:hidden btn-primary px-3 py-2">☰</button>
+            <h2 id="sectionTitle" class="text-xl font-bold text-gray-800">Dashboard</h2>
+            <button onclick="logout()" class="text-red-600 font-semibold hover:text-red-800">Cerrar Sesión</button>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="section p-6">
+            <!-- KPIs -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="card p-6">
+                    <div class="text-sm text-gray-600 mb-2">Ingresos del Mes</div>
+                    <div class="text-3xl font-bold text-green-600">RD$ <span id="kpiIngresos">0</span></div>
+                    <div class="text-xs text-green-600 mt-2">↗️ +12% vs mes anterior</div>
+                </div>
+                <div class="card p-6">
+                    <div class="text-sm text-gray-600 mb-2">Clientes Activos</div>
+                    <div class="text-3xl font-bold text-blue-600" id="kpiClientes">0</div>
+                    <div class="text-xs text-blue-600 mt-2">↗️ +5 esta semana</div>
+                </div>
+                <div class="card p-6">
+                    <div class="text-sm text-gray-600 mb-2">Ocupación Actual</div>
+                    <div class="text-3xl font-bold text-purple-600"><span id="kpiOcupados">0</span>/170</div>
+                    <div class="text-xs text-purple-600 mt-2" id="kpiPorcentaje">0%</div>
+                </div>
+                <div class="card p-6">
+                    <div class="text-sm text-gray-600 mb-2">Morosos</div>
+                    <div class="text-3xl font-bold text-red-600" id="kpiMorosos">0</div>
+                    <div class="text-xs text-green-600 mt-2">↘️ -3 vs semana pasada</div>
+                </div>
+            </div>
+
+            <!-- Ocupación por Plan -->
+            <div class="card p-6 mb-8">
+                <h3 class="text-lg font-bold mb-4">Ocupación por Plan</h3>
+                <div id="ocupacionPlanes" class="space-y-4">
+                    <!-- Se llena con JS -->
+                </div>
+            </div>
+
+            <!-- Alertas -->
+            <div class="card p-6">
+                <h3 class="text-lg font-bold mb-4">🔔 Alertas Importantes</h3>
+                <div id="alertas" class="space-y-3">
+                    <!-- Se llena con JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Clientes Section -->
+        <div id="clientes" class="section p-6 hidden">
+            <div class="flex justify-between items-center mb-6">
+                <input type="text" id="searchClientes" placeholder="Buscar por nombre, email o placa..." 
+                    class="px-4 py-2 border rounded-lg w-96" onkeyup="searchClientes()">
+                <button onclick="showNewClienteForm()" class="btn-primary">+ Nuevo Cliente</button>
+            </div>
+            <div class="card p-6">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b">
+                            <th class="text-left p-3">Cliente</th>
+                            <th class="text-left p-3">Email</th>
+                            <th class="text-left p-3">Teléfono</th>
+                            <th class="text-left p-3">Vehículo</th>
+                            <th class="text-left p-3">Plan</th>
+                            <th class="text-left p-3">Estado</th>
+                            <th class="text-left p-3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clientesTable">
+                        <!-- Se llena con JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Control de Acceso Section -->
+        <div id="acceso" class="section p-6 hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="card p-6">
+                    <h3 class="text-lg font-bold mb-4">Validar Entrada/Salida</h3>
+                    <input type="text" id="placaValidar" placeholder="Ingrese placa (ej: A123456)" 
+                        class="w-full px-4 py-3 border rounded-lg mb-4 text-lg"
+                        onkeypress="if(event.key === 'Enter') validarAcceso()">
+                    <div class="flex gap-3">
+                        <button onclick="validarAcceso('entry')" class="btn-primary flex-1">
+                            🚗 Entrada
+                        </button>
+                        <button onclick="validarAcceso('exit')" class="btn-primary flex-1">
+                            🚙 Salida
+                        </button>
+                    </div>
+                    <div id="validacionResult" class="mt-4"></div>
+                </div>
+
+                <div class="card p-6">
+                    <h3 class="text-lg font-bold mb-4">Sesiones Activas</h3>
+                    <div id="sesionesActivas" class="space-y-2 max-h-96 overflow-y-auto">
+                        <!-- Se llena con JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-6">
+                <h3 class="text-lg font-bold mb-4">Historial de Accesos (Hoy)</h3>
+                <div id="accesoHistorial" class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b">
+                                <th class="text-left p-3">Hora</th>
+                                <th class="text-left p-3">Placa</th>
+                                <th class="text-left p-3">Cliente</th>
+                                <th class="text-left p-3">Tipo</th>
+                                <th class="text-left p-3">Duración</th>
+                                <th class="text-left p-3">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody id="accesoTable">
+                            <!-- Se llena con JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Other sections placeholder -->
+        <div id="suscripciones" class="section p-6 hidden">
+            <h2 class="text-2xl font-bold mb-4">Suscripciones</h2>
+            <div class="card p-6">Módulo en desarrollo...</div>
+        </div>
+        <div id="planes" class="section p-6 hidden">
+            <h2 class="text-2xl font-bold mb-4">Planes</h2>
+            <div class="card p-6">Módulo en desarrollo...</div>
+        </div>
+        <div id="pagos" class="section p-6 hidden">
+            <h2 class="text-2xl font-bold mb-4">Historial de Pagos</h2>
+            <div class="card p-6">Módulo en desarrollo...</div>
+        </div>
+        <div id="reportes" class="section p-6 hidden">
+            <h2 class="text-2xl font-bold mb-4">Reportes</h2>
+            <div class="card p-6">Módulo en desarrollo...</div>
+        </div>
+        <div id="config" class="section p-6 hidden">
+            <h2 class="text-2xl font-bold mb-4">Configuración</h2>
+            <div class="card p-6">Módulo en desarrollo...</div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de la API
+        const API_URL = 'https://parkingpro-backend-production.up.railway.app/api/v1';
+
+        // Estado global
+        let currentUser = null;
+        let clientes = [];
+        let planes = [];
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Por ahora simulamos usuario admin
+            currentUser = { 
+                name: 'Admin Demo', 
+                role: 'admin',
+                email: 'admin@parkingpro.com'
+            };
+            document.getElementById('userInfo').textContent = `${currentUser.name} (${currentUser.role})`;
+
+            await loadDashboard();
+            await loadPlanes();
+
+            // Registrar Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js');
+            }
+        });
+
+        // Funciones de navegación
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('show');
+        }
+
+        function showSection(sectionName) {
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(sectionName).classList.remove('hidden');
+            
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            event.target.closest('.sidebar-item').classList.add('active');
+
+            const titles = {
+                dashboard: 'Dashboard',
+                clientes: 'Gestión de Clientes',
+                suscripciones: 'Suscripciones',
+                planes: 'Planes y Tarifas',
+                acceso: 'Control de Acceso',
+                pagos: 'Historial de Pagos',
+                reportes: 'Reportes',
+                config: 'Configuración'
+            };
+            document.getElementById('sectionTitle').textContent = titles[sectionName] || sectionName;
+
+            if (window.innerWidth < 768) {
+                document.getElementById('sidebar').classList.remove('show');
+            }
+        }
+
+        // Cargar Dashboard
+        async function loadDashboard() {
+            try {
+                // Por ahora con datos de prueba
+                const mockData = {
+                    ingresos: '612,500',
+                    clientes: 168,
+                    ocupados: 142,
+                    morosos: 7,
+                    planes: [
+                        { name: 'Diurno (6AM-6PM)', current: 48, max: 60, percent: 80 },
+                        { name: 'Nocturno (6PM-6AM)', current: 42, max: 70, percent: 60 },
+                        { name: '24 Horas', current: 52, max: 60, percent: 87 }
+                    ],
+                    alertas: [
+                        { type: 'warning', msg: 'Plan 24h al 87% de capacidad' },
+                        { type: 'info', msg: '7 suscripciones vencen mañana' },
+                        { type: 'error', msg: '2 pagos fallidos requieren atención' }
+                    ]
+                };
+
+                document.getElementById('kpiIngresos').textContent = mockData.ingresos;
+                document.getElementById('kpiClientes').textContent = mockData.clientes;
+                document.getElementById('kpiOcupados').textContent = mockData.ocupados;
+                document.getElementById('kpiMorosos').textContent = mockData.morosos;
+                document.getElementById('kpiPorcentaje').textContent = Math.round(mockData.ocupados / 170 * 100) + '%';
+
+                // Ocupación por plan
+                const ocupacionHTML = mockData.planes.map(p => `
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span>${p.name}</span>
+                            <span class="font-semibold">${p.current}/${p.max} (${p.percent}%)</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="h-2 rounded-full ${p.percent > 85 ? 'bg-red-500' : 'bg-blue-500'}" 
+                                style="width: ${p.percent}%"></div>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('ocupacionPlanes').innerHTML = ocupacionHTML;
+
+                // Alertas
+                const alertasHTML = mockData.alertas.map(a => {
+                    const colors = {
+                        warning: 'bg-yellow-100 text-yellow-800',
+                        error: 'bg-red-100 text-red-800',
+                        info: 'bg-blue-100 text-blue-800'
+                    };
+                    return `<div class="p-3 rounded-lg ${colors[a.type]}">${a.msg}</div>`;
+                }).join('');
+                document.getElementById('alertas').innerHTML = alertasHTML;
+
+            } catch (error) {
+                showNotification('Error cargando dashboard', 'error');
+            }
+        }
+
+        // Cargar planes desde API
+        async function loadPlanes() {
+            try {
+                const response = await fetch(`${API_URL}/plans`);
+                if (response.ok) {
+                    planes = await response.json();
+                    console.log('Planes cargados:', planes);
+                }
+            } catch (error) {
+                console.error('Error cargando planes:', error);
+            }
+        }
+
+        // Validar acceso
+        async function validarAcceso(type = 'entry') {
+            const placa = document.getElementById('placaValidar').value.trim().toUpperCase();
+            if (!placa) {
+                showNotification('Ingrese una placa', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/access/validate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vehiclePlate: placa, type })
+                });
+
+                const result = await response.json();
+                
+                const resultDiv = document.getElementById('validacionResult');
+                if (result.allowed) {
+                    resultDiv.innerHTML = `
+                        <div class="p-4 bg-green-100 text-green-800 rounded-lg">
+                            <div class="font-bold text-lg">✅ ACCESO PERMITIDO</div>
+                            <div class="mt-2">
+                                <p><strong>Placa:</strong> ${placa}</p>
+                                ${result.customerName ? `<p><strong>Cliente:</strong> ${result.customerName}</p>` : ''}
+                                ${result.planName ? `<p><strong>Plan:</strong> ${result.planName}</p>` : ''}
+                                ${result.validUntil ? `<p><strong>Válido hasta:</strong> ${new Date(result.validUntil).toLocaleDateString()}</p>` : ''}
+                                ${result.estimatedCost ? `<p><strong>Costo estimado:</strong> RD$ ${result.estimatedCost}</p>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    showNotification('Acceso permitido', 'success');
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="p-4 bg-red-100 text-red-800 rounded-lg">
+                            <div class="font-bold text-lg">❌ ACCESO DENEGADO</div>
+                            <div class="mt-2">
+                                <p><strong>Razón:</strong> ${result.message || result.reason}</p>
+                                ${result.allowedHours ? `<p><strong>Horario permitido:</strong> ${result.allowedHours}</p>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    showNotification(result.message, 'error');
+                }
+
+                document.getElementById('placaValidar').value = '';
+                document.getElementById('placaValidar').focus();
+                
+            } catch (error) {
+                showNotification('Error al validar acceso', 'error');
+                console.error(error);
+            }
+        }
+
+        // Notificaciones
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        function logout() {
+            if (confirm('¿Cerrar sesión?')) {
+                window.location.reload();
+            }
+        }
+
+        function searchClientes() {
+            // Implementar búsqueda
+        }
+
+        function showNewClienteForm() {
+            alert('Formulario de nuevo cliente en desarrollo');
+        }
+    </script>
+</body>
+</html>
