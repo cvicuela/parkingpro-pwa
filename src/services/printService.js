@@ -1,11 +1,23 @@
 // Thermal printer utilities for parking tickets, receipts, and cash register reports
 // Generates HTML formatted for 80mm/58mm thermal printers
 // Supports: preview mode (returns HTML) and direct print (opens popup)
+// QR codes generated locally via 'qrcode' library (works offline)
+
+import QRCode from 'qrcode';
 
 const PARKING_NAME = 'ParkingPro';
 const PARKING_ADDRESS = 'Santo Domingo, Rep. Dominicana';
 const PARKING_RNC = 'RNC: 000-000000-0';
 const PARKING_PHONE = 'Tel: (809) 000-0000';
+
+// Generate QR as data URL (base64 PNG) - works offline
+async function qrDataUrl(data, size = 300) {
+  try {
+    return await QRCode.toDataURL(String(data), { width: size, margin: 1, errorCorrectionLevel: 'M' });
+  } catch {
+    return '';
+  }
+}
 
 function openPrintWindow(html, title = 'ParkingPro') {
   const w = window.open('', '_blank', 'width=350,height=600');
@@ -34,12 +46,12 @@ function openPrintWindow(html, title = 'ParkingPro') {
 
 // ─── HTML GENERATORS (for preview) ───
 
-export function generateEntryTicketHTML({ plate, entryTime, type, planName, sessionId, qrUrl }) {
+export async function generateEntryTicketHTML({ plate, entryTime, type, planName, sessionId, qrUrl }) {
   const time = new Date(entryTime).toLocaleString('es-DO', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   });
-  const qrSrc = qrUrl || `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(sessionId || plate)}&size=300x300`;
+  const qrSrc = qrUrl || await qrDataUrl(sessionId || plate);
 
   return `
     <div class="center mb">
@@ -66,11 +78,11 @@ export function generateEntryTicketHTML({ plate, entryTime, type, planName, sess
   `;
 }
 
-export function generatePaymentReceiptHTML({ receipt, showQr = true }) {
+export async function generatePaymentReceiptHTML({ receipt, showQr = true }) {
   const r = receipt;
   const entryTime = new Date(r.entryTime).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const exitTime = new Date(r.exitTime || r.paidAt).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(r.code || r.invoiceNumber)}&size=300x300`;
+  const qrSrc = showQr ? await qrDataUrl(r.code || r.invoiceNumber) : '';
   const method = { cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' }[r.paymentMethod] || r.paymentMethod;
 
   return `
@@ -95,7 +107,7 @@ export function generatePaymentReceiptHTML({ receipt, showQr = true }) {
     <div class="row"><span>ITBIS (18%):</span><span>RD$ ${parseFloat(r.tax).toFixed(2)}</span></div>
     <div class="row bold big mt"><span>TOTAL:</span><span>RD$ ${parseFloat(r.total).toFixed(2)}</span></div>
     <div class="line"></div>
-    ${showQr ? `<img class="qr" src="${qrSrc}" alt="QR" />` : ''}
+    ${showQr && qrSrc ? `<img class="qr" src="${qrSrc}" alt="QR" />` : ''}
     ${r.code ? `<div class="center small">Codigo: ${r.code}</div>` : ''}
     <div class="center small mt">Presente este recibo para salir</div>
     <div class="center small mt mb">Gracias por su preferencia</div>
@@ -176,12 +188,14 @@ export function generateDailySummaryHTML({ date, stats }) {
 
 // ─── DIRECT PRINT FUNCTIONS (backwards compatible) ───
 
-export function printEntryTicket(data) {
-  openPrintWindow(generateEntryTicketHTML(data), 'Ticket de Entrada');
+export async function printEntryTicket(data) {
+  const html = await generateEntryTicketHTML(data);
+  openPrintWindow(html, 'Ticket de Entrada');
 }
 
-export function printPaymentReceipt(data) {
-  openPrintWindow(generatePaymentReceiptHTML(data), 'Recibo de Pago');
+export async function printPaymentReceipt(data) {
+  const html = await generatePaymentReceiptHTML(data);
+  openPrintWindow(html, 'Recibo de Pago');
 }
 
 export function printCashReport(data) {
@@ -224,8 +238,8 @@ export function addPrinter(printer) {
   const newPrinter = {
     id: `printer_${Date.now()}`,
     name: printer.name || 'Impresora',
-    type: printer.type || 'thermal', // thermal | laser | pdf
-    paperSize: printer.paperSize || '80mm', // 80mm | 58mm | A4
+    type: printer.type || 'thermal',
+    paperSize: printer.paperSize || '80mm',
     location: printer.location || '',
     isDefault: printer.isDefault || printers.length === 0,
     createdAt: new Date().toISOString(),

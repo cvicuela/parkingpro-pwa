@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { accessAPI, plansAPI } from '../services/api';
 import { printEntryTicket, printPaymentReceipt, generateEntryTicketHTML, generatePaymentReceiptHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
+import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
 import {
   LogIn, LogOut, Car, DollarSign, CheckCircle,
@@ -83,7 +84,7 @@ export default function ControlAccesoPage() {
         type: session?.subscription_id ? 'subscriber' : 'hourly',
         planName: session?.subscription_id ? 'Suscriptor' : 'Por Hora',
         sessionId: session?.id,
-        qrUrl: `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(session?.id || entryPlate)}&size=300x300`
+        qrData: session?.id || entryPlate,
       });
       fetchOccupancy();
     } catch (err) { toast.error(err.message || 'Error al registrar entrada'); } finally { setLoading(false); }
@@ -267,11 +268,13 @@ export default function ControlAccesoPage() {
                 {receiptData.code && <div className="flex justify-between"><span className="text-gray-500">Codigo</span><span className="font-mono">{receiptData.code}</span></div>}
               </div>
               <div className="text-center">
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(receiptData.code || receiptData.invoiceNumber)}&size=200x200`} alt="QR" className="mx-auto w-40 h-40" />
+                <div className="mx-auto w-40 h-40 flex items-center justify-center">
+                  <QRCodeSVG value={receiptData.code || receiptData.invoiceNumber || 'N/A'} size={150} level="M" />
+                </div>
                 <p className="text-xs text-gray-400 mt-1">Presente este QR para salir</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => { setPreviewHtml(generatePaymentReceiptHTML({ receipt: receiptData })); setPreviewTitle('Recibo de Pago'); setPreviewOpen(true); }}
+                <button onClick={async () => { setPreviewHtml(await generatePaymentReceiptHTML({ receipt: receiptData })); setPreviewTitle('Recibo de Pago'); setPreviewOpen(true); }}
                   className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 rounded-lg py-3 hover:bg-gray-200 font-medium"><Eye size={18} /> Vista Previa</button>
                 <button onClick={() => printPaymentReceipt({ receipt: receiptData })}
                   className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg py-3 hover:bg-indigo-700 font-medium"><Printer size={18} /> Imprimir</button>
@@ -293,12 +296,14 @@ export default function ControlAccesoPage() {
               <button onClick={() => { setEntryTicket(null); resetWizard(); }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
             <div className="text-center space-y-3">
-              <img src={entryTicket.qrUrl} alt="QR" className="mx-auto w-48 h-48" />
+              <div className="mx-auto w-48 h-48 flex items-center justify-center">
+                <QRCodeSVG value={entryTicket.qrData} size={180} level="M" />
+              </div>
               <p className="text-2xl font-mono font-bold text-indigo-700">{entryTicket.plate}</p>
               <p className="text-sm text-gray-500">Entrada: {new Date(entryTicket.entryTime).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}</p>
               <p className="text-sm text-gray-500">{entryTicket.type === 'subscriber' ? 'Suscriptor' : 'Por Hora'}</p>
               <div className="flex gap-2 pt-2">
-                <button onClick={() => { setPreviewHtml(generateEntryTicketHTML(entryTicket)); setPreviewTitle('Ticket de Entrada'); setPreviewOpen(true); }}
+                <button onClick={async () => { setPreviewHtml(await generateEntryTicketHTML(entryTicket)); setPreviewTitle('Ticket de Entrada'); setPreviewOpen(true); }}
                   className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 rounded-lg py-2 hover:bg-gray-200"><Eye size={16} /> Vista Previa</button>
                 <button onClick={() => printEntryTicket(entryTicket)}
                   className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700"><Printer size={16} /> Imprimir</button>
