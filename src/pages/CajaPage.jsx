@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { Wallet, Lock, CheckCircle, AlertTriangle, Plus, Minus, List } from 'lucide-react';
+import { Wallet, Lock, CheckCircle, AlertTriangle, Plus, Minus, List, Printer } from 'lucide-react';
 import { cashAPI } from '../services/api';
+import { printCashReport } from '../services/printService';
+import { useAuth } from '../context/AuthContext';
 
 const DENOMINATIONS = [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1];
 
 export default function CajaPage() {
+  const { user } = useAuth();
   const [activeRegister, setActiveRegister] = useState(null);
   const [limits, setLimits] = useState({ cashDiffThreshold: 200, refundLimitOperator: 500 });
   const [transactions, setTransactions] = useState([]);
@@ -67,6 +70,11 @@ export default function CajaPage() {
       } else {
         toast.success(data.message);
       }
+      printCashReport({
+        register: { ...activeRegister, closed_at: new Date().toISOString(), counted_balance: countedBalance, expected_balance: totalIn - totalOut, difference: countedBalance - (totalIn - totalOut) },
+        transactions,
+        operatorName: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : 'N/A'
+      });
       setShowClose(false);
       setActiveRegister(null);
       setTransactions([]);

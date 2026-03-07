@@ -252,6 +252,26 @@ export const accessAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
+  calculateFee: async (data) => {
+    const result = await rpc('calculate_parking_fee', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  processPayment: async (data) => {
+    const result = await rpc('process_parking_payment', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  validateExit: async (data) => {
+    const result = await rpc('validate_exit', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  gateVerify: async (data) => {
+    const result = await rpc('gate_verify', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Payments
