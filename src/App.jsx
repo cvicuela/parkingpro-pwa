@@ -16,6 +16,7 @@ import ConfigPage from './pages/ConfigPage';
 import CajaPage from './pages/CajaPage';
 import FacturasPage from './pages/FacturasPage';
 import AuditPage from './pages/AuditPage';
+import CajaHistorialPage from './pages/CajaHistorialPage';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -41,6 +42,7 @@ function AppRoutes() {
         <Route path="caja" element={<CajaPage />} />
         <Route path="pagos" element={<PagosPage />} />
         <Route path="facturas" element={<FacturasPage />} />
+        <Route path="caja/historial" element={<ProtectedRoute roles={['admin','super_admin']}><CajaHistorialPage /></ProtectedRoute>} />
         <Route path="reportes" element={<ProtectedRoute roles={['admin','super_admin']}><ReportesPage /></ProtectedRoute>} />
         <Route path="auditoria" element={<ProtectedRoute roles={['admin','super_admin']}><AuditPage /></ProtectedRoute>} />
         <Route path="config" element={<ProtectedRoute roles={['admin','super_admin']}><ConfigPage /></ProtectedRoute>} />
