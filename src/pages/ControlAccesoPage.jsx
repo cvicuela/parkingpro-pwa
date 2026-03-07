@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { accessAPI, plansAPI } from '../services/api';
-import { printEntryTicket, printPaymentReceipt } from '../services/printService';
+import { printEntryTicket, printPaymentReceipt, generateEntryTicketHTML, generatePaymentReceiptHTML } from '../services/printService';
+import PrintPreviewModal from '../components/PrintPreviewModal';
 import { toast } from 'react-toastify';
 import {
   LogIn, LogOut, Car, DollarSign, CheckCircle,
-  RefreshCw, QrCode, Printer, X,
+  RefreshCw, QrCode, Printer, X, Eye,
   CreditCard, Banknote, ArrowRight, ArrowLeft, Shield
 } from 'lucide-react';
 
@@ -48,6 +49,9 @@ export default function ControlAccesoPage() {
   const [payMethod, setPayMethod] = useState('cash');
   const [receiptData, setReceiptData] = useState(null);
   const [entryTicket, setEntryTicket] = useState(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
 
   const fetchOccupancy = useCallback(async () => {
     try {
@@ -266,12 +270,14 @@ export default function ControlAccesoPage() {
                 <img src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(receiptData.code || receiptData.invoiceNumber)}&size=200x200`} alt="QR" className="mx-auto w-40 h-40" />
                 <p className="text-xs text-gray-400 mt-1">Presente este QR para salir</p>
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
+                <button onClick={() => { setPreviewHtml(generatePaymentReceiptHTML({ receipt: receiptData })); setPreviewTitle('Recibo de Pago'); setPreviewOpen(true); }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 rounded-lg py-3 hover:bg-gray-200 font-medium"><Eye size={18} /> Vista Previa</button>
                 <button onClick={() => printPaymentReceipt({ receipt: receiptData })}
-                  className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg py-3 hover:bg-indigo-700 font-medium"><Printer size={18} /> Imprimir Recibo</button>
-                <button onClick={resetWizard}
-                  className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white rounded-lg py-3 hover:bg-green-700 font-medium"><ArrowRight size={18} /> Siguiente</button>
+                  className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg py-3 hover:bg-indigo-700 font-medium"><Printer size={18} /> Imprimir</button>
               </div>
+              <button onClick={resetWizard}
+                className="w-full flex items-center justify-center gap-2 bg-green-600 text-white rounded-lg py-3 hover:bg-green-700 font-medium mt-2"><ArrowRight size={18} /> Siguiente</button>
             </div>
           )}
         </div>
@@ -292,15 +298,18 @@ export default function ControlAccesoPage() {
               <p className="text-sm text-gray-500">Entrada: {new Date(entryTicket.entryTime).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}</p>
               <p className="text-sm text-gray-500">{entryTicket.type === 'subscriber' ? 'Suscriptor' : 'Por Hora'}</p>
               <div className="flex gap-2 pt-2">
+                <button onClick={() => { setPreviewHtml(generateEntryTicketHTML(entryTicket)); setPreviewTitle('Ticket de Entrada'); setPreviewOpen(true); }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 rounded-lg py-2 hover:bg-gray-200"><Eye size={16} /> Vista Previa</button>
                 <button onClick={() => printEntryTicket(entryTicket)}
-                  className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700"><Printer size={16} /> Imprimir Ticket</button>
-                <button onClick={() => { setEntryTicket(null); resetWizard(); }}
-                  className="flex-1 flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2 text-gray-700 hover:bg-gray-50">Cerrar</button>
+                  className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700"><Printer size={16} /> Imprimir</button>
               </div>
+              <button onClick={() => { setEntryTicket(null); resetWizard(); }}
+                className="w-full mt-2 flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2 text-gray-700 hover:bg-gray-50">Cerrar</button>
             </div>
           </div>
         </div>
       )}
+      <PrintPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} html={previewHtml} title={previewTitle} />
     </div>
   );
 }

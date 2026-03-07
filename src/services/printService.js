@@ -1,15 +1,16 @@
 // Thermal printer utilities for parking tickets, receipts, and cash register reports
-// Generates HTML formatted for 80mm/58mm thermal printers via window.print()
+// Generates HTML formatted for 80mm/58mm thermal printers
+// Supports: preview mode (returns HTML) and direct print (opens popup)
 
 const PARKING_NAME = 'ParkingPro';
 const PARKING_ADDRESS = 'Santo Domingo, Rep. Dominicana';
 const PARKING_RNC = 'RNC: 000-000000-0';
 const PARKING_PHONE = 'Tel: (809) 000-0000';
 
-function openPrintWindow(html) {
+function openPrintWindow(html, title = 'ParkingPro') {
   const w = window.open('', '_blank', 'width=350,height=600');
   if (!w) return;
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>ParkingPro</title>
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
 <style>
   @page { margin: 0; size: 80mm auto; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -31,15 +32,16 @@ function openPrintWindow(html) {
   w.document.close();
 }
 
-// Print entry ticket with QR code
-export function printEntryTicket({ plate, entryTime, type, planName, sessionId, qrUrl }) {
+// ─── HTML GENERATORS (for preview) ───
+
+export function generateEntryTicketHTML({ plate, entryTime, type, planName, sessionId, qrUrl }) {
   const time = new Date(entryTime).toLocaleString('es-DO', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   });
   const qrSrc = qrUrl || `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(sessionId || plate)}&size=300x300`;
 
-  openPrintWindow(`
+  return `
     <div class="center mb">
       <div class="bold big">${PARKING_NAME}</div>
       <div class="small">${PARKING_ADDRESS}</div>
@@ -61,18 +63,17 @@ export function printEntryTicket({ plate, entryTime, type, planName, sessionId, 
     <div class="center small mt">Conserve este ticket para la salida</div>
     <div class="center small">Tarifa por hora segun plan vigente</div>
     <div class="center small mt mb">${PARKING_NAME} - Gracias por su visita</div>
-  `);
+  `;
 }
 
-// Print payment receipt
-export function printPaymentReceipt({ receipt, showQr = true }) {
+export function generatePaymentReceiptHTML({ receipt, showQr = true }) {
   const r = receipt;
   const entryTime = new Date(r.entryTime).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const exitTime = new Date(r.exitTime || r.paidAt).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(r.code || r.invoiceNumber)}&size=300x300`;
   const method = { cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' }[r.paymentMethod] || r.paymentMethod;
 
-  openPrintWindow(`
+  return `
     <div class="center mb">
       <div class="bold big">${PARKING_NAME}</div>
       <div class="small">${PARKING_ADDRESS}</div>
@@ -98,11 +99,10 @@ export function printPaymentReceipt({ receipt, showQr = true }) {
     ${r.code ? `<div class="center small">Codigo: ${r.code}</div>` : ''}
     <div class="center small mt">Presente este recibo para salir</div>
     <div class="center small mt mb">Gracias por su preferencia</div>
-  `);
+  `;
 }
 
-// Print cash register close report
-export function printCashReport({ register, transactions, operatorName }) {
+export function generateCashReportHTML({ register, transactions, operatorName }) {
   const opened = new Date(register.opened_at).toLocaleString('es-DO');
   const closed = new Date(register.closed_at || new Date()).toLocaleString('es-DO');
   const payments = transactions.filter(t => t.type === 'payment' && t.direction === 'in');
@@ -119,7 +119,7 @@ export function printCashReport({ register, transactions, operatorName }) {
   const diff = parseFloat(register.difference || 0);
   const diffColor = diff === 0 ? '' : diff > 0 ? '(+)' : '(-)';
 
-  openPrintWindow(`
+  return `
     <div class="center mb">
       <div class="bold big">${PARKING_NAME}</div>
       <div class="small">${PARKING_ADDRESS}</div>
@@ -143,18 +143,17 @@ export function printCashReport({ register, transactions, operatorName }) {
     ${Math.abs(diff) > 200 ? '<div class="center bold mt">** REQUIERE APROBACION **</div>' : ''}
     <div class="line"></div>
     <div class="bold mt mb">DETALLE DE MOVIMIENTOS</div>
-    ${txRows}
+    ${txRows || '<div class="center small">Sin movimientos</div>'}
     <div class="line"></div>
     <div class="center small mt">Total transacciones: ${transactions.length}</div>
     <div class="center small mt mb">Impreso: ${new Date().toLocaleString('es-DO')}</div>
-  `);
+  `;
 }
 
-// Print daily summary report
-export function printDailySummary({ date, stats }) {
+export function generateDailySummaryHTML({ date, stats }) {
   const d = new Date(date || new Date()).toLocaleDateString('es-DO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
-  openPrintWindow(`
+  return `
     <div class="center mb">
       <div class="bold big">${PARKING_NAME}</div>
     </div>
@@ -172,5 +171,86 @@ export function printDailySummary({ date, stats }) {
     <div class="row bold big"><span>Total dia:</span><span>RD$ ${(stats.totalRevenue || 0).toFixed(2)}</span></div>
     <div class="line"></div>
     <div class="center small mt mb">Generado: ${new Date().toLocaleString('es-DO')}</div>
-  `);
+  `;
+}
+
+// ─── DIRECT PRINT FUNCTIONS (backwards compatible) ───
+
+export function printEntryTicket(data) {
+  openPrintWindow(generateEntryTicketHTML(data), 'Ticket de Entrada');
+}
+
+export function printPaymentReceipt(data) {
+  openPrintWindow(generatePaymentReceiptHTML(data), 'Recibo de Pago');
+}
+
+export function printCashReport(data) {
+  openPrintWindow(generateCashReportHTML(data), 'Cierre de Caja');
+}
+
+export function printDailySummary(data) {
+  openPrintWindow(generateDailySummaryHTML(data), 'Reporte Diario');
+}
+
+// ─── PRINTER MANAGEMENT ───
+
+const PRINTERS_KEY = 'pp_printers';
+const DEFAULT_PRINTER_KEY = 'pp_default_printer';
+
+export function getPrinters() {
+  try {
+    return JSON.parse(localStorage.getItem(PRINTERS_KEY) || '[]');
+  } catch { return []; }
+}
+
+export function savePrinters(printers) {
+  localStorage.setItem(PRINTERS_KEY, JSON.stringify(printers));
+}
+
+export function getDefaultPrinter() {
+  return localStorage.getItem(DEFAULT_PRINTER_KEY) || null;
+}
+
+export function setDefaultPrinter(printerId) {
+  if (printerId) {
+    localStorage.setItem(DEFAULT_PRINTER_KEY, printerId);
+  } else {
+    localStorage.removeItem(DEFAULT_PRINTER_KEY);
+  }
+}
+
+export function addPrinter(printer) {
+  const printers = getPrinters();
+  const newPrinter = {
+    id: `printer_${Date.now()}`,
+    name: printer.name || 'Impresora',
+    type: printer.type || 'thermal', // thermal | laser | pdf
+    paperSize: printer.paperSize || '80mm', // 80mm | 58mm | A4
+    location: printer.location || '',
+    isDefault: printer.isDefault || printers.length === 0,
+    createdAt: new Date().toISOString(),
+  };
+  printers.push(newPrinter);
+  savePrinters(printers);
+  if (newPrinter.isDefault) setDefaultPrinter(newPrinter.id);
+  return newPrinter;
+}
+
+export function removePrinter(printerId) {
+  let printers = getPrinters();
+  printers = printers.filter(p => p.id !== printerId);
+  savePrinters(printers);
+  if (getDefaultPrinter() === printerId) {
+    setDefaultPrinter(printers[0]?.id || null);
+  }
+}
+
+export function updatePrinter(printerId, updates) {
+  const printers = getPrinters();
+  const idx = printers.findIndex(p => p.id === printerId);
+  if (idx >= 0) {
+    printers[idx] = { ...printers[idx], ...updates };
+    savePrinters(printers);
+    if (updates.isDefault) setDefaultPrinter(printerId);
+  }
 }

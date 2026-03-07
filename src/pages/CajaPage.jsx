@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { Wallet, Lock, CheckCircle, AlertTriangle, Plus, Minus, List, Printer } from 'lucide-react';
+import { Wallet, Lock, CheckCircle, AlertTriangle, Plus, Minus, List, Printer, Eye } from 'lucide-react';
 import { cashAPI } from '../services/api';
-import { printCashReport } from '../services/printService';
+import { printCashReport, generateCashReportHTML } from '../services/printService';
+import PrintPreviewModal from '../components/PrintPreviewModal';
 import { useAuth } from '../context/AuthContext';
 
 const DENOMINATIONS = [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1];
@@ -18,6 +19,8 @@ export default function CajaPage() {
   const [openForm, setOpenForm] = useState({ openingBalance: '', name: 'Caja Principal' });
   const [denomCounts, setDenomCounts] = useState({});
   const [closeNotes, setCloseNotes] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
 
   const fetchActive = useCallback(async () => {
     try {
@@ -250,6 +253,17 @@ export default function CajaPage() {
 
               <div className="flex gap-3">
                 <button type="button" onClick={() => setShowClose(false)} className="flex-1 border border-gray-300 rounded-lg py-2 text-gray-700 hover:bg-gray-50">Cancelar</button>
+                <button type="button" onClick={() => {
+                  const reportData = {
+                    register: { ...activeRegister, closed_at: new Date().toISOString(), counted_balance: countedBalance, expected_balance: totalIn - totalOut, difference: countedBalance - (totalIn - totalOut) },
+                    transactions,
+                    operatorName: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : 'N/A'
+                  };
+                  setPreviewHtml(generateCashReportHTML(reportData));
+                  setPreviewOpen(true);
+                }} className="flex-1 bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700 flex items-center justify-center gap-2">
+                  <Eye size={16} /> Vista Previa
+                </button>
                 <button type="submit" className="flex-1 bg-red-600 text-white rounded-lg py-2 hover:bg-red-700 flex items-center justify-center gap-2">
                   <CheckCircle size={16} /> Confirmar Cierre
                 </button>
@@ -258,6 +272,7 @@ export default function CajaPage() {
           </div>
         </div>
       )}
+      <PrintPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} html={previewHtml} title="Cierre de Caja" />
     </div>
   );
 }

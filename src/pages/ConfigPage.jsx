@@ -3,15 +3,18 @@ import { settingsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import {
   Settings, Save, RotateCw, Building2, Receipt, Shield,
-  Bell, Wallet, Globe, ChevronDown, ChevronRight, Plus, Trash2
+  Bell, Wallet, Globe, ChevronDown, ChevronRight, Plus, Trash2,
+  Printer, Star, Eye
 } from 'lucide-react';
+import { getPrinters, addPrinter, removePrinter, setDefaultPrinter, getDefaultPrinter, generateEntryTicketHTML, generatePaymentReceiptHTML, generateCashReportHTML, generateDailySummaryHTML } from '../services/printService';
+import PrintPreviewModal from '../components/PrintPreviewModal';
 
 const categoryConfig = {
   general: { label: 'General', icon: Building2, color: 'indigo', description: 'Datos del negocio y moneda' },
   caja: { label: 'Caja Registradora', icon: Wallet, color: 'green', description: 'Umbrales y configuracion de caja' },
   facturacion: { label: 'Facturacion', icon: Receipt, color: 'blue', description: 'ITBIS, NCF y comprobantes fiscales' },
   antifraude: { label: 'Antifraude', icon: Shield, color: 'red', description: 'Limites de reembolso y proteccion' },
-  notificaciones: { label: 'Notificaciones', icon: Bell, color: 'amber', description: 'Alertas y correos' },
+  notificaciones: { label: 'Notificaciones', icon: Bell, color: 'amber', description: 'Email, Telegram y alertas' },
   parqueo: { label: 'Parqueo', icon: Globe, color: 'purple', description: 'Espacios, tolerancia y mora' },
 };
 
@@ -24,12 +27,20 @@ const fieldConfig = {
   cash_diff_threshold: { label: 'Umbral diferencia de caja (RD$)', type: 'number', hint: 'Diferencias mayores requieren aprobacion del supervisor' },
   multi_register_enabled: { label: 'Multiples cajas simultaneas', type: 'toggle' },
   tax_rate: { label: 'Tasa ITBIS', type: 'number', hint: '0.18 = 18%' },
-  ncf_series_consumer: { label: 'Serie NCF - Consumidor Final', type: 'text', hint: 'Ej: B01' },
-  ncf_series_fiscal: { label: 'Serie NCF - Valor Fiscal', type: 'text', hint: 'Ej: B14' },
-  ncf_series_credit: { label: 'Serie NCF - Nota de Credito', type: 'text', hint: 'Ej: B04' },
+  invoice_mode: { label: 'Modo de Facturacion', type: 'select', options: ['fiscal', 'interno'], hint: 'Fiscal = NCF/DGII | Interno = numeracion propia sin reporte fiscal' },
+  ncf_series_consumer: { label: 'Serie NCF - Consumidor Final', type: 'text', hint: 'Solo modo fiscal. Ej: B01' },
+  ncf_series_fiscal: { label: 'Serie NCF - Valor Fiscal', type: 'text', hint: 'Solo modo fiscal. Ej: B14' },
+  ncf_series_credit: { label: 'Serie NCF - Nota de Credito', type: 'text', hint: 'Solo modo fiscal. Ej: B04' },
+  internal_invoice_prefix: { label: 'Prefijo factura interna', type: 'text', hint: 'Solo modo interno. Ej: FAC, INV', placeholder: 'FAC' },
+  internal_invoice_next: { label: 'Proximo numero factura interna', type: 'number', hint: 'Numero secuencial siguiente para facturas internas' },
   refund_limit_operator: { label: 'Limite reembolso por operador (RD$)', type: 'number', hint: 'Maximo que un operador puede reembolsar sin aprobacion' },
   refund_daily_multiplier: { label: 'Multiplicador diario de reembolso', type: 'number', hint: 'Tope diario = limite x multiplicador' },
-  alert_email: { label: 'Email de alertas', type: 'email', placeholder: 'admin@empresa.com' },
+  alert_email: { label: 'Email de alertas', type: 'email', placeholder: 'admin@empresa.com', hint: 'Recibe notificaciones de cierres de caja, reembolsos y alertas criticas' },
+  notification_email_enabled: { label: 'Notificaciones por Email', type: 'toggle', hint: 'Activar envio de alertas al email configurado' },
+  telegram_enabled: { label: 'Notificaciones por Telegram', type: 'toggle', hint: 'Activar envio de alertas a los numeros configurados' },
+  telegram_phone_1: { label: 'Telegram - Numero 1 (Principal)', type: 'text', placeholder: '+1 809-000-0000', hint: 'Numero de WhatsApp/Telegram para alertas' },
+  telegram_phone_2: { label: 'Telegram - Numero 2 (Opcional)', type: 'text', placeholder: '+1 809-000-0000' },
+  telegram_phone_3: { label: 'Telegram - Numero 3 (Opcional)', type: 'text', placeholder: '+1 809-000-0000' },
   parking_name: { label: 'Nombre del Parqueo', type: 'text' },
   total_spaces: { label: 'Total de Espacios', type: 'number' },
   grace_period_hours: { label: 'Periodo de Gracia (horas)', type: 'number' },
@@ -45,6 +56,22 @@ export default function ConfigPage() {
   const [editValues, setEditValues] = useState({});
   const [expandedCategories, setExpandedCategories] = useState({});
   const [hasChanges, setHasChanges] = useState({});
+  // Printer state
+  const [printers, setPrinters] = useState([]);
+  const [defaultPrinterId, setDefaultPrinterId] = useState(null);
+  const [showAddPrinter, setShowAddPrinter] = useState(false);
+  const [newPrinter, setNewPrinter] = useState({ name: '', type: 'thermal', paperSize: '80mm', location: '' });
+  const [showPrinterSection, setShowPrinterSection] = useState(true);
+  // Preview state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
+
+  const loadPrinters = () => {
+    setPrinters(getPrinters());
+    setDefaultPrinterId(getDefaultPrinter());
+  };
+  useEffect(() => { loadPrinters(); }, []);
 
   const fetchSettings = async () => {
     try {
@@ -308,6 +335,153 @@ export default function ConfigPage() {
           );
         })
       )}
+
+      {/* ─── PRINTERS SECTION ─── */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <button onClick={() => setShowPrinterSection(p => !p)}
+          className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-violet-100 flex items-center justify-center">
+              <Printer size={20} className="text-violet-600" />
+            </div>
+            <div className="text-left">
+              <h3 className="font-semibold text-gray-800">Impresoras</h3>
+              <p className="text-xs text-gray-400">Gestiona impresoras termicas y de recibos ({printers.length} configuradas)</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {showPrinterSection ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
+          </div>
+        </button>
+
+        {showPrinterSection && (
+          <div className="border-t p-5 space-y-4">
+            {/* Printer list */}
+            {printers.length === 0 ? (
+              <div className="text-center py-6">
+                <Printer size={36} className="mx-auto text-gray-300 mb-2" />
+                <p className="text-gray-500 text-sm">No hay impresoras configuradas</p>
+                <p className="text-gray-400 text-xs">Agrega una impresora para habilitar la impresion directa</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {printers.map(p => (
+                  <div key={p.id} className={`flex items-center justify-between p-3 rounded-lg border ${p.id === defaultPrinterId ? 'border-violet-300 bg-violet-50' : 'border-gray-200'}`}>
+                    <div className="flex items-center gap-3">
+                      <Printer size={20} className={p.id === defaultPrinterId ? 'text-violet-600' : 'text-gray-400'} />
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm flex items-center gap-1">
+                          {p.name}
+                          {p.id === defaultPrinterId && <Star size={12} className="text-amber-500 fill-amber-500" />}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {p.type === 'thermal' ? 'Termica' : p.type === 'laser' ? 'Laser' : 'PDF'} · {p.paperSize}
+                          {p.location ? ` · ${p.location}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {p.id !== defaultPrinterId && (
+                        <button onClick={() => { setDefaultPrinter(p.id); loadPrinters(); toast.success('Impresora predeterminada actualizada'); }}
+                          className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-violet-600" title="Establecer como predeterminada">
+                          <Star size={14} />
+                        </button>
+                      )}
+                      <button onClick={() => { removePrinter(p.id); loadPrinters(); toast.success('Impresora eliminada'); }}
+                        className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" title="Eliminar">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add printer form */}
+            {showAddPrinter ? (
+              <div className="border border-dashed border-violet-300 rounded-lg p-4 bg-violet-50/50 space-y-3">
+                <p className="font-medium text-gray-700 text-sm">Nueva Impresora</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <input placeholder="Nombre (ej: Caja Principal)" value={newPrinter.name}
+                    onChange={e => setNewPrinter(p => ({ ...p, name: e.target.value }))}
+                    className="col-span-2 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none" />
+                  <select value={newPrinter.type} onChange={e => setNewPrinter(p => ({ ...p, type: e.target.value }))}
+                    className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none">
+                    <option value="thermal">Termica (POS)</option>
+                    <option value="laser">Laser / Tinta</option>
+                    <option value="pdf">Solo PDF</option>
+                  </select>
+                  <select value={newPrinter.paperSize} onChange={e => setNewPrinter(p => ({ ...p, paperSize: e.target.value }))}
+                    className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none">
+                    <option value="80mm">80mm (Estandar)</option>
+                    <option value="58mm">58mm (Compacta)</option>
+                    <option value="A4">A4 (Carta)</option>
+                  </select>
+                  <input placeholder="Ubicacion (ej: Entrada)" value={newPrinter.location}
+                    onChange={e => setNewPrinter(p => ({ ...p, location: e.target.value }))}
+                    className="col-span-2 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none" />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowAddPrinter(false)}
+                    className="flex-1 border border-gray-300 rounded-lg py-2 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                  <button onClick={() => {
+                    if (!newPrinter.name.trim()) { toast.warning('Ingresa un nombre'); return; }
+                    addPrinter(newPrinter);
+                    loadPrinters();
+                    setNewPrinter({ name: '', type: 'thermal', paperSize: '80mm', location: '' });
+                    setShowAddPrinter(false);
+                    toast.success('Impresora agregada');
+                  }} className="flex-1 bg-violet-600 text-white rounded-lg py-2 text-sm hover:bg-violet-700 flex items-center justify-center gap-1">
+                    <Plus size={14} /> Agregar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowAddPrinter(true)}
+                className="w-full border border-dashed border-gray-300 rounded-lg py-3 text-sm text-gray-500 hover:border-violet-400 hover:text-violet-600 hover:bg-violet-50/50 flex items-center justify-center gap-2 transition-colors">
+                <Plus size={16} /> Agregar Impresora
+              </button>
+            )}
+
+            {/* Print Preview / Test */}
+            <div className="border-t pt-4 mt-4">
+              <p className="font-medium text-gray-700 text-sm mb-3 flex items-center gap-2"><Eye size={16} className="text-indigo-500" /> Vista Previa de Documentos</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Ticket Entrada', fn: () => {
+                    setPreviewHtml(generateEntryTicketHTML({ plate: 'A123456', entryTime: new Date().toISOString(), type: 'hourly', planName: 'Por Hora', sessionId: 'demo-session-id-12345678', qrUrl: `https://api.qrserver.com/v1/create-qr-code/?data=demo-session-id-12345678&size=300x300` }));
+                    setPreviewTitle('Ticket de Entrada'); setPreviewOpen(true);
+                  }},
+                  { label: 'Recibo Pago', fn: () => {
+                    setPreviewHtml(generatePaymentReceiptHTML({ receipt: { plateNumber: 'A123456', entryTime: new Date(Date.now() - 3600000 * 3).toISOString(), exitTime: new Date().toISOString(), hours: 3, paymentMethod: 'cash', subtotal: 450, tax: 81, total: 531, invoiceNumber: 'FAC-2026-0001', ncf: 'B0100000001', code: 'PAY-DEMO-001' } }));
+                    setPreviewTitle('Recibo de Pago'); setPreviewOpen(true);
+                  }},
+                  { label: 'Cierre Caja', fn: () => {
+                    setPreviewHtml(generateCashReportHTML({ register: { name: 'Caja Principal', opening_balance: 2000, opened_at: new Date(Date.now() - 28800000).toISOString(), closed_at: new Date().toISOString(), expected_balance: 8500, counted_balance: 8450, difference: -50 }, transactions: [
+                      { type: 'payment', direction: 'in', amount: 350, description: 'Cobro A123456', created_at: new Date(Date.now() - 25000000).toISOString() },
+                      { type: 'payment', direction: 'in', amount: 500, description: 'Cobro B789012', created_at: new Date(Date.now() - 18000000).toISOString() },
+                      { type: 'payment', direction: 'in', amount: 150, description: 'Cobro C345678', created_at: new Date(Date.now() - 7200000).toISOString() },
+                    ], operatorName: 'Juan Operador' }));
+                    setPreviewTitle('Cierre de Caja'); setPreviewOpen(true);
+                  }},
+                  { label: 'Reporte Diario', fn: () => {
+                    setPreviewHtml(generateDailySummaryHTML({ date: new Date(), stats: { totalVehicles: 87, subscribers: 32, hourly: 55, occupancyRate: 72, cashRevenue: 15200, cardRevenue: 8400, totalRevenue: 23600 } }));
+                    setPreviewTitle('Reporte Diario'); setPreviewOpen(true);
+                  }},
+                ].map(({ label, fn }) => (
+                  <button key={label} onClick={fn}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+                    <Eye size={14} /> {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Print Preview Modal */}
+      <PrintPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} html={previewHtml} title={previewTitle} />
 
       {/* Categories without settings */}
       {categoryOrder.filter(cat => !grouped[cat] || grouped[cat].length === 0).length > 0 && (
