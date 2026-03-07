@@ -14,6 +14,7 @@
     "url": "http://local_proxy@127.0.0.1:45653/git/cvicuela/parkingpro-pwa"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
     "axios": "^1.13.6",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",

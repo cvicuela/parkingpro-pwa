@@ -1,154 +1,396 @@
-import axios from 'axios';
-import { offlineQueue } from './offlineQueue';
+import { rpc } from './supabaseClient';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
+// Helper to get token
+const getToken = () => localStorage.getItem('pp_token') || '';
 
-const api = axios.create({
-  baseURL: API_BASE,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' }
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('pp_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('pp_token');
-      localStorage.removeItem('pp_user');
-      window.location.href = '/login';
-      return Promise.reject(error);
-    }
-
-    // Queue failed mutations when offline
-    if (!navigator.onLine && error.config && ['post', 'put', 'patch', 'delete'].includes(error.config.method)) {
-      offlineQueue.add({
-        method: error.config.method,
-        url: error.config.url,
-        data: error.config.data ? JSON.parse(error.config.data) : undefined
-      });
-      return Promise.resolve({ data: { success: true, offline: true, message: 'Guardado offline - se sincronizara al reconectar' } });
-    }
-
-    return Promise.reject(error);
-  }
-);
+// Wrap RPC result to match existing { data: { ... } } format used by AuthContext
+const wrap = (result) => ({ data: result });
 
 // Auth
 export const authAPI = {
-  login: (data) => api.post('/auth/login', data),
-  register: (data) => api.post('/auth/register', data),
-  me: () => api.get('/auth/me'),
-  logout: () => api.post('/auth/logout'),
+  login: async ({ email, password }) => {
+    const result = await rpc('authenticate', { p_email: email, p_password: password });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  register: async (formData) => {
+    const result = await rpc('register_user', {
+      p_email: formData.email,
+      p_phone: formData.phone,
+      p_password: formData.password,
+      p_first_name: formData.firstName || null,
+      p_last_name: formData.lastName || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  me: async () => {
+    const result = await rpc('get_current_user_info', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  logout: async () => {
+    const result = await rpc('do_logout', { p_token: getToken() });
+    return wrap(result);
+  },
 };
 
 // Customers
 export const customersAPI = {
-  list: (params) => api.get('/customers', { params }),
-  get: (id) => api.get(`/customers/${id}`),
-  create: (data) => api.post('/customers', data),
-  update: (id, data) => api.patch(`/customers/${id}`, data),
-  delete: (id) => api.delete(`/customers/${id}`),
+  list: async (params = {}) => {
+    const result = await rpc('list_customers', {
+      p_token: getToken(),
+      p_search: params?.search || null,
+      p_limit: params?.limit || 50,
+      p_offset: params?.offset || 0
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  get: async (id) => {
+    const result = await rpc('get_customer', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_customer', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  update: async (id, data) => {
+    const result = await rpc('update_customer', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  delete: async (id) => {
+    const result = await rpc('delete_customer', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Vehicles
 export const vehiclesAPI = {
-  list: (params) => api.get('/vehicles', { params }),
-  get: (id) => api.get(`/vehicles/${id}`),
-  create: (data) => api.post('/vehicles', data),
-  update: (id, data) => api.patch(`/vehicles/${id}`, data),
-  delete: (id) => api.delete(`/vehicles/${id}`),
-  findByPlate: (plate) => api.get(`/vehicles/plate/${plate}`),
+  list: async (params = {}) => {
+    const result = await rpc('list_vehicles', {
+      p_token: getToken(),
+      p_search: params?.search || null,
+      p_limit: params?.limit || 50,
+      p_offset: params?.offset || 0
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  get: async (id) => {
+    const result = await rpc('get_vehicle', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_vehicle', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  update: async (id, data) => {
+    const result = await rpc('update_vehicle', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  delete: async (id) => {
+    const result = await rpc('delete_vehicle', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  findByPlate: async (plate) => {
+    const result = await rpc('find_vehicle_by_plate', { p_token: getToken(), p_plate: plate });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Plans
 export const plansAPI = {
-  list: () => api.get('/plans'),
-  get: (id) => api.get(`/plans/${id}`),
-  create: (data) => api.post('/plans', data),
-  update: (id, data) => api.patch(`/plans/${id}`, data),
-  delete: (id) => api.delete(`/plans/${id}`),
-  occupancy: (id) => api.get(`/plans/${id}/occupancy`),
-  getHourlyRates: (planId) => api.get(`/plans/hourly/rates/${planId}`),
-  updateHourlyRates: (planId, rates) => api.put(`/plans/hourly/rates/${planId}`, { rates }),
-  calculateHourly: (data) => api.post('/plans/hourly/calculate', data),
+  list: async () => {
+    const result = await rpc('list_plans', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  get: async (id) => {
+    const result = await rpc('get_plan', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_plan', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  update: async (id, data) => {
+    const result = await rpc('update_plan', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  delete: async (id) => {
+    const result = await rpc('delete_plan', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  occupancy: async (id) => {
+    const result = await rpc('get_plan_occupancy', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  getHourlyRates: async (planId) => {
+    const result = await rpc('get_hourly_rates', { p_token: getToken(), p_plan_id: planId });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  updateHourlyRates: async (planId, rates) => {
+    const result = await rpc('update_hourly_rates', { p_token: getToken(), p_plan_id: planId, p_rates: rates });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  calculateHourly: async (data) => {
+    const result = await rpc('calculate_hourly', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Subscriptions
 export const subscriptionsAPI = {
-  list: (params) => api.get('/subscriptions', { params }),
-  get: (id) => api.get(`/subscriptions/${id}`),
-  create: (data) => api.post('/subscriptions', data),
-  update: (id, data) => api.patch(`/subscriptions/${id}`, data),
-  cancel: (id) => api.delete(`/subscriptions/${id}`),
-  suspend: (id) => api.post(`/subscriptions/${id}/suspend`),
-  reactivate: (id) => api.post(`/subscriptions/${id}/reactivate`),
-  qr: (id) => api.get(`/subscriptions/${id}/qr`),
+  list: async (params = {}) => {
+    const result = await rpc('list_subscriptions', {
+      p_token: getToken(),
+      p_status: params?.status || null,
+      p_limit: params?.limit || 50,
+      p_offset: params?.offset || 0
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  get: async (id) => {
+    const result = await rpc('get_subscription', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_subscription', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  update: async (id, data) => {
+    const result = await rpc('update_subscription', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  cancel: async (id) => {
+    const result = await rpc('cancel_subscription', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  suspend: async (id) => {
+    const result = await rpc('suspend_subscription', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  reactivate: async (id) => {
+    const result = await rpc('reactivate_subscription', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  qr: async (id) => {
+    const result = await rpc('get_subscription_qr', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Access Control
 export const accessAPI = {
-  validate: (data) => api.post('/access/validate', data),
-  entry: (data) => api.post('/access/entry', data),
-  exit: (data) => api.post('/access/exit', data),
-  history: (params) => api.get('/access/history', { params }),
-  activeSessions: () => api.get('/access/sessions/active'),
-  sessionByPlate: (plate) => api.get(`/access/sessions/${plate}`),
-  endSession: (id) => api.post(`/access/sessions/${id}/end`),
-  sessionPayment: (id, data) => api.post(`/access/sessions/${id}/payment`, data),
+  validate: async (data) => {
+    const result = await rpc('validate_access', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  entry: async (data) => {
+    const result = await rpc('register_entry', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  exit: async (data) => {
+    const result = await rpc('register_exit', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  history: async (params = {}) => {
+    const result = await rpc('access_history', {
+      p_token: getToken(),
+      p_limit: params?.limit || 50,
+      p_offset: params?.offset || 0
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  activeSessions: async () => {
+    const result = await rpc('list_active_sessions', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  sessionByPlate: async (plate) => {
+    const result = await rpc('session_by_plate', { p_token: getToken(), p_plate: plate });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  endSession: async (id) => {
+    const result = await rpc('end_session', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  sessionPayment: async (id, data) => {
+    const result = await rpc('session_payment', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Payments
 export const paymentsAPI = {
-  list: (params) => api.get('/payments', { params }),
-  get: (id) => api.get(`/payments/${id}`),
-  create: (data) => api.post('/payments', data),
-  refund: (id) => api.post(`/payments/${id}/refund`),
+  list: async (params = {}) => {
+    const result = await rpc('list_payments', {
+      p_token: getToken(),
+      p_limit: params?.limit || 50,
+      p_offset: params?.offset || 0
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  get: async (id) => {
+    const result = await rpc('get_payment', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_payment', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  refund: async (id) => {
+    const result = await rpc('refund_payment', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Reports
 export const reportsAPI = {
-  dashboard: () => api.get('/reports/dashboard'),
-  activeVehicles: () => api.get('/reports/active-vehicles'),
+  dashboard: async () => {
+    const result = await rpc('get_dashboard_stats', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  activeVehicles: async () => {
+    const result = await rpc('list_active_sessions', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Settings
 export const settingsAPI = {
-  list: () => api.get('/settings'),
-  get: (key) => api.get(`/settings/${key}`),
-  update: (key, value) => api.patch(`/settings/${key}`, { value }),
+  list: async () => {
+    const result = await rpc('list_settings', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  get: async (key) => {
+    const result = await rpc('get_setting', { p_token: getToken(), p_key: key });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  update: async (key, value) => {
+    const result = await rpc('update_setting', { p_token: getToken(), p_key: key, p_value: value });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
-
-export default api;
 
 // Cash Registers
 export const cashAPI = {
-  open: (data) => api.post('/cash-registers/open', data),
-  active: () => api.get('/cash-registers/active'),
-  close: (id, data) => api.post(`/cash-registers/${id}/close`, data),
-  approve: (id, data) => api.post(`/cash-registers/${id}/approve`, data),
-  transactions: (id) => api.get(`/cash-registers/${id}/transactions`),
-  history: (params) => api.get('/cash-registers/history', { params }),
-  limits: () => api.get('/cash-registers/limits'),
+  open: async (data) => {
+    const result = await rpc('open_cash_register', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  active: async () => {
+    const result = await rpc('get_active_register', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  close: async (id, data) => {
+    const result = await rpc('close_cash_register', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  approve: async (id, data) => {
+    const result = await rpc('approve_cash_register', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  transactions: async (id) => {
+    const result = await rpc('get_register_transactions', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  history: async (params = {}) => {
+    const result = await rpc('cash_register_history', { p_token: getToken(), p_limit: params?.limit || 50 });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  limits: async () => {
+    const result = await rpc('get_cash_limits', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Invoices
 export const invoicesAPI = {
-  list: (params) => api.get('/invoices', { params }),
-  get: (id) => api.get(`/invoices/${id}`),
-  stats: (params) => api.get('/invoices/stats', { params }),
-  fromPayment: (paymentId) => api.post(`/invoices/from-payment/${paymentId}`),
+  list: async (params = {}) => {
+    const result = await rpc('list_invoices', { p_token: getToken(), p_limit: params?.limit || 50 });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  get: async (id) => {
+    const result = await rpc('get_invoice', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  stats: async (params = {}) => {
+    const result = await rpc('invoice_stats', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  fromPayment: async (paymentId) => {
+    const result = await rpc('create_invoice_from_payment', { p_token: getToken(), p_payment_id: paymentId });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Audit Log
 export const auditAPI = {
-  list: (params) => api.get('/audit', { params }),
-  actions: () => api.get('/audit/actions'),
+  list: async (params = {}) => {
+    const result = await rpc('list_audit_logs', { p_token: getToken(), p_limit: params?.limit || 50 });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  actions: async () => {
+    const result = await rpc('list_audit_actions', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
+
+// Default export for backward compatibility
+export default { interceptors: { request: { use: () => {} }, response: { use: () => {} } } };
