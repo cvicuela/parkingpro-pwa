@@ -62,6 +62,7 @@ export default function ConfigPage() {
   const [showAddPrinter, setShowAddPrinter] = useState(false);
   const [newPrinter, setNewPrinter] = useState({ name: '', type: 'thermal', paperSize: '80mm', location: '' });
   const [showPrinterSection, setShowPrinterSection] = useState(true);
+  const [testingPrinter, setTestingPrinter] = useState(false);
   // Preview state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
@@ -356,53 +357,63 @@ export default function ConfigPage() {
 
         {showPrinterSection && (
           <div className="border-t p-5 space-y-4">
-            {/* Printer list */}
-            {printers.length === 0 ? (
-              <div className="text-center py-6">
-                <Printer size={36} className="mx-auto text-gray-300 mb-2" />
-                <p className="text-gray-500 text-sm">No hay impresoras configuradas</p>
-                <p className="text-gray-400 text-xs">Agrega una impresora para habilitar la impresion directa</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {printers.map(p => (
-                  <div key={p.id} className={`flex items-center justify-between p-3 rounded-lg border ${p.id === defaultPrinterId ? 'border-violet-300 bg-violet-50' : 'border-gray-200'}`}>
-                    <div className="flex items-center gap-3">
-                      <Printer size={20} className={p.id === defaultPrinterId ? 'text-violet-600' : 'text-gray-400'} />
-                      <div>
-                        <p className="font-medium text-gray-800 text-sm flex items-center gap-1">
-                          {p.name}
-                          {p.id === defaultPrinterId && <Star size={12} className="text-amber-500 fill-amber-500" />}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {p.type === 'thermal' ? 'Termica' : p.type === 'laser' ? 'Laser' : 'PDF'} · {p.paperSize}
-                          {p.location ? ` · ${p.location}` : ''}
-                        </p>
+            {/* How it works */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-800 font-medium mb-1">Como funciona</p>
+              <p className="text-xs text-blue-600">ParkingPro usa el <strong>dialogo de impresion nativo</strong> de tu sistema operativo (Windows, Mac, Linux). Al imprimir, se abrira la ventana del SO donde puedes seleccionar cualquier impresora instalada, configurar copias, y ajustar preferencias.</p>
+            </div>
+
+            {/* Registered printers */}
+            <div>
+              <p className="font-medium text-gray-700 text-sm mb-2">Impresoras Registradas</p>
+              {printers.length === 0 ? (
+                <div className="text-center py-4 bg-gray-50 rounded-lg">
+                  <Printer size={32} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-gray-500 text-sm">No hay impresoras registradas</p>
+                  <p className="text-gray-400 text-xs">Registra las impresoras que usas para identificarlas rapidamente</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {printers.map(p => (
+                    <div key={p.id} className={`flex items-center justify-between p-3 rounded-lg border ${p.id === defaultPrinterId ? 'border-violet-300 bg-violet-50' : 'border-gray-200'}`}>
+                      <div className="flex items-center gap-3">
+                        <Printer size={20} className={p.id === defaultPrinterId ? 'text-violet-600' : 'text-gray-400'} />
+                        <div>
+                          <p className="font-medium text-gray-800 text-sm flex items-center gap-1">
+                            {p.name}
+                            {p.id === defaultPrinterId && <Star size={12} className="text-amber-500 fill-amber-500" />}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {p.type === 'thermal' ? 'Termica' : p.type === 'laser' ? 'Laser' : 'PDF'} · {p.paperSize}
+                            {p.location ? ` · ${p.location}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {p.id !== defaultPrinterId && (
+                          <button onClick={() => { setDefaultPrinter(p.id); loadPrinters(); toast.success('Impresora predeterminada actualizada'); }}
+                            className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-violet-600" title="Establecer como predeterminada">
+                            <Star size={14} />
+                          </button>
+                        )}
+                        <button onClick={() => { removePrinter(p.id); loadPrinters(); toast.success('Impresora eliminada'); }}
+                          className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" title="Eliminar">
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      {p.id !== defaultPrinterId && (
-                        <button onClick={() => { setDefaultPrinter(p.id); loadPrinters(); toast.success('Impresora predeterminada actualizada'); }}
-                          className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-violet-600" title="Establecer como predeterminada">
-                          <Star size={14} />
-                        </button>
-                      )}
-                      <button onClick={() => { removePrinter(p.id); loadPrinters(); toast.success('Impresora eliminada'); }}
-                        className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" title="Eliminar">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Add printer form */}
             {showAddPrinter ? (
               <div className="border border-dashed border-violet-300 rounded-lg p-4 bg-violet-50/50 space-y-3">
-                <p className="font-medium text-gray-700 text-sm">Nueva Impresora</p>
+                <p className="font-medium text-gray-700 text-sm">Registrar Impresora</p>
+                <p className="text-xs text-gray-500">Registra un nombre para identificar la impresora. Al imprimir, el sistema operativo te mostrara todas las impresoras disponibles en tu equipo.</p>
                 <div className="grid grid-cols-2 gap-3">
-                  <input placeholder="Nombre (ej: Caja Principal)" value={newPrinter.name}
+                  <input placeholder="Nombre (ej: Termica Caja 1)" value={newPrinter.name}
                     onChange={e => setNewPrinter(p => ({ ...p, name: e.target.value }))}
                     className="col-span-2 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none" />
                   <select value={newPrinter.type} onChange={e => setNewPrinter(p => ({ ...p, type: e.target.value }))}
@@ -417,7 +428,7 @@ export default function ConfigPage() {
                     <option value="58mm">58mm (Compacta)</option>
                     <option value="A4">A4 (Carta)</option>
                   </select>
-                  <input placeholder="Ubicacion (ej: Entrada)" value={newPrinter.location}
+                  <input placeholder="Ubicacion (ej: Entrada, Caja 2)" value={newPrinter.location}
                     onChange={e => setNewPrinter(p => ({ ...p, location: e.target.value }))}
                     className="col-span-2 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-violet-500 outline-none" />
                 </div>
@@ -430,17 +441,48 @@ export default function ConfigPage() {
                     loadPrinters();
                     setNewPrinter({ name: '', type: 'thermal', paperSize: '80mm', location: '' });
                     setShowAddPrinter(false);
-                    toast.success('Impresora agregada');
+                    toast.success('Impresora registrada');
                   }} className="flex-1 bg-violet-600 text-white rounded-lg py-2 text-sm hover:bg-violet-700 flex items-center justify-center gap-1">
-                    <Plus size={14} /> Agregar
+                    <Plus size={14} /> Registrar
                   </button>
                 </div>
               </div>
             ) : (
-              <button onClick={() => setShowAddPrinter(true)}
-                className="w-full border border-dashed border-gray-300 rounded-lg py-3 text-sm text-gray-500 hover:border-violet-400 hover:text-violet-600 hover:bg-violet-50/50 flex items-center justify-center gap-2 transition-colors">
-                <Plus size={16} /> Agregar Impresora
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => setShowAddPrinter(true)}
+                  className="flex-1 border border-dashed border-gray-300 rounded-lg py-3 text-sm text-gray-500 hover:border-violet-400 hover:text-violet-600 hover:bg-violet-50/50 flex items-center justify-center gap-2 transition-colors">
+                  <Plus size={16} /> Registrar Impresora
+                </button>
+                <button onClick={() => {
+                  setTestingPrinter(true);
+                  const w = window.open('', '_blank', 'width=350,height=500');
+                  if (w) {
+                    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Prueba de Impresora</title>
+<style>@page{margin:0;size:80mm auto}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Courier New',monospace;font-size:12px;width:80mm;padding:4mm;color:#000}.center{text-align:center}.bold{font-weight:bold}.big{font-size:18px}.line{border-top:1px dashed #000;margin:6px 0}.mt{margin-top:8px}.mb{margin-bottom:8px}@media print{body{width:80mm}}</style></head><body>
+<div class="center mb"><div class="bold big">ParkingPro</div><div>PAGINA DE PRUEBA</div></div>
+<div class="line"></div>
+<div class="center mt mb"><div class="bold big">IMPRESORA OK</div></div>
+<div class="line"></div>
+<div class="mt">Si puedes leer esto, la impresora esta funcionando correctamente.</div>
+<div class="mt">Fecha: ${new Date().toLocaleString('es-DO')}</div>
+<div class="line"></div>
+<div class="center mt">Linea de caracteres:</div>
+<div class="center">================================</div>
+<div class="center mt">1234567890 ABCDEFGHIJ</div>
+<div class="center">abcdefghij !@#$%&*()</div>
+<div class="line"></div>
+<div class="center mt mb bold">Selecciona tu impresora arriba</div>
+<script>setTimeout(()=>{window.print();setTimeout(()=>window.close(),1000)},500)</script>
+</body></html>`);
+                    w.document.close();
+                  }
+                  setTimeout(() => setTestingPrinter(false), 2000);
+                }}
+                  disabled={testingPrinter}
+                  className="flex-1 border border-violet-300 rounded-lg py-3 text-sm text-violet-600 hover:bg-violet-50 flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
+                  <Printer size={16} /> {testingPrinter ? 'Abriendo...' : 'Probar Impresora'}
+                </button>
+              </div>
             )}
 
             {/* Print Preview / Test */}
