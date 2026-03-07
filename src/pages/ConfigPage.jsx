@@ -448,12 +448,12 @@ export default function ConfigPage() {
               <p className="font-medium text-gray-700 text-sm mb-3 flex items-center gap-2"><Eye size={16} className="text-indigo-500" /> Vista Previa de Documentos</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: 'Ticket Entrada', fn: () => {
-                    setPreviewHtml(generateEntryTicketHTML({ plate: 'A123456', entryTime: new Date().toISOString(), type: 'hourly', planName: 'Por Hora', sessionId: 'demo-session-id-12345678', qrUrl: `https://api.qrserver.com/v1/create-qr-code/?data=demo-session-id-12345678&size=300x300` }));
+                  { label: 'Ticket Entrada', fn: async () => {
+                    setPreviewHtml(await generateEntryTicketHTML({ plate: 'A123456', entryTime: new Date().toISOString(), type: 'hourly', planName: 'Por Hora', sessionId: 'demo-session-id-12345678' }));
                     setPreviewTitle('Ticket de Entrada'); setPreviewOpen(true);
                   }},
-                  { label: 'Recibo Pago', fn: () => {
-                    setPreviewHtml(generatePaymentReceiptHTML({ receipt: { plateNumber: 'A123456', entryTime: new Date(Date.now() - 3600000 * 3).toISOString(), exitTime: new Date().toISOString(), hours: 3, paymentMethod: 'cash', subtotal: 450, tax: 81, total: 531, invoiceNumber: 'FAC-2026-0001', ncf: 'B0100000001', code: 'PAY-DEMO-001' } }));
+                  { label: 'Recibo Pago', fn: async () => {
+                    setPreviewHtml(await generatePaymentReceiptHTML({ receipt: { plateNumber: 'A123456', entryTime: new Date(Date.now() - 3600000 * 3).toISOString(), exitTime: new Date().toISOString(), hours: 3, paymentMethod: 'cash', subtotal: 450, tax: 81, total: 531, invoiceNumber: 'FAC-2026-0001', ncf: 'B0100000001', code: 'PAY-DEMO-001' } }));
                     setPreviewTitle('Recibo de Pago'); setPreviewOpen(true);
                   }},
                   { label: 'Cierre Caja', fn: () => {
