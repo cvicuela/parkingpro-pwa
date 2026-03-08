@@ -431,6 +431,39 @@ export const auditAPI = {
   },
 };
 
+// REST helper for Express backend routes (not Supabase RPC)
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const apiFetch = async (path, options = {}) => {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getToken()}`,
+      ...options.headers,
+    },
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || json.message || res.statusText);
+  return wrap(json);
+};
+
+// User Management (REST)
+export const usersAPI = {
+  list: async () => apiFetch('/api/v1/users'),
+  create: async (data) =>
+    apiFetch('/api/v1/users', { method: 'POST', body: JSON.stringify(data) }),
+  update: async (id, data) =>
+    apiFetch(`/api/v1/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: async (id) =>
+    apiFetch(`/api/v1/users/${id}`, { method: 'DELETE' }),
+  resetPassword: async (id, newPassword) =>
+    apiFetch(`/api/v1/users/${id}/reset-password`, {
+      method: 'PUT',
+      body: JSON.stringify({ newPassword }),
+    }),
+};
+
 // RFID Cards
 export const rfidAPI = {
   list: async (params = {}) => {
@@ -495,6 +528,10 @@ export const rfidAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
+  listByCustomer: async (customerId) =>
+    apiFetch(`/api/v1/rfid/cards/by-customer/${customerId}`),
+  listBySubscription: async (subscriptionId) =>
+    apiFetch(`/api/v1/rfid/cards/by-subscription/${subscriptionId}`),
 };
 
 // Default export for backward compatibility

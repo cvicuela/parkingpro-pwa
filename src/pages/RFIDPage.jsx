@@ -38,6 +38,8 @@ export default function RFIDPage() {
   // Assign permanent form
   const [subscriptions, setSubscriptions] = useState([]);
   const [assignSubId, setAssignSubId] = useState('');
+  const [existingSubCards, setExistingSubCards] = useState([]);
+  const [loadingSubCards, setLoadingSubCards] = useState(false);
 
   // Assign temporary form
   const [assignPlate, setAssignPlate] = useState('');
@@ -66,6 +68,47 @@ export default function RFIDPage() {
   }, [search, cardType, status]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Compute per-customer card counts for multi-card badge
+  const customerCardCounts = {};
+  cards.forEach(c => {
+    if (c.customer_id) {
+      customerCardCounts[c.customer_id] = (customerCardCounts[c.customer_id] || 0) + 1;
+    }
+  });
+  // Assign sequential index per customer
+  const customerCardSeq = {};
+  const cardPositionMap = {};
+  cards.forEach(c => {
+    if (c.customer_id) {
+      customerCardSeq[c.customer_id] = (customerCardSeq[c.customer_id] || 0) + 1;
+      cardPositionMap[c.id] = customerCardSeq[c.customer_id];
+    }
+  });
+
+  // Fetch existing cards when subscription selection changes
+  useEffect(() => {
+    if (!assignSubId) {
+      setExistingSubCards([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingSubCards(true);
+      try {
+        const res = await rfidAPI.listBySubscription(assignSubId);
+        if (!cancelled) {
+          const data = res.data.data || res.data || [];
+          setExistingSubCards(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (!cancelled) setExistingSubCards([]);
+      } finally {
+        if (!cancelled) setLoadingSubCards(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [assignSubId]);
 
   const handleRegister = async (e) => {
     if (e) e.preventDefault();
@@ -300,7 +343,14 @@ export default function RFIDPage() {
                       <td className="px-4 py-3">{typeBadge(card.card_type)}</td>
                       <td className="px-4 py-3">{statusBadge(card.status)}</td>
                       <td className="px-4 py-3 text-gray-600 text-xs">
-                        {card.customer_name || card.vehicle_plate || card.metadata?.vehicle_plate || '—'}
+                        <div className="flex items-center gap-1.5">
+                          <span>{card.customer_name || card.vehicle_plate || card.metadata?.vehicle_plate || '—'}</span>
+                          {card.customer_id && customerCardCounts[card.customer_id] > 1 && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700">
+                              {cardPositionMap[card.id]} de {customerCardCounts[card.customer_id]}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1 flex-wrap">
@@ -454,6 +504,32 @@ export default function RFIDPage() {
                 </select>
               )}
             </div>
+            {/* Existing cards for selected subscription */}
+            {assignSubId && (
+              <div className="mt-4">
+                {loadingSubCards ? (
+                  <p className="text-xs text-gray-400">Cargando tarjetas existentes...</p>
+                ) : existingSubCards.length > 0 ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                    <p className="text-xs text-amber-800 font-medium">
+                      Esta suscripcion ya tiene {existingSubCards.length} tarjeta(s) asignada(s). Se agregara una tarjeta adicional.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {existingSubCards.map(ec => (
+                        <span
+                          key={ec.id}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-mono font-medium bg-amber-100 text-amber-800 border border-amber-300"
+                        >
+                          <CreditCard size={12} />
+                          {ec.card_uid}
+                          {ec.label ? ` (${ec.label})` : ''}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            )}
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowAssignPermanent(false)}
@@ -466,7 +542,7 @@ export default function RFIDPage() {
                 disabled={!assignSubId}
                 className="flex-1 bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700 font-medium disabled:opacity-50"
               >
-                Guardar
+                {existingSubCards.length > 0 ? 'Asignar Tarjeta Adicional' : 'Asignar'}
               </button>
             </div>
           </div>
