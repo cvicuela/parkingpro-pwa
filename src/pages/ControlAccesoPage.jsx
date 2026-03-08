@@ -9,7 +9,7 @@ import {
   LogIn, LogOut, Car, DollarSign, CheckCircle,
   RefreshCw, QrCode, Printer, X, Eye, Clock,
   CreditCard, Banknote, ArrowRight, ArrowLeft, Shield,
-  Hash, Timer, Copy
+  Hash, Timer, Copy, AlertTriangle
 } from 'lucide-react';
 
 /* ─── Occupancy sidebar ─── */
@@ -169,7 +169,8 @@ export default function ControlAccesoPage() {
         type: session?.subscription_id ? 'subscriber' : 'hourly',
         planName: session?.subscription_id ? 'Suscriptor' : 'Por Hora',
         sessionId: session?.id,
-        qrData: session?.id || entryPlate,
+        verificationCode: session?.verification_code || null,
+        qrData: session?.verification_code || session?.id || entryPlate,
       };
 
       // Quick QR flash (2s) then full ticket
@@ -221,6 +222,17 @@ export default function ControlAccesoPage() {
       const { data } = await accessAPI.calculateFee({ sessionId: session.id });
       const fee = data.data;
 
+      // Handle alert responses (e.g., no_session from gate verify)
+      if (fee.action === 'alert' && fee.type === 'no_session') {
+        setExitPopup(prev => prev ? {
+          ...prev,
+          step: 'no_session_alert',
+          feeData: fee,
+        } : null);
+        toast.warning(fee.message || 'Vehiculo sin sesion activa');
+        return;
+      }
+
       // Subscriber or grace period = auto-exit
       if (fee.type === 'subscriber' || fee.type === 'grace_period') {
         try {
@@ -259,10 +271,6 @@ export default function ControlAccesoPage() {
     try {
       const { data } = await accessAPI.processPayment({
         sessionId: fee.sessionId,
-        amount: fee.subtotal,
-        tax: fee.tax,
-        total: fee.total,
-        hours: fee.hours,
         paymentMethod: exitPopup.payMethod,
       });
       const receipt = data.data.receipt;
@@ -477,7 +485,7 @@ export default function ControlAccesoPage() {
             </div>
 
             {/* Countdown bar */}
-            {exitPopup.step !== 'receipt' && exitPopup.step !== 'manual_done' && exitPopup.step !== 'auto_exit' && (
+            {exitPopup.step !== 'receipt' && exitPopup.step !== 'manual_done' && exitPopup.step !== 'auto_exit' && exitPopup.step !== 'no_session_alert' && (
               <CountdownBar seconds={exitCountdown} total={POPUP_TIMEOUT} />
             )}
 
@@ -508,6 +516,26 @@ export default function ControlAccesoPage() {
                       <LogOut size={16} /> Salida Manual
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* ── NO SESSION ALERT ── */}
+              {exitPopup.step === 'no_session_alert' && (
+                <div className="text-center py-6 space-y-3">
+                  <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto">
+                    <AlertTriangle className="text-amber-600" size={40} />
+                  </div>
+                  <p className="text-xl font-bold text-amber-700">Sin Sesion Activa</p>
+                  <p className="text-gray-500">{exitPopup.feeData?.message || 'Este vehiculo no tiene una sesion de estacionamiento activa. No se puede abrir la barrera.'}</p>
+                  <p className="text-3xl font-mono font-bold text-indigo-700">{exitPopup.session.vehicle_plate}</p>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                    <p className="font-medium">Accion requerida:</p>
+                    <p>Verifique el vehiculo y registre una entrada antes de permitir la salida, o contacte al administrador.</p>
+                  </div>
+                  <button onClick={closeExitPopup}
+                    className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2.5 text-gray-700 hover:bg-gray-50 font-medium">
+                    Cerrar
+                  </button>
                 </div>
               )}
 
@@ -638,6 +666,7 @@ export default function ControlAccesoPage() {
                       <div className="flex justify-between"><span className="text-gray-500">Total</span><span className="font-bold text-green-700 text-lg">{fmtMoney(r.total)}</span></div>
                       <div className="flex justify-between"><span className="text-gray-500">Metodo</span><span>{{ cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' }[r.paymentMethod]}</span></div>
                       {r.code && <div className="flex justify-between"><span className="text-gray-500">Codigo</span><span className="font-mono">{r.code}</span></div>}
+                      {r.verification_code && <div className="flex justify-between"><span className="text-gray-500">Verificacion</span><span className="font-mono font-bold text-indigo-700">{r.verification_code}</span></div>}
                     </div>
                     <div className="text-center">
                       <div className="mx-auto w-36 h-36 flex items-center justify-center">
@@ -704,6 +733,15 @@ export default function ControlAccesoPage() {
               <p className="text-2xl font-mono font-bold text-indigo-700">{entryTicket.plate}</p>
               <p className="text-sm text-gray-500">Entrada: {fmtTime(entryTicket.entryTime)}</p>
               <p className="text-sm text-gray-500">{entryTicket.type === 'subscriber' ? 'Suscriptor' : 'Por Hora'}</p>
+              {entryTicket.verificationCode && (
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2">
+                  <p className="text-xs text-indigo-500 mb-0.5">Codigo de Verificacion</p>
+                  <p className="text-lg font-mono font-bold text-indigo-700 tracking-wider cursor-pointer"
+                    onClick={() => { navigator.clipboard.writeText(entryTicket.verificationCode); toast.info('Codigo copiado'); }}>
+                    {entryTicket.verificationCode}
+                  </p>
+                </div>
+              )}
               {entryTicket.sessionId && (
                 <p className="text-xs text-gray-400 font-mono cursor-pointer flex items-center justify-center gap-1"
                   title={entryTicket.sessionId}

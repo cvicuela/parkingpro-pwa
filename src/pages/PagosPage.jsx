@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { paymentsAPI } from '../services/api';
 import { toast } from 'react-toastify';
-import { Search, RotateCcw, DollarSign, CheckCircle, XCircle, Clock, FileText, RefreshCw } from 'lucide-react';
+import { Search, RotateCcw, DollarSign, CheckCircle, XCircle, Clock, FileText, RefreshCw, X } from 'lucide-react';
 
 const statusConfig = {
   paid: { icon: CheckCircle, label: 'Pagado', class: 'bg-green-100 text-green-700' },
@@ -17,6 +17,8 @@ export default function PagosPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [refundModal, setRefundModal] = useState(null); // { id } of payment being refunded
+  const [refundReason, setRefundReason] = useState('');
 
   const fetchPayments = useCallback(async () => {
     setLoading(true);
@@ -33,14 +35,25 @@ export default function PagosPage() {
 
   useEffect(() => { fetchPayments(); }, [fetchPayments]);
 
-  const handleRefund = async (id) => {
-    if (!confirm('¿Reembolsar este pago? Se generará una nota de crédito automáticamente.')) return;
+  const openRefundModal = (id) => {
+    setRefundReason('');
+    setRefundModal({ id });
+  };
+
+  const handleRefund = async () => {
+    if (!refundModal) return;
+    if (!refundReason.trim()) {
+      toast.warning('Debe ingresar un motivo para el reembolso');
+      return;
+    }
     try {
-      await paymentsAPI.refund(id);
+      await paymentsAPI.refund(refundModal.id, refundReason.trim());
       toast.success('Pago reembolsado y nota de crédito generada');
+      setRefundModal(null);
+      setRefundReason('');
       fetchPayments();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error al reembolsar');
+      toast.error(err.response?.data?.error || err.message || 'Error al reembolsar');
     }
   };
 
@@ -139,7 +152,7 @@ export default function PagosPage() {
                       </td>
                       <td className="py-3 px-4 text-right">
                         {p.status === 'paid' && (
-                          <button onClick={() => handleRefund(p.id)}
+                          <button onClick={() => openRefundModal(p.id)}
                             className="text-xs px-2 py-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded">
                             Reembolsar
                           </button>
@@ -153,6 +166,39 @@ export default function PagosPage() {
           </div>
         )}
       </div>
+
+      {/* Refund Reason Modal */}
+      {refundModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setRefundModal(null)}>
+          <div className="bg-white rounded-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-800">Motivo del Reembolso</h3>
+              <button onClick={() => setRefundModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <p className="text-sm text-gray-500">Ingrese el motivo del reembolso. Este campo es obligatorio.</p>
+              <textarea
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="Ej: Cliente solicita reembolso por error en cobro..."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                autoFocus
+              />
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setRefundModal(null)}
+                  className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                  Cancelar
+                </button>
+                <button onClick={handleRefund} disabled={!refundReason.trim()}
+                  className="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                  <RotateCcw size={16} /> Reembolsar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

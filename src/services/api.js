@@ -189,8 +189,8 @@ export const subscriptionsAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  cancel: async (id) => {
-    const result = await rpc('cancel_subscription', { p_token: getToken(), p_id: id });
+  cancel: async (id, reason) => {
+    const result = await rpc('cancel_subscription', { p_token: getToken(), p_id: id, p_reason: reason });
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
@@ -300,8 +300,8 @@ export const paymentsAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  refund: async (id) => {
-    const result = await rpc('refund_payment', { p_token: getToken(), p_id: id });
+  refund: async (id, reason) => {
+    const result = await rpc('refund_payment', { p_token: getToken(), p_id: id, p_reason: reason });
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
