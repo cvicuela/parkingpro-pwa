@@ -1,50 +1,35 @@
-import { useState, useEffect } from 'react';
-import { rfidAPI, subscriptionsAPI } from '../services/api';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import {
-  CreditCard, CheckCircle, Radio, AlertTriangle, Search,
-  Plus, X, ArrowLeftRight, Trash2, Power, PowerOff, Wifi, Tag
-} from 'lucide-react';
+import { CreditCard, CheckCircle, Radio, AlertTriangle, Search, RefreshCw, Plus, X } from 'lucide-react';
+import { rfidAPI, subscriptionsAPI } from '../services/api';
 
-const STATUS_CONFIG = {
-  available: { label: 'Disponible', color: 'bg-green-100 text-green-700' },
-  assigned: { label: 'Asignada', color: 'bg-yellow-100 text-yellow-700' },
-  in_use: { label: 'En uso', color: 'bg-blue-100 text-blue-700' },
-  lost: { label: 'Perdida', color: 'bg-red-100 text-red-700' },
-  disabled: { label: 'Deshabilitada', color: 'bg-gray-100 text-gray-500' },
+const STATUS_BADGES = {
+  available: { label: 'Disponible', bg: 'bg-green-100', text: 'text-green-700' },
+  assigned: { label: 'Asignada', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+  in_use: { label: 'En uso', bg: 'bg-blue-100', text: 'text-blue-700' },
+  lost: { label: 'Perdida', bg: 'bg-red-100', text: 'text-red-700' },
+  disabled: { label: 'Deshabilitada', bg: 'bg-gray-100', text: 'text-gray-500' },
 };
 
-const TYPE_CONFIG = {
-  permanent: { label: 'Permanente', color: 'bg-indigo-100 text-indigo-700' },
-  temporary: { label: 'Temporal', color: 'bg-amber-100 text-amber-700' },
+const TYPE_BADGES = {
+  permanent: { label: 'Permanente', bg: 'bg-indigo-100', text: 'text-indigo-700' },
+  temporary: { label: 'Temporal', bg: 'bg-amber-100', text: 'text-amber-700' },
 };
-
-function StatCard({ icon: Icon, label, value, color }) {
-  return (
-    <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${color}`}>
-        <Icon size={22} />
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-gray-800">{value}</p>
-        <p className="text-sm text-gray-500">{label}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function RFIDPage() {
   const [cards, setCards] = useState([]);
-  const [stats, setStats] = useState(null);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState({ total: 0, available: 0, in_use: 0, lost: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [cardType, setCardType] = useState('');
+  const [status, setStatus] = useState('');
 
   // Modals
   const [showRegister, setShowRegister] = useState(false);
-  const [assignPermanentModal, setAssignPermanentModal] = useState(null);
-  const [assignTemporaryModal, setAssignTemporaryModal] = useState(null);
+  const [showAssignPermanent, setShowAssignPermanent] = useState(false);
+  const [showAssignTemporary, setShowAssignTemporary] = useState(false);
+  const [selectedCard, setSelectedCard] = useState(null);
 
   // Register form
   const [regForm, setRegForm] = useState({ cardUid: '', cardType: 'temporary', label: '' });
@@ -52,31 +37,39 @@ export default function RFIDPage() {
 
   // Assign permanent form
   const [subscriptions, setSubscriptions] = useState([]);
-  const [selectedSub, setSelectedSub] = useState('');
+  const [assignSubId, setAssignSubId] = useState('');
 
   // Assign temporary form
-  const [tempPlate, setTempPlate] = useState('');
+  const [assignPlate, setAssignPlate] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
+      const params = { limit: 50, offset: 0 };
+      if (search) params.search = search;
+      if (cardType) params.cardType = cardType;
+      if (status) params.status = status;
+
       const [cardsRes, statsRes] = await Promise.all([
-        rfidAPI.list({ cardType: filterType || null, status: filterStatus || null, search: search || null }),
-        rfidAPI.poolStats()
+        rfidAPI.list(params),
+        rfidAPI.poolStats(),
       ]);
-      setCards(cardsRes.data.data || cardsRes.data || []);
-      setStats(statsRes.data.data || statsRes.data || null);
-    } catch (err) {
+      const cardsData = cardsRes.data.data || cardsRes.data || [];
+      setCards(Array.isArray(cardsData) ? cardsData : []);
+      setTotal(cardsRes.data.total || cardsData.length || 0);
+      setStats(statsRes.data.data || statsRes.data || { total: 0, available: 0, in_use: 0, lost: 0 });
+    } catch {
       toast.error('Error cargando tarjetas RFID');
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, cardType, status]);
 
-  useEffect(() => { fetchData(); }, [search, filterType, filterStatus]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleRegister = async (e) => {
-    e.preventDefault();
-    if (!regForm.cardUid) return;
+    if (e) e.preventDefault();
+    if (!regForm.cardUid.trim()) { toast.error('UID de tarjeta requerido'); return; }
     setRegSaving(true);
     try {
       await rfidAPI.register(regForm);
@@ -85,45 +78,51 @@ export default function RFIDPage() {
       setRegForm({ cardUid: '', cardType: 'temporary', label: '' });
       fetchData();
     } catch (err) {
-      toast.error(err.message || 'Error al registrar tarjeta');
+      toast.error(err.message || 'Error registrando tarjeta');
     } finally {
       setRegSaving(false);
     }
   };
 
   const openAssignPermanent = async (card) => {
+    setSelectedCard(card);
     try {
-      const { data } = await subscriptionsAPI.list({ status: 'active' });
-      setSubscriptions(data.data || data || []);
-      setAssignPermanentModal(card);
-      setSelectedSub('');
+      const res = await subscriptionsAPI.list({ status: 'active', limit: 200 });
+      setSubscriptions(res.data.data || res.data || []);
     } catch {
       toast.error('Error cargando suscripciones');
     }
+    setAssignSubId('');
+    setShowAssignPermanent(true);
+  };
+
+  const openAssignTemporary = (card) => {
+    setSelectedCard(card);
+    setAssignPlate('');
+    setShowAssignTemporary(true);
   };
 
   const handleAssignPermanent = async () => {
-    if (!selectedSub) return;
+    if (!assignSubId) { toast.error('Seleccione una suscripcion'); return; }
     try {
-      await rfidAPI.assignPermanent(assignPermanentModal.id, selectedSub);
-      toast.success('Tarjeta asignada a suscripcion');
-      setAssignPermanentModal(null);
+      await rfidAPI.assignPermanent(selectedCard.id, assignSubId);
+      toast.success('Tarjeta asignada exitosamente');
+      setShowAssignPermanent(false);
       fetchData();
     } catch (err) {
-      toast.error(err.message || 'Error al asignar');
+      toast.error(err.message || 'Error asignando tarjeta');
     }
   };
 
   const handleAssignTemporary = async () => {
-    if (!tempPlate) return;
+    if (!assignPlate.trim()) { toast.error('Placa requerida'); return; }
     try {
-      await rfidAPI.assignTemporary(assignTemporaryModal.id, tempPlate);
-      toast.success('Tarjeta temporal asignada');
-      setAssignTemporaryModal(null);
-      setTempPlate('');
+      await rfidAPI.assignTemporary(selectedCard.id, assignPlate.trim().toUpperCase());
+      toast.success('Tarjeta asignada exitosamente');
+      setShowAssignTemporary(false);
       fetchData();
     } catch (err) {
-      toast.error(err.message || 'Error al asignar');
+      toast.error(err.message || 'Error asignando tarjeta');
     }
   };
 
@@ -133,28 +132,27 @@ export default function RFIDPage() {
       toast.success('Tarjeta devuelta al pool');
       fetchData();
     } catch (err) {
-      toast.error(err.message || 'Error');
+      toast.error(err.message || 'Error devolviendo tarjeta');
     }
   };
 
   const handleReportLost = async (card) => {
-    if (!confirm(`Reportar tarjeta ${card.label || card.card_uid} como perdida? Se aplicara penalizacion.`)) return;
     try {
       await rfidAPI.reportLost(card.id);
-      toast.warning('Tarjeta reportada como perdida');
+      toast.success('Tarjeta reportada como perdida');
       fetchData();
     } catch (err) {
-      toast.error(err.message || 'Error');
+      toast.error(err.message || 'Error reportando tarjeta');
     }
   };
 
   const handleDisable = async (card) => {
     try {
       await rfidAPI.disable(card.id);
-      toast.info('Tarjeta deshabilitada');
+      toast.success('Tarjeta deshabilitada');
       fetchData();
     } catch (err) {
-      toast.error(err.message || 'Error');
+      toast.error(err.message || 'Error deshabilitando tarjeta');
     }
   };
 
@@ -164,46 +162,100 @@ export default function RFIDPage() {
       toast.success('Tarjeta habilitada');
       fetchData();
     } catch (err) {
-      toast.error(err.message || 'Error');
+      toast.error(err.message || 'Error habilitando tarjeta');
     }
   };
 
+  const statusBadge = (s) => {
+    const b = STATUS_BADGES[s] || { label: s, bg: 'bg-gray-100', text: 'text-gray-500' };
+    return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${b.bg} ${b.text}`}>{b.label}</span>;
+  };
+
+  const typeBadge = (t) => {
+    const b = TYPE_BADGES[t] || { label: t, bg: 'bg-gray-100', text: 'text-gray-500' };
+    return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${b.bg} ${b.text}`}>{b.label}</span>;
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h2 className="text-2xl font-bold text-gray-800">Tarjetas RFID</h2>
-        <button onClick={() => setShowRegister(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-          <Plus size={18} /> Registrar Tarjeta
-        </button>
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+          <Radio size={24} /> Tarjetas RFID
+        </h1>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500"><strong>{total}</strong> tarjetas</span>
+          <button onClick={fetchData} className="flex items-center gap-2 px-3 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">
+            <RefreshCw size={16} /> Actualizar
+          </button>
+        </div>
       </div>
 
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard icon={CreditCard} label="Total" value={stats.total || 0} color="bg-gray-100 text-gray-600" />
-          <StatCard icon={CheckCircle} label="Disponibles" value={stats.available || 0} color="bg-green-100 text-green-600" />
-          <StatCard icon={Radio} label="En Uso" value={stats.in_use || 0} color="bg-blue-100 text-blue-600" />
-          <StatCard icon={AlertTriangle} label="Perdidas" value={stats.lost || 0} color="bg-red-100 text-red-600" />
+      {/* Pool Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+            <CreditCard size={20} className="text-gray-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+            <p className="text-xs text-gray-500">Total tarjetas</p>
+          </div>
         </div>
-      )}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+            <CheckCircle size={20} className="text-green-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-green-600">{stats.available}</p>
+            <p className="text-xs text-gray-500">Disponibles</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <Radio size={20} className="text-blue-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-blue-600">{stats.in_use}</p>
+            <p className="text-xs text-gray-500">En Uso</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+            <AlertTriangle size={20} className="text-red-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-red-600">{stats.lost}</p>
+            <p className="text-xs text-gray-500">Perdidas</p>
+          </div>
+        </div>
+      </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por UID, etiqueta o cliente..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+      <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap gap-3 items-end">
+        <div className="relative flex-1 min-w-48">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            placeholder="Buscar UID, etiqueta, cliente..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
         </div>
-        <select value={filterType} onChange={(e) => setFilterType(e.target.value)}
-          className="px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+        <select
+          value={cardType}
+          onChange={e => setCardType(e.target.value)}
+          className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
           <option value="">Todos los tipos</option>
           <option value="permanent">Permanente</option>
           <option value="temporary">Temporal</option>
         </select>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+        <select
+          value={status}
+          onChange={e => setStatus(e.target.value)}
+          className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
           <option value="">Todos los estados</option>
           <option value="available">Disponible</option>
           <option value="assigned">Asignada</option>
@@ -211,128 +263,159 @@ export default function RFIDPage() {
           <option value="lost">Perdida</option>
           <option value="disabled">Deshabilitada</option>
         </select>
+        <button
+          onClick={() => setShowRegister(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+        >
+          <Plus size={16} /> Registrar Tarjeta
+        </button>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
-          <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
-        ) : cards.length === 0 ? (
-          <p className="p-8 text-center text-gray-400">No se encontraron tarjetas RFID</p>
+          <div className="flex justify-center p-12">
+            <div className="animate-spin h-8 w-8 border-b-2 border-indigo-600 rounded-full" />
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 text-sm text-gray-500">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="py-3 px-4">UID</th>
-                  <th className="py-3 px-4">Etiqueta</th>
-                  <th className="py-3 px-4">Tipo</th>
-                  <th className="py-3 px-4">Estado</th>
-                  <th className="py-3 px-4">Cliente / Placa</th>
-                  <th className="py-3 px-4 text-right">Acciones</th>
+                  {['UID', 'Etiqueta', 'Tipo', 'Estado', 'Cliente / Placa', 'Acciones'].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {cards.map((c) => (
-                  <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-mono text-sm font-medium">{c.card_uid}</td>
-                    <td className="py-3 px-4 text-sm">{c.label || '-'}</td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${TYPE_CONFIG[c.card_type]?.color || 'bg-gray-100'}`}>
-                        {TYPE_CONFIG[c.card_type]?.label || c.card_type}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_CONFIG[c.status]?.color || 'bg-gray-100'}`}>
-                        {STATUS_CONFIG[c.status]?.label || c.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-sm">
-                      {c.customer_name || c.metadata?.vehicle_plate || '-'}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex justify-end gap-1">
-                        {c.status === 'available' && c.card_type === 'permanent' && (
-                          <button onClick={() => openAssignPermanent(c)} title="Asignar a suscripcion"
-                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded">
-                            <ArrowLeftRight size={14} />
-                          </button>
-                        )}
-                        {c.status === 'available' && c.card_type === 'temporary' && (
-                          <button onClick={() => { setAssignTemporaryModal(c); setTempPlate(''); }} title="Asignar temporal"
-                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded">
-                            <ArrowLeftRight size={14} />
-                          </button>
-                        )}
-                        {c.status === 'assigned' && c.card_type === 'temporary' && (
-                          <button onClick={() => handleReturn(c)} title="Devolver"
-                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded">
-                            <CheckCircle size={14} />
-                          </button>
-                        )}
-                        {(c.status === 'assigned' || c.status === 'in_use') && (
-                          <button onClick={() => handleReportLost(c)} title="Reportar perdida"
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
-                            <AlertTriangle size={14} />
-                          </button>
-                        )}
-                        {['available', 'assigned', 'in_use'].includes(c.status) && (
-                          <button onClick={() => handleDisable(c)} title="Deshabilitar"
-                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded">
-                            <PowerOff size={14} />
-                          </button>
-                        )}
-                        {c.status === 'disabled' && (
-                          <button onClick={() => handleEnable(c)} title="Habilitar"
-                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded">
-                            <Power size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+                {cards.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center text-gray-400 py-8">No hay tarjetas RFID registradas</td>
                   </tr>
-                ))}
+                ) : (
+                  cards.map(card => (
+                    <tr key={card.id} className="border-b hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-800 font-medium">{card.card_uid}</td>
+                      <td className="px-4 py-3 text-gray-600">{card.label || '—'}</td>
+                      <td className="px-4 py-3">{typeBadge(card.card_type)}</td>
+                      <td className="px-4 py-3">{statusBadge(card.status)}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">
+                        {card.customer_name || card.vehicle_plate || card.metadata?.vehicle_plate || '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {card.status === 'available' && (
+                            <button
+                              onClick={() => card.card_type === 'permanent' ? openAssignPermanent(card) : openAssignTemporary(card)}
+                              className="px-2 py-1 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200"
+                            >
+                              Asignar
+                            </button>
+                          )}
+                          {card.status === 'assigned' && card.card_type === 'temporary' && (
+                            <button
+                              onClick={() => handleReturn(card)}
+                              className="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200"
+                            >
+                              Devolver
+                            </button>
+                          )}
+                          {card.status === 'assigned' && card.card_type === 'permanent' && (
+                            <button
+                              onClick={() => handleReturn(card)}
+                              className="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200"
+                            >
+                              Desvincular
+                            </button>
+                          )}
+                          {card.status === 'in_use' && (
+                            <button
+                              onClick={() => handleReportLost(card)}
+                              className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                            >
+                              Reportar Perdida
+                            </button>
+                          )}
+                          {['available', 'assigned', 'in_use'].includes(card.status) && (
+                            <button
+                              onClick={() => handleDisable(card)}
+                              className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                            >
+                              Deshabilitar
+                            </button>
+                          )}
+                          {card.status === 'disabled' && (
+                            <button
+                              onClick={() => handleEnable(card)}
+                              className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                            >
+                              Habilitar
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Register Modal */}
+      {/* Register Card Modal */}
       {showRegister && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowRegister(false)}>
-          <div className="bg-white rounded-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold flex items-center gap-2"><Wifi size={20} /> Registrar Tarjeta</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowRegister(false)}>
+          <div className="bg-white rounded-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-800">Registrar Tarjeta RFID</h2>
               <button onClick={() => setShowRegister(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
-            <form onSubmit={handleRegister} className="p-4 space-y-3">
+            <form onSubmit={handleRegister} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">UID de Tarjeta</label>
-                <input value={regForm.cardUid} onChange={(e) => setRegForm({ ...regForm, cardUid: e.target.value.toUpperCase() })}
-                  placeholder="Escanee o ingrese el UID" required
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">UID de Tarjeta *</label>
+                <input
+                  value={regForm.cardUid}
+                  onChange={e => setRegForm(f => ({ ...f, cardUid: e.target.value.toUpperCase() }))}
+                  placeholder="Escanee o ingrese el UID"
+                  required
+                  className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                <select value={regForm.cardType} onChange={(e) => setRegForm({ ...regForm, cardType: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                  <option value="temporary">Temporal</option>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Tarjeta</label>
+                <select
+                  value={regForm.cardType}
+                  onChange={e => setRegForm(f => ({ ...f, cardType: e.target.value }))}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
                   <option value="permanent">Permanente</option>
+                  <option value="temporary">Temporal</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Etiqueta (opcional)</label>
-                <input value={regForm.label} onChange={(e) => setRegForm({ ...regForm, label: e.target.value })}
+                <input
+                  value={regForm.label}
+                  onChange={e => setRegForm(f => ({ ...f, label: e.target.value }))}
                   placeholder="Ej: Tarjeta #042"
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowRegister(false)}
-                  className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancelar</button>
-                <button type="submit" disabled={regSaving}
-                  className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-                  {regSaving ? 'Registrando...' : 'Registrar'}
+                <button
+                  type="button"
+                  onClick={() => setShowRegister(false)}
+                  className="flex-1 border border-gray-300 rounded-lg py-2 text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={regSaving}
+                  className="flex-1 bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700 font-medium disabled:opacity-50"
+                >
+                  {regSaving ? 'Registrando...' : 'Guardar'}
                 </button>
               </div>
             </form>
@@ -341,61 +424,90 @@ export default function RFIDPage() {
       )}
 
       {/* Assign Permanent Modal */}
-      {assignPermanentModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setAssignPermanentModal(null)}>
-          <div className="bg-white rounded-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold">Asignar a Suscripcion</h3>
-              <button onClick={() => setAssignPermanentModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+      {showAssignPermanent && selectedCard && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowAssignPermanent(false)}>
+          <div className="bg-white rounded-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-800">Asignar Tarjeta Permanente</h2>
+              <button onClick={() => setShowAssignPermanent(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
-            <div className="p-4 space-y-3">
-              <p className="text-sm text-gray-600">Tarjeta: <strong className="font-mono">{assignPermanentModal.card_uid}</strong> {assignPermanentModal.label && `(${assignPermanentModal.label})`}</p>
+            <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
+              <p className="text-gray-500">Tarjeta: <span className="font-mono font-medium text-gray-800">{selectedCard.card_uid}</span></p>
+              {selectedCard.label && <p className="text-gray-500">Etiqueta: <span className="text-gray-800">{selectedCard.label}</span></p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Suscripcion Activa *</label>
               {subscriptions.length === 0 ? (
                 <p className="text-sm text-amber-600">No hay suscripciones activas disponibles.</p>
               ) : (
-                <select value={selectedSub} onChange={(e) => setSelectedSub(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                  <option value="">Seleccionar suscripcion...</option>
-                  {subscriptions.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.customer_name || `${s.customer?.first_name || ''} ${s.customer?.last_name || ''}`} — {s.vehicle_plate || s.vehicle?.plate || ''} — {s.plan_name || s.plan?.name || ''}
+                <select
+                  value={assignSubId}
+                  onChange={e => setAssignSubId(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Seleccione una suscripcion...</option>
+                  {subscriptions.map(sub => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.customer_name || `${sub.customer?.first_name || ''} ${sub.customer?.last_name || ''}`} — {sub.vehicle_plate || sub.vehicle?.plate || ''} — {sub.plan_name || sub.plan?.name || 'Plan'}
                     </option>
                   ))}
                 </select>
               )}
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setAssignPermanentModal(null)}
-                  className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancelar</button>
-                <button onClick={handleAssignPermanent} disabled={!selectedSub}
-                  className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">Asignar</button>
-              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowAssignPermanent(false)}
+                className="flex-1 border border-gray-300 rounded-lg py-2 text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAssignPermanent}
+                disabled={!assignSubId}
+                className="flex-1 bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700 font-medium disabled:opacity-50"
+              >
+                Guardar
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* Assign Temporary Modal */}
-      {assignTemporaryModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setAssignTemporaryModal(null)}>
-          <div className="bg-white rounded-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold">Asignar Tarjeta Temporal</h3>
-              <button onClick={() => setAssignTemporaryModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+      {showAssignTemporary && selectedCard && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowAssignTemporary(false)}>
+          <div className="bg-white rounded-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-800">Asignar Tarjeta Temporal</h2>
+              <button onClick={() => setShowAssignTemporary(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
-            <div className="p-4 space-y-3">
-              <p className="text-sm text-gray-600">Tarjeta: <strong className="font-mono">{assignTemporaryModal.card_uid}</strong> {assignTemporaryModal.label && `(${assignTemporaryModal.label})`}</p>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Placa del Vehiculo</label>
-                <input value={tempPlate} onChange={(e) => setTempPlate(e.target.value.toUpperCase())}
-                  placeholder="Ej: A123456" required
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono" />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setAssignTemporaryModal(null)}
-                  className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancelar</button>
-                <button onClick={handleAssignTemporary} disabled={!tempPlate}
-                  className="flex-1 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50">Asignar</button>
-              </div>
+            <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
+              <p className="text-gray-500">Tarjeta: <span className="font-mono font-medium text-gray-800">{selectedCard.card_uid}</span></p>
+              {selectedCard.label && <p className="text-gray-500">Etiqueta: <span className="text-gray-800">{selectedCard.label}</span></p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Placa del Vehiculo *</label>
+              <input
+                value={assignPlate}
+                onChange={e => setAssignPlate(e.target.value.toUpperCase())}
+                placeholder="Ej: A123456"
+                className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowAssignTemporary(false)}
+                className="flex-1 border border-gray-300 rounded-lg py-2 text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAssignTemporary}
+                disabled={!assignPlate.trim()}
+                className="flex-1 bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700 font-medium disabled:opacity-50"
+              >
+                Guardar
+              </button>
             </div>
           </div>
         </div>
