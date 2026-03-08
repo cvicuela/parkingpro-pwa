@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { settingsAPI } from '../services/api';
 import { toast } from 'react-toastify';
+import timeService from '../services/timeService';
 import {
   Settings, Save, RotateCw, Building2, Receipt, Shield,
   Bell, Wallet, Globe, ChevronDown, ChevronRight, Plus, Trash2,
-  Printer, Star, Eye, QrCode, Wifi, Radio, MapPin, Edit2
+  Printer, Star, Eye, QrCode, Wifi, Radio, MapPin, Edit2, Clock, RefreshCw
 } from 'lucide-react';
 import { getPrinters, addPrinter, removePrinter, setDefaultPrinter, getDefaultPrinter, generateEntryTicketHTML, generatePaymentReceiptHTML, generateCashReportHTML, generateDailySummaryHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
@@ -48,6 +49,104 @@ const fieldConfig = {
   late_fee: { label: 'Cargo por Mora (RD$)', type: 'number' },
   payment_retry_attempts: { label: 'Reintentos de Pago', type: 'number' },
 };
+
+function TimezoneClockPanel() {
+  const [currentTime, setCurrentTime] = useState(timeService.nowFullDisplay());
+  const [status, setStatus] = useState(timeService.getStatus());
+  const [syncing, setSyncing] = useState(false);
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      setCurrentTime(timeService.nowFullDisplay());
+      setStatus(timeService.getStatus());
+    }, 1000);
+    return () => clearInterval(intervalRef.current);
+  }, []);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    const ok = await timeService.forceSync();
+    setStatus(timeService.getStatus());
+    toast[ok ? 'success' : 'warning'](ok ? 'Hora sincronizada correctamente' : 'No se pudo sincronizar — usando hora local');
+    setSyncing(false);
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-sky-100 flex items-center justify-center">
+            <Clock size={20} className="text-sky-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800">Zona Horaria y Reloj del Sistema</h3>
+            <p className="text-xs text-gray-400">Hora sincronizada para todas las operaciones del parqueo</p>
+          </div>
+        </div>
+
+        {/* Live clock */}
+        <div className="bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-200 rounded-xl p-5 mb-4">
+          <div className="text-center">
+            <p className="text-4xl font-mono font-bold text-gray-800 tracking-wider">
+              {timeService.nowDisplay()}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">{currentTime}</p>
+          </div>
+        </div>
+
+        {/* Timezone info grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-xs text-gray-400 font-medium uppercase">Zona Horaria</p>
+            <p className="text-sm font-bold text-gray-800 mt-0.5">{timeService.TZ}</p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-xs text-gray-400 font-medium uppercase">UTC Offset</p>
+            <p className="text-sm font-bold text-gray-800 mt-0.5">UTC-4 (AST)</p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-xs text-gray-400 font-medium uppercase">Fuente</p>
+            <p className={`text-sm font-bold mt-0.5 ${status.synced ? 'text-green-700' : 'text-amber-700'}`}>
+              {status.source}
+            </p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-xs text-gray-400 font-medium uppercase">Desfase</p>
+            <p className={`text-sm font-bold mt-0.5 ${Math.abs(status.offset) < 2000 ? 'text-green-700' : 'text-amber-700'}`}>
+              {status.offsetFormatted}
+            </p>
+          </div>
+        </div>
+
+        {/* Sync status & button */}
+        <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+          <div className="flex items-center gap-2">
+            <span className={`w-2.5 h-2.5 rounded-full ${status.synced ? 'bg-green-400 animate-pulse' : 'bg-amber-400'}`} />
+            <span className="text-sm text-gray-600">
+              {status.synced
+                ? `Sincronizado con ${status.source}`
+                : 'Usando hora local del dispositivo'}
+            </span>
+            {status.lastSync && (
+              <span className="text-xs text-gray-400">
+                · Ultima sync: {new Date(status.lastSync).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Santo_Domingo' })}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 text-white text-sm rounded-lg hover:bg-sky-700 disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Sincronizando...' : 'Re-sincronizar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ConfigPage() {
   const [settings, setSettings] = useState([]);
@@ -297,6 +396,9 @@ export default function ConfigPage() {
           </div>
         ))}
       </div>
+
+      {/* ─── TIMEZONE & CLOCK ─── */}
+      <TimezoneClockPanel />
 
       {/* Settings by Category */}
       {settings.length === 0 ? (
