@@ -534,5 +534,36 @@ export const rfidAPI = {
     apiFetch(`/api/v1/rfid/cards/by-subscription/${subscriptionId}`),
 };
 
+// ZKTeco Devices
+export const devicesAPI = {
+  list: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.type) query.set('type', params.type);
+    if (params.status) query.set('status', params.status);
+    if (params.location) query.set('location', params.location);
+    const qs = query.toString();
+    return apiFetch(`/api/v1/zkteco/devices${qs ? `?${qs}` : ''}`);
+  },
+  get: async (serial) => apiFetch(`/api/v1/zkteco/devices/${serial}`),
+  create: async (data) =>
+    apiFetch('/api/v1/zkteco/devices', { method: 'POST', body: JSON.stringify(data) }),
+  update: async (serial, data) =>
+    apiFetch(`/api/v1/zkteco/devices/${serial}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: async (serial) =>
+    apiFetch(`/api/v1/zkteco/devices/${serial}`, { method: 'DELETE' }),
+  openBarrier: async (serial) =>
+    apiFetch(`/api/v1/zkteco/devices/${serial}/open`, { method: 'POST' }),
+  closeBarrier: async (serial) =>
+    apiFetch(`/api/v1/zkteco/devices/${serial}/close`, { method: 'POST' }),
+  stats: async () => apiFetch('/api/v1/zkteco/stats'),
+  events: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.serial_number) query.set('serial_number', params.serial_number);
+    if (params.limit) query.set('limit', params.limit);
+    const qs = query.toString();
+    return apiFetch(`/api/v1/zkteco/events${qs ? `?${qs}` : ''}`);
+  },
+};
+
 // Default export for backward compatibility
 export default { interceptors: { request: { use: () => {} }, response: { use: () => {} } } };
