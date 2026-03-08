@@ -105,7 +105,7 @@ export default function AuditPage() {
                 : logs.map(log => (
                   <tr key={log.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => setSelected(log)}>
                     <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
-                      {new Date(log.created_at).toLocaleString('es-DO')}
+                      {new Date(log.created_at).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })}
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-gray-800">{log.user_name || 'Sistema'}</p>
@@ -145,7 +145,7 @@ export default function AuditPage() {
               <div className="flex justify-between"><span className="text-gray-500">Usuario:</span><span>{selected.user_name || 'Sistema'} ({selected.user_role})</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Entidad:</span><span>{selected.entity_type} / {selected.entity_id?.slice(0, 8)}...</span></div>
               <div className="flex justify-between"><span className="text-gray-500">IP:</span><span className="font-mono">{selected.ip_address || '—'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Fecha:</span><span>{new Date(selected.created_at).toLocaleString('es-DO')}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Fecha:</span><span>{new Date(selected.created_at).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })}</span></div>
             </div>
             {selected.changes && (
               <div className="mt-4">

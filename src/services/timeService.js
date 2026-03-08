@@ -126,7 +126,7 @@ function nowISO() {
  * Formatea la hora actual para mostrar en pantalla (hora local RD).
  */
 function nowDisplay() {
-  return now().toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return now().toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Santo_Domingo' });
 }
 
 /**
@@ -136,6 +136,7 @@ function nowFullDisplay() {
   return now().toLocaleString('es-DO', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
+    timeZone: 'America/Santo_Domingo',
   });
 }
 
@@ -159,6 +160,60 @@ async function forceSync() {
   return await syncTime();
 }
 
+// ── Timezone constant ──
+const TZ = 'America/Santo_Domingo';
+
+/**
+ * Formatea un ISO string / Date como hora (ej: "2:30 p. m.").
+ */
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
+}
+
+/**
+ * Formatea un ISO string / Date como fecha+hora corta.
+ */
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('es-DO', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+    timeZone: TZ,
+  });
+}
+
+/**
+ * Formatea un ISO string / Date como fecha+hora completa.
+ */
+function fmtFull(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('es-DO', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    timeZone: TZ,
+  });
+}
+
+/**
+ * Formatea un ISO string / Date como fecha corta.
+ */
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('es-DO', { timeZone: TZ });
+}
+
+/**
+ * Formatea un ISO string / Date como fecha larga (ej: "lunes, 08 de marzo de 2026").
+ */
+function fmtDateLong(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('es-DO', {
+    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+    timeZone: TZ,
+  });
+}
+
 export {
   startTimeService,
   stopTimeService,
@@ -170,6 +225,12 @@ export {
   getStatus,
   forceSync,
   syncTime,
+  TZ,
+  fmtTime,
+  fmtDateTime,
+  fmtFull,
+  fmtDate,
+  fmtDateLong,
 };
 
 export default {
@@ -182,4 +243,10 @@ export default {
   nowFullDisplay,
   getStatus,
   forceSync,
+  TZ,
+  fmtTime,
+  fmtDateTime,
+  fmtFull,
+  fmtDate,
+  fmtDateLong,
 };

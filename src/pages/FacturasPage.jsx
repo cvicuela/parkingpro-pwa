@@ -52,7 +52,7 @@ export default function FacturasPage() {
         <hr/>
         <p>Cliente: ${invoice.customer_name}</p>
         ${invoice.rnc ? `<p>RNC: ${invoice.rnc}</p>` : ''}
-        <p>Fecha: ${new Date(invoice.created_at).toLocaleString('es-DO')}</p>
+        <p>Fecha: ${new Date(invoice.created_at).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })}</p>
         <hr/>
         ${JSON.parse(invoice.items || '[]').map(item =>
           `<div class="row"><span>${item.description}</span><span>RD$${parseFloat(item.subtotal).toFixed(2)}</span></div>`
@@ -132,7 +132,7 @@ export default function FacturasPage() {
                     <td className="px-4 py-3">RD${parseFloat(inv.subtotal).toFixed(2)}</td>
                     <td className="px-4 py-3">RD${parseFloat(inv.tax_amount).toFixed(2)}</td>
                     <td className="px-4 py-3 font-semibold">RD${parseFloat(inv.total).toFixed(2)}</td>
-                    <td className="px-4 py-3 text-gray-500">{new Date(inv.created_at).toLocaleDateString('es-DO')}</td>
+                    <td className="px-4 py-3 text-gray-500">{new Date(inv.created_at).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' })}</td>
                     <td className="px-4 py-3">
                       <button onClick={e => { e.stopPropagation(); handlePrint(inv); }}
                         className="flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 text-xs">
@@ -159,7 +159,7 @@ export default function FacturasPage() {
             <div className="space-y-1 text-sm">
               <div className="flex justify-between"><span className="text-gray-500">Cliente:</span><span className="font-medium">{selected.customer_name}</span></div>
               {selected.rnc && <div className="flex justify-between"><span className="text-gray-500">RNC:</span><span>{selected.rnc}</span></div>}
-              <div className="flex justify-between"><span className="text-gray-500">Fecha:</span><span>{new Date(selected.created_at).toLocaleString('es-DO')}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Fecha:</span><span>{new Date(selected.created_at).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })}</span></div>
             </div>
             <hr className="my-3" />
             {JSON.parse(selected.items || '[]').map((item, i) => (
