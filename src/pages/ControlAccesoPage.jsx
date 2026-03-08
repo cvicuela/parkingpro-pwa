@@ -53,8 +53,8 @@ function CountdownBar({ seconds, total }) {
 }
 
 /* ─── Helpers ─── */
-const fmtTime = (iso) => new Date(iso).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
-const fmtDateTime = (iso) => new Date(iso).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+const fmtTime = (iso) => timeService.fmtTime(iso);
+const fmtDateTime = (iso) => timeService.fmtDateTime(iso);
 const fmtMoney = (n) => `RD$ ${parseFloat(n || 0).toFixed(2)}`;
 const elapsed = (iso) => {
   const mins = Math.round((timeService.timestamp() - new Date(iso).getTime()) / 60000);

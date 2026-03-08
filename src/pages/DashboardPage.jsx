@@ -67,7 +67,7 @@ function ActiveSessionRow({ session }) {
     <tr className="border-b border-gray-100 hover:bg-gray-50">
       <td className="py-3 px-4 font-mono font-medium">{session.vehicle_plate}</td>
       <td className="py-3 px-4 text-sm text-gray-600">
-        {new Date(session.entry_time).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}
+        {new Date(session.entry_time).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Santo_Domingo' })}
       </td>
       <td className="py-3 px-4 text-sm">{hours}h {mins}m</td>
       <td className="py-3 px-4 text-sm font-medium text-green-600">

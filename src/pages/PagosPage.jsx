@@ -122,7 +122,7 @@ export default function PagosPage() {
                   return (
                     <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4 text-sm text-gray-500">
-                        {new Date(p.created_at).toLocaleString('es-DO', { dateStyle: 'short', timeStyle: 'short' })}
+                        {new Date(p.created_at).toLocaleString('es-DO', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Santo_Domingo' })}
                       </td>
                       <td className="py-3 px-4 text-sm font-medium text-gray-800">{p.customer_name || 'Sin cliente'}</td>
                       <td className="py-3 px-4 font-semibold">RD${parseFloat(p.total_amount || 0).toFixed(2)}</td>

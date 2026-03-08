@@ -197,7 +197,7 @@ export default function SuscripcionesPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-500">
-                      {s.next_billing_date ? new Date(s.next_billing_date).toLocaleDateString('es-DO') : '-'}
+                      {s.next_billing_date ? new Date(s.next_billing_date).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '-'}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex justify-end gap-1">

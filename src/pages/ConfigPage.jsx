@@ -475,7 +475,7 @@ export default function ConfigPage() {
 <div class="center mt mb"><div class="bold big">IMPRESORA OK</div></div>
 <div class="line"></div>
 <div class="mt">Si puedes leer esto, la impresora esta funcionando correctamente.</div>
-<div class="mt">Fecha: ${new Date().toLocaleString('es-DO')}</div>
+<div class="mt">Fecha: ${new Date().toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })}</div>
 <div class="line"></div>
 <div class="center mt">Linea de caracteres:</div>
 <div class="center">================================</div>

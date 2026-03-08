@@ -50,7 +50,8 @@ function openPrintWindow(html, title = 'ParkingPro') {
 export async function generateEntryTicketHTML({ plate, entryTime, type, planName, sessionId, qrUrl }) {
   const time = new Date(entryTime).toLocaleString('es-DO', {
     day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+    hour: '2-digit', minute: '2-digit',
+    timeZone: 'America/Santo_Domingo'
   });
   const qrSrc = qrUrl || await qrDataUrl(sessionId || plate);
 
@@ -81,8 +82,8 @@ export async function generateEntryTicketHTML({ plate, entryTime, type, planName
 
 export async function generatePaymentReceiptHTML({ receipt, showQr = true }) {
   const r = receipt;
-  const entryTime = new Date(r.entryTime).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const exitTime = new Date(r.exitTime || r.paidAt).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const entryTime = new Date(r.entryTime).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Santo_Domingo' });
+  const exitTime = new Date(r.exitTime || r.paidAt).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Santo_Domingo' });
   const qrSrc = showQr ? await qrDataUrl(r.code || r.invoiceNumber) : '';
   const method = { cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' }[r.paymentMethod] || r.paymentMethod;
 
@@ -116,15 +117,15 @@ export async function generatePaymentReceiptHTML({ receipt, showQr = true }) {
 }
 
 export function generateCashReportHTML({ register, transactions, operatorName }) {
-  const opened = new Date(register.opened_at).toLocaleString('es-DO');
-  const closed = new Date(register.closed_at || timeService.nowISO()).toLocaleString('es-DO');
+  const opened = new Date(register.opened_at).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' });
+  const closed = new Date(register.closed_at || timeService.nowISO()).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' });
   const payments = transactions.filter(t => t.type === 'payment' && t.direction === 'in');
   const refunds = transactions.filter(t => t.type === 'refund');
   const totalIn = transactions.filter(t => t.direction === 'in').reduce((s, t) => s + parseFloat(t.amount), 0);
   const totalOut = transactions.filter(t => t.direction === 'out').reduce((s, t) => s + parseFloat(t.amount), 0);
 
   const txRows = transactions.map(t => {
-    const time = new Date(t.created_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
+    const time = new Date(t.created_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Santo_Domingo' });
     const sign = t.direction === 'in' ? '+' : '-';
     return `<div class="row small"><span>${time} ${t.description || t.type}</span><span>${sign}RD$${parseFloat(t.amount).toFixed(2)}</span></div>`;
   }).join('');
@@ -164,7 +165,7 @@ export function generateCashReportHTML({ register, transactions, operatorName })
 }
 
 export function generateDailySummaryHTML({ date, stats }) {
-  const d = new Date(date || timeService.nowISO()).toLocaleDateString('es-DO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const d = new Date(date || timeService.nowISO()).toLocaleDateString('es-DO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Santo_Domingo' });
 
   return `
     <div class="center mb">

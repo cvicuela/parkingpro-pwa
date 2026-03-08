@@ -130,7 +130,7 @@ export default function CajaPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
             <div>
               <p className="font-semibold text-gray-800">{activeRegister.name}</p>
-              <p className="text-sm text-gray-500">Abierta: {new Date(activeRegister.opened_at).toLocaleString('es-DO')}</p>
+              <p className="text-sm text-gray-500">Abierta: {new Date(activeRegister.opened_at).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })}</p>
             </div>
             <button onClick={() => setShowClose(true)} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
               <Lock size={16} /> Cerrar Caja
@@ -154,7 +154,7 @@ export default function CajaPage() {
                         : <Minus size={16} className="text-red-500" />}
                       <div>
                         <p className="text-sm font-medium text-gray-800">{t.description || t.type}</p>
-                        <p className="text-xs text-gray-400">{new Date(t.created_at).toLocaleTimeString('es-DO')}</p>
+                        <p className="text-xs text-gray-400">{new Date(t.created_at).toLocaleTimeString('es-DO', { timeZone: 'America/Santo_Domingo' })}</p>
                       </div>
                     </div>
                     <span className={`font-semibold ${t.direction === 'in' ? 'text-green-600' : 'text-red-600'}`}>

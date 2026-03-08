@@ -195,7 +195,7 @@ export default function ClientesPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-500">
-                      {new Date(c.created_at).toLocaleDateString('es-DO')}
+                      {new Date(c.created_at).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' })}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex justify-end gap-1">

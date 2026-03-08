@@ -171,7 +171,7 @@ export default function ReportesPage() {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-sm">
-                        {new Date(v.entry_time).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(v.entry_time).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Santo_Domingo' })}
                       </td>
                       <td className="py-3 px-4 text-sm">
                         <span className="flex items-center gap-1">

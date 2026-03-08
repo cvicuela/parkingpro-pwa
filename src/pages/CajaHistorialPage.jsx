@@ -78,7 +78,7 @@ export default function CajaHistorialPage() {
               <div key={p.id} className="flex items-center justify-between bg-white rounded-lg p-3 border border-orange-100">
                 <div>
                   <p className="font-medium text-gray-800">{p.operator_name}</p>
-                  <p className="text-sm text-gray-500">{p.name} · {new Date(p.closed_at).toLocaleString('es-DO')}</p>
+                  <p className="text-sm text-gray-500">{p.name} · {new Date(p.closed_at).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-red-600 font-semibold">
@@ -122,7 +122,7 @@ export default function CajaHistorialPage() {
                 : history.map(h => (
                   <tr key={h.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
-                      {h.opened_at ? new Date(h.opened_at).toLocaleDateString('es-DO') : '—'}
+                      {h.opened_at ? new Date(h.opened_at).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '—'}
                     </td>
                     <td className="px-4 py-3 font-medium">{h.operator_name || h.operator_email}</td>
                     <td className="px-4 py-3 text-gray-500">{h.name}</td>
@@ -164,8 +164,8 @@ export default function CajaHistorialPage() {
             <div className="space-y-2 text-sm mb-4">
               <div className="flex justify-between"><span className="text-gray-500">Operador:</span><span>{selected.operator_name}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Caja:</span><span>{selected.name}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Apertura:</span><span>{selected.opened_at ? new Date(selected.opened_at).toLocaleString('es-DO') : '—'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Cierre:</span><span>{selected.closed_at ? new Date(selected.closed_at).toLocaleString('es-DO') : '—'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Apertura:</span><span>{selected.opened_at ? new Date(selected.opened_at).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '—'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Cierre:</span><span>{selected.closed_at ? new Date(selected.closed_at).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '—'}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Fondo inicial:</span><span>RD${parseFloat(selected.opening_balance || 0).toFixed(2)}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Esperado:</span><span>RD${parseFloat(selected.expected_balance || 0).toFixed(2)}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Contado:</span><span>RD${parseFloat(selected.counted_balance || 0).toFixed(2)}</span></div>
