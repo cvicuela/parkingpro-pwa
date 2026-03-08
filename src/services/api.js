@@ -431,5 +431,71 @@ export const auditAPI = {
   },
 };
 
+// RFID Cards
+export const rfidAPI = {
+  list: async (params = {}) => {
+    const result = await rpc('list_rfid_cards', {
+      p_token: getToken(),
+      p_card_type: params?.cardType || null,
+      p_status: params?.status || null,
+      p_search: params?.search || null,
+      p_limit: params?.limit || 50,
+      p_offset: params?.offset || 0
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  poolStats: async () => {
+    const result = await rpc('rfid_pool_stats', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  get: async (id) => {
+    const result = await rpc('get_rfid_card', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  register: async (data) => {
+    const result = await rpc('register_rfid_card', { p_token: getToken(), p_card_uid: data.cardUid, p_card_type: data.cardType, p_label: data.label || null });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  assignPermanent: async (cardId, subscriptionId) => {
+    const result = await rpc('assign_permanent_rfid', { p_token: getToken(), p_card_id: cardId, p_subscription_id: subscriptionId });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  assignTemporary: async (cardId, vehiclePlate) => {
+    const result = await rpc('assign_temporary_rfid', { p_token: getToken(), p_card_id: cardId, p_vehicle_plate: vehiclePlate });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  returnCard: async (cardId) => {
+    const result = await rpc('return_rfid_card', { p_token: getToken(), p_card_id: cardId });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  reportLost: async (cardId) => {
+    const result = await rpc('report_lost_rfid', { p_token: getToken(), p_card_id: cardId });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  disable: async (cardId) => {
+    const result = await rpc('disable_rfid_card', { p_token: getToken(), p_card_id: cardId });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  enable: async (cardId) => {
+    const result = await rpc('enable_rfid_card', { p_token: getToken(), p_card_id: cardId });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  resolve: async (cardUid) => {
+    const result = await rpc('resolve_rfid_access', { p_token: getToken(), p_card_uid: cardUid });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
 // Default export for backward compatibility
 export default { interceptors: { request: { use: () => {} }, response: { use: () => {} } } };
