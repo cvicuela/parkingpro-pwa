@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
-import { settingsAPI } from '../services/api';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { settingsAPI, usersAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import timeService from '../services/timeService';
 import {
   Settings, Save, RotateCw, Building2, Receipt, Shield,
   Bell, Wallet, Globe, ChevronDown, ChevronRight, Plus, Trash2,
-  Printer, Star, Eye, QrCode, Wifi, Radio, MapPin, Edit2, Clock, RefreshCw
+  Printer, Star, Eye, QrCode, Wifi, Radio, MapPin, Edit2, Clock, RefreshCw,
+  Users, Lock, Unlock, Key, AlertTriangle, CreditCard, X, Check
 } from 'lucide-react';
 import { getPrinters, addPrinter, removePrinter, setDefaultPrinter, getDefaultPrinter, generateEntryTicketHTML, generatePaymentReceiptHTML, generateCashReportHTML, generateDailySummaryHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
@@ -34,6 +35,9 @@ const fieldConfig = {
   ncf_series_credit: { label: 'Serie NCF - Nota de Credito', type: 'text', hint: 'Solo modo fiscal. Ej: B04' },
   internal_invoice_prefix: { label: 'Prefijo factura interna', type: 'text', hint: 'Solo modo interno. Ej: FAC, INV', placeholder: 'FAC' },
   internal_invoice_next: { label: 'Proximo numero factura interna', type: 'number', hint: 'Numero secuencial siguiente para facturas internas' },
+  terminal_sequence_start: { label: 'Secuencia Terminal - Inicio', type: 'number', hint: 'Numero inicial del rango de comprobantes del terminal', placeholder: '1' },
+  terminal_sequence_end: { label: 'Secuencia Terminal - Final', type: 'number', hint: 'Numero final del rango de comprobantes del terminal', placeholder: '999999' },
+  terminal_sequence_current: { label: 'Secuencia Terminal - Actual', type: 'number', hint: 'Proximo numero de comprobante a emitir (auto-incrementa)' },
   refund_limit_operator: { label: 'Limite reembolso por operador (RD$)', type: 'number', hint: 'Maximo que un operador puede reembolsar sin aprobacion' },
   refund_daily_multiplier: { label: 'Multiplicador diario de reembolso', type: 'number', hint: 'Tope diario = limite x multiplicador' },
   alert_email: { label: 'Email de alertas', type: 'email', placeholder: 'admin@empresa.com', hint: 'Recibe notificaciones de cierres de caja, reembolsos y alertas criticas' },
@@ -86,12 +90,13 @@ function TimezoneClockPanel() {
         </div>
 
         {/* Live clock */}
-        <div className="bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-200 rounded-xl p-5 mb-4">
-          <div className="text-center">
-            <p className="text-4xl font-mono font-bold text-gray-800 tracking-wider">
+        <div className="bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-200 rounded-xl p-3 mb-4">
+          <div className="flex items-center justify-center gap-3">
+            <p className="text-base font-mono font-bold text-gray-800 tracking-wider">
               {timeService.nowDisplay()}
             </p>
-            <p className="text-sm text-gray-500 mt-1">{currentTime}</p>
+            <span className="text-gray-300">|</span>
+            <p className="text-sm text-gray-500">{currentTime}</p>
           </div>
         </div>
 
@@ -148,6 +153,383 @@ function TimezoneClockPanel() {
   );
 }
 
+// ─── RFID READERS SECTION ───
+function RFIDReadersSection() {
+  const READERS_KEY = 'pp_rfid_readers';
+  const [expanded, setExpanded] = useState(true);
+  const [readers, setReaders] = useState([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newReader, setNewReader] = useState({ name: '', connection: 'usb', location: 'entry', ip: '', port: '', protocol: 'wiegand' });
+
+  useEffect(() => {
+    try { setReaders(JSON.parse(localStorage.getItem(READERS_KEY) || '[]')); } catch { setReaders([]); }
+  }, []);
+
+  const saveReaders = (list) => { localStorage.setItem(READERS_KEY, JSON.stringify(list)); setReaders(list); };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <button onClick={() => setExpanded(p => !p)}
+        className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+            <CreditCard size={20} className="text-orange-600" />
+          </div>
+          <div className="text-left">
+            <h3 className="font-semibold text-gray-800">Lectores RFID / NFC</h3>
+            <p className="text-xs text-gray-400">Configuracion de lectores de tarjetas de proximidad ({readers.length} configurados)</p>
+          </div>
+        </div>
+        {expanded ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
+      </button>
+
+      {expanded && (
+        <div className="border-t p-5 space-y-4">
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+            <p className="text-sm text-orange-800 font-medium mb-1">Lectores de Tarjetas RFID/NFC</p>
+            <p className="text-xs text-orange-600">Configura los lectores de tarjetas de proximidad para control de acceso. Los lectores se conectan por USB (HID), red local (TCP/IP) o Wiegand. Compatible con tarjetas MIFARE, EM4100, y NFC estándar.</p>
+          </div>
+
+          {/* Registered readers */}
+          <div>
+            <p className="font-medium text-gray-700 text-sm mb-2">Lectores Registrados</p>
+            {readers.length === 0 ? (
+              <div className="text-center py-6 bg-gray-50 rounded-lg">
+                <CreditCard size={36} className="mx-auto text-gray-300 mb-2" />
+                <p className="text-gray-500 text-sm">No hay lectores registrados</p>
+                <p className="text-gray-400 text-xs">Registra los lectores RFID conectados al sistema</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {readers.map(r => (
+                  <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-orange-300 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <CreditCard size={20} className={r.enabled !== false ? 'text-orange-500' : 'text-gray-400'} />
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm flex items-center gap-2">
+                          {r.name}
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${r.location === 'entry' ? 'bg-green-100 text-green-700' : r.location === 'exit' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {r.location === 'entry' ? 'Entrada' : r.location === 'exit' ? 'Salida' : 'Ambos'}
+                          </span>
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">{r.protocol?.toUpperCase() || 'WIEGAND'}</span>
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {r.connection === 'usb' ? 'USB (HID)' : r.connection === 'tcp' ? 'TCP/IP' : 'Wiegand'}
+                          {r.ip ? ` · IP: ${r.ip}` : ''}
+                          {r.port ? `:${r.port}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className={`w-2 h-2 rounded-full ${r.enabled !== false ? 'bg-green-400' : 'bg-gray-300'}`} />
+                      <button onClick={() => { saveReaders(readers.map(x => x.id === r.id ? { ...x, enabled: !x.enabled } : x)); toast.success(r.enabled !== false ? 'Lector desactivado' : 'Lector activado'); }}
+                        className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-orange-600" title="Activar/Desactivar">
+                        <Radio size={14} />
+                      </button>
+                      <button onClick={() => { saveReaders(readers.filter(x => x.id !== r.id)); toast.success('Lector eliminado'); }}
+                        className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" title="Eliminar">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Add reader form */}
+          {showAdd ? (
+            <div className="border border-dashed border-orange-300 rounded-lg p-4 bg-orange-50/50 space-y-3">
+              <p className="font-medium text-gray-700 text-sm">Registrar Lector RFID</p>
+              <div className="grid grid-cols-2 gap-3">
+                <input placeholder="Nombre (ej: Lector Entrada Principal)" value={newReader.name}
+                  onChange={e => setNewReader(p => ({ ...p, name: e.target.value }))}
+                  className="col-span-2 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+                <select value={newReader.connection} onChange={e => setNewReader(p => ({ ...p, connection: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+                  <option value="usb">USB (HID)</option>
+                  <option value="tcp">TCP/IP (Red)</option>
+                  <option value="wiegand">Wiegand (Serial)</option>
+                </select>
+                <select value={newReader.location} onChange={e => setNewReader(p => ({ ...p, location: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+                  <option value="entry">Entrada</option>
+                  <option value="exit">Salida</option>
+                  <option value="both">Ambos</option>
+                </select>
+                <select value={newReader.protocol} onChange={e => setNewReader(p => ({ ...p, protocol: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none">
+                  <option value="wiegand">Wiegand 26/34</option>
+                  <option value="mifare">MIFARE Classic</option>
+                  <option value="em4100">EM4100 (125kHz)</option>
+                  <option value="nfc">NFC (13.56MHz)</option>
+                  <option value="hid">HID iCLASS</option>
+                </select>
+                {newReader.connection === 'tcp' && (
+                  <>
+                    <input placeholder="IP (ej: 192.168.1.200)" value={newReader.ip}
+                      onChange={e => setNewReader(p => ({ ...p, ip: e.target.value }))}
+                      className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+                    <input placeholder="Puerto (ej: 4370)" value={newReader.port}
+                      onChange={e => setNewReader(p => ({ ...p, port: e.target.value }))}
+                      className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+                  </>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setShowAdd(false)}
+                  className="flex-1 border border-gray-300 rounded-lg py-2 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                <button onClick={() => {
+                  if (!newReader.name.trim()) { toast.warning('Ingresa un nombre para el lector'); return; }
+                  const device = { ...newReader, id: `rfid_reader_${Date.now()}`, enabled: true, createdAt: new Date().toISOString() };
+                  saveReaders([...readers, device]);
+                  setNewReader({ name: '', connection: 'usb', location: 'entry', ip: '', port: '', protocol: 'wiegand' });
+                  setShowAdd(false);
+                  toast.success('Lector RFID registrado');
+                }} className="flex-1 bg-orange-600 text-white rounded-lg py-2 text-sm hover:bg-orange-700 flex items-center justify-center gap-1">
+                  <Plus size={14} /> Registrar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setShowAdd(true)}
+              className="w-full border border-dashed border-gray-300 rounded-lg py-3 text-sm text-gray-500 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50/50 flex items-center justify-center gap-2 transition-colors">
+              <Plus size={16} /> Registrar Lector RFID
+            </button>
+          )}
+
+          {/* Status */}
+          <div className="border-t pt-4 mt-2">
+            <p className="font-medium text-gray-700 text-sm mb-2 flex items-center gap-2"><Radio size={14} className="text-orange-500" /> Estado de Lectores</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+              {[
+                { label: 'Entrada', count: readers.filter(r => (r.location === 'entry' || r.location === 'both') && r.enabled !== false).length },
+                { label: 'Salida', count: readers.filter(r => (r.location === 'exit' || r.location === 'both') && r.enabled !== false).length },
+                { label: 'Total Activos', count: readers.filter(r => r.enabled !== false).length },
+              ].map(({ label, count }) => (
+                <div key={label} className={`p-3 rounded-lg border ${count > 0 ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                  <p className={`font-medium ${count > 0 ? 'text-green-700' : 'text-gray-600'}`}>{label}</p>
+                  <p className={`text-xs ${count > 0 ? 'text-green-600' : 'text-gray-400'}`}>{count > 0 ? `${count} activo${count > 1 ? 's' : ''}` : 'Sin lectores'}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── SYSTEM USERS MANAGEMENT SECTION ───
+function SystemUsersSection() {
+  const [expanded, setExpanded] = useState(true);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [showResetPw, setShowResetPw] = useState(null);
+  const [newUser, setNewUser] = useState({ email: '', phone: '', password: '', confirmPassword: '', role: 'operator', firstName: '', lastName: '' });
+  const [resetPw, setResetPw] = useState({ password: '', confirmPassword: '' });
+  const [savingUser, setSavingUser] = useState(false);
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await usersAPI.list();
+      setUsers(data.data || data || []);
+    } catch { toast.error('Error cargando usuarios'); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { if (expanded) fetchUsers(); }, [expanded, fetchUsers]);
+
+  const roleLabels = { super_admin: 'Super Admin', admin: 'Administrador', operator: 'Operador', customer: 'Cliente' };
+  const roleColors = { super_admin: 'bg-red-100 text-red-700', admin: 'bg-purple-100 text-purple-700', operator: 'bg-blue-100 text-blue-700', customer: 'bg-gray-100 text-gray-600' };
+
+  const handleCreateUser = async () => {
+    if (!newUser.email || !newUser.password) { toast.warning('Email y contraseña son requeridos'); return; }
+    if (newUser.password !== newUser.confirmPassword) { toast.error('Las contraseñas no coinciden'); return; }
+    if (newUser.password.length < 6) { toast.warning('La contraseña debe tener al menos 6 caracteres'); return; }
+    setSavingUser(true);
+    try {
+      await usersAPI.create(newUser);
+      toast.success('Usuario creado exitosamente');
+      setNewUser({ email: '', phone: '', password: '', confirmPassword: '', role: 'operator', firstName: '', lastName: '' });
+      setShowAdd(false);
+      fetchUsers();
+    } catch (err) { toast.error(err.message || 'Error creando usuario'); }
+    finally { setSavingUser(false); }
+  };
+
+  const handleToggleStatus = async (user) => {
+    const newStatus = user.status === 'active' ? 'inactive' : 'active';
+    try {
+      await usersAPI.update(user.id, { status: newStatus });
+      toast.success(`Usuario ${newStatus === 'active' ? 'activado' : 'desactivado'}`);
+      fetchUsers();
+    } catch { toast.error('Error actualizando usuario'); }
+  };
+
+  const handleResetPassword = async (userId) => {
+    if (!resetPw.password) { toast.warning('Ingresa la nueva contraseña'); return; }
+    if (resetPw.password !== resetPw.confirmPassword) { toast.error('Las contraseñas no coinciden'); return; }
+    if (resetPw.password.length < 6) { toast.warning('La contraseña debe tener al menos 6 caracteres'); return; }
+    try {
+      await usersAPI.resetPassword(userId, resetPw.password);
+      toast.success('Contraseña actualizada');
+      setShowResetPw(null);
+      setResetPw({ password: '', confirmPassword: '' });
+    } catch (err) { toast.error(err.message || 'Error actualizando contraseña'); }
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <button onClick={() => setExpanded(p => !p)}
+        className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center">
+            <Users size={20} className="text-teal-600" />
+          </div>
+          <div className="text-left">
+            <h3 className="font-semibold text-gray-800">Usuarios del Sistema</h3>
+            <p className="text-xs text-gray-400">Gestiona cuentas, roles y credenciales de acceso ({users.length} usuarios)</p>
+          </div>
+        </div>
+        {expanded ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
+      </button>
+
+      {expanded && (
+        <div className="border-t p-5 space-y-4">
+          <div className="bg-teal-50 border border-teal-200 rounded-lg p-3">
+            <p className="text-sm text-teal-800 font-medium mb-1">Control de Acceso</p>
+            <p className="text-xs text-teal-600">Administra los usuarios que pueden acceder al sistema. Cada usuario tiene un rol que define sus permisos: <strong>Super Admin</strong> (acceso total), <strong>Administrador</strong> (gestion), <strong>Operador</strong> (cobros y acceso).</p>
+          </div>
+
+          {/* Users table */}
+          {loading ? (
+            <div className="flex justify-center py-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600" />
+            </div>
+          ) : users.length === 0 ? (
+            <div className="text-center py-6 bg-gray-50 rounded-lg">
+              <Users size={36} className="mx-auto text-gray-300 mb-2" />
+              <p className="text-gray-500 text-sm">No hay usuarios del sistema</p>
+              <p className="text-gray-400 text-xs">Crea el primer usuario para habilitar el acceso</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {users.map(u => (
+                <div key={u.id} className={`rounded-lg border p-3 ${u.status === 'active' ? 'border-gray-200' : 'border-gray-200 bg-gray-50 opacity-70'}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${u.status === 'active' ? 'bg-teal-100 text-teal-700' : 'bg-gray-200 text-gray-500'}`}>
+                        {(u.first_name || u.email || '?')[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm flex items-center gap-2">
+                          {u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.email}
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${roleColors[u.role] || 'bg-gray-100 text-gray-600'}`}>
+                            {roleLabels[u.role] || u.role}
+                          </span>
+                          {u.status !== 'active' && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">Inactivo</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {u.email} {u.phone ? `· ${u.phone}` : ''}
+                          {u.last_login_at ? ` · Ultimo acceso: ${new Date(u.last_login_at).toLocaleDateString('es-DO')}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => { setShowResetPw(showResetPw === u.id ? null : u.id); setResetPw({ password: '', confirmPassword: '' }); }}
+                        className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-amber-600" title="Cambiar contraseña">
+                        <Key size={14} />
+                      </button>
+                      <button onClick={() => handleToggleStatus(u)}
+                        className={`p-1.5 rounded hover:bg-gray-100 ${u.status === 'active' ? 'text-gray-400 hover:text-red-600' : 'text-gray-400 hover:text-green-600'}`}
+                        title={u.status === 'active' ? 'Desactivar' : 'Activar'}>
+                        {u.status === 'active' ? <Lock size={14} /> : <Unlock size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Reset password inline */}
+                  {showResetPw === u.id && (
+                    <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
+                      <p className="text-xs font-medium text-gray-600 mb-2">Nueva contraseña para {u.email}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input type="password" placeholder="Nueva contraseña" value={resetPw.password}
+                          onChange={e => setResetPw(p => ({ ...p, password: e.target.value }))}
+                          className="px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
+                        <input type="password" placeholder="Confirmar contraseña" value={resetPw.confirmPassword}
+                          onChange={e => setResetPw(p => ({ ...p, confirmPassword: e.target.value }))}
+                          className="px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={() => setShowResetPw(null)} className="px-3 py-1 text-xs border rounded-lg text-gray-600 hover:bg-gray-50">Cancelar</button>
+                        <button onClick={() => handleResetPassword(u.id)} className="px-3 py-1 text-xs bg-amber-600 text-white rounded-lg hover:bg-amber-700 flex items-center gap-1">
+                          <Key size={12} /> Cambiar Contraseña
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add user form */}
+          {showAdd ? (
+            <div className="border border-dashed border-teal-300 rounded-lg p-4 bg-teal-50/50 space-y-3">
+              <p className="font-medium text-gray-700 text-sm">Crear Usuario del Sistema</p>
+              <div className="grid grid-cols-2 gap-3">
+                <input placeholder="Nombre" value={newUser.firstName}
+                  onChange={e => setNewUser(p => ({ ...p, firstName: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
+                <input placeholder="Apellido" value={newUser.lastName}
+                  onChange={e => setNewUser(p => ({ ...p, lastName: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
+                <input placeholder="Email" type="email" value={newUser.email}
+                  onChange={e => setNewUser(p => ({ ...p, email: e.target.value }))}
+                  className="col-span-2 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
+                <input placeholder="Telefono" value={newUser.phone}
+                  onChange={e => setNewUser(p => ({ ...p, phone: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
+                <select value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none">
+                  <option value="operator">Operador</option>
+                  <option value="admin">Administrador</option>
+                  <option value="super_admin">Super Admin</option>
+                </select>
+                <input placeholder="Contraseña" type="password" value={newUser.password}
+                  onChange={e => setNewUser(p => ({ ...p, password: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
+                <input placeholder="Confirmar contraseña" type="password" value={newUser.confirmPassword}
+                  onChange={e => setNewUser(p => ({ ...p, confirmPassword: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setShowAdd(false)}
+                  className="flex-1 border border-gray-300 rounded-lg py-2 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                <button onClick={handleCreateUser} disabled={savingUser}
+                  className="flex-1 bg-teal-600 text-white rounded-lg py-2 text-sm hover:bg-teal-700 flex items-center justify-center gap-1 disabled:opacity-50">
+                  {savingUser ? <RotateCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                  {savingUser ? 'Creando...' : 'Crear Usuario'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setShowAdd(true)}
+              className="w-full border border-dashed border-gray-300 rounded-lg py-3 text-sm text-gray-500 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50/50 flex items-center justify-center gap-2 transition-colors">
+              <Plus size={16} /> Crear Usuario
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ConfigPage() {
   const [settings, setSettings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -172,6 +554,8 @@ export default function ConfigPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewTitle, setPreviewTitle] = useState('');
+  // Double verification state
+  const [confirmModal, setConfirmModal] = useState({ open: false, key: null, label: '', value: '' });
 
   const loadPrinters = () => {
     setPrinters(getPrinters());
@@ -208,7 +592,10 @@ export default function ConfigPage() {
 
   useEffect(() => { fetchSettings(); }, []);
 
-  const handleSave = async (key) => {
+  // Critical fields that require double verification
+  const criticalFields = ['tax_rate', 'ncf_series_consumer', 'ncf_series_fiscal', 'ncf_series_credit', 'invoice_mode', 'terminal_sequence_start', 'terminal_sequence_end', 'terminal_sequence_current', 'refund_limit_operator', 'refund_daily_multiplier', 'currency'];
+
+  const doSave = async (key) => {
     setSaving(prev => ({ ...prev, [key]: true }));
     try {
       await settingsAPI.update(key, editValues[key]);
@@ -219,6 +606,19 @@ export default function ConfigPage() {
     } finally {
       setSaving(prev => ({ ...prev, [key]: false }));
     }
+  };
+
+  const handleSave = (key) => {
+    if (criticalFields.includes(key)) {
+      setConfirmModal({ open: true, key, label: fieldConfig[key]?.label || key, value: editValues[key] });
+    } else {
+      doSave(key);
+    }
+  };
+
+  const confirmSave = () => {
+    if (confirmModal.key) doSave(confirmModal.key);
+    setConfirmModal({ open: false, key: null, label: '', value: '' });
   };
 
   const handleChange = (key, value) => {
@@ -780,8 +1180,47 @@ export default function ConfigPage() {
         )}
       </div>
 
+      {/* ─── RFID READERS SECTION ─── */}
+      <RFIDReadersSection />
+
+      {/* ─── SYSTEM USERS SECTION ─── */}
+      <SystemUsersSection />
+
       {/* Print Preview Modal */}
       <PrintPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} html={previewHtml} title={previewTitle} />
+
+      {/* ─── DOUBLE VERIFICATION MODAL ─── */}
+      {confirmModal.open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                <AlertTriangle size={24} className="text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800 text-lg">Confirmar Cambio Critico</h3>
+                <p className="text-sm text-gray-500">Esta accion requiere doble verificacion</p>
+              </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <p className="text-sm text-gray-700">Estas a punto de modificar:</p>
+              <p className="font-bold text-gray-900 mt-1">{confirmModal.label}</p>
+              <p className="text-sm text-gray-600 mt-2">Nuevo valor: <span className="font-mono font-bold text-indigo-700">{confirmModal.value}</span></p>
+            </div>
+            <p className="text-xs text-gray-500">Los cambios en configuraciones fiscales, monetarias y de secuencia pueden afectar la facturacion y reportes. Verifica que el valor es correcto antes de confirmar.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmModal({ open: false, key: null, label: '', value: '' })}
+                className="flex-1 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-2">
+                <X size={16} /> Cancelar
+              </button>
+              <button onClick={confirmSave}
+                className="flex-1 bg-amber-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-amber-700 flex items-center justify-center gap-2">
+                <Check size={16} /> Confirmar Cambio
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Categories without settings */}
       {categoryOrder.filter(cat => !grouped[cat] || grouped[cat].length === 0).length > 0 && (
