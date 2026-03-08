@@ -67,6 +67,11 @@ export const customersAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
+  history: async (id) => {
+    const result = await rpc('get_customer_history', { p_token: getToken(), p_customer_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Vehicles
