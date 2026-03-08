@@ -7,12 +7,12 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['operator','admin','super_admin'] },
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['operator','admin','super_admin'], bold: true },
+  { to: '/acceso', icon: ShieldCheck, label: 'Control de Acceso', roles: ['operator','admin','super_admin'] },
   { to: '/clientes', icon: Users, label: 'Clientes', roles: ['operator','admin','super_admin'] },
   { to: '/vehiculos', icon: Car, label: 'Vehiculos', roles: ['operator','admin','super_admin'] },
   { to: '/planes', icon: Layers, label: 'Planes', roles: ['admin','super_admin'] },
   { to: '/suscripciones', icon: CreditCard, label: 'Suscripciones', roles: ['operator','admin','super_admin'] },
-  { to: '/acceso', icon: ShieldCheck, label: 'Control de Acceso', roles: ['operator','admin','super_admin'] },
   { to: '/caja', icon: Wallet, label: 'Caja', roles: ['operator','admin','super_admin'] },
   { to: '/caja/historial', icon: History, label: 'Historial Cajas', roles: ['admin','super_admin'] },
   { to: '/pagos', icon: Receipt, label: 'Pagos', roles: ['operator','admin','super_admin'] },
@@ -52,7 +52,7 @@ export default function Sidebar({ open, onClose }) {
         </div>
 
         <nav className="flex-1 py-4 overflow-y-auto">
-          {visibleItems.map(({ to, icon: Icon, label }) => (
+          {visibleItems.map(({ to, icon: Icon, label, bold }) => (
             <NavLink
               key={to}
               to={to}
@@ -61,13 +61,15 @@ export default function Sidebar({ open, onClose }) {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 mx-2 rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-white/20 text-white font-semibold'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                    ? 'bg-white/20 text-white font-bold'
+                    : bold
+                      ? 'text-white font-bold hover:bg-white/10'
+                      : 'text-white/70 hover:bg-white/10 hover:text-white'
                 }`
               }
             >
               <Icon size={20} />
-              <span>{label}</span>
+              <span className={bold ? 'text-[15px] tracking-wide uppercase' : ''}>{label}</span>
             </NavLink>
           ))}
         </nav>
