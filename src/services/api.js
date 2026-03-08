@@ -67,6 +67,11 @@ export const customersAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
+  history: async (id) => {
+    const result = await rpc('get_customer_history', { p_token: getToken(), p_customer_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Vehicles
@@ -369,6 +374,20 @@ export const cashAPI = {
   },
   limits: async () => {
     const result = await rpc('get_cash_limits', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
+// Operators
+export const operatorsAPI = {
+  list: async () => {
+    const result = await rpc('list_operators', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_operator', { p_token: getToken(), p_data: data });
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },

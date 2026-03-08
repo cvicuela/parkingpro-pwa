@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { customersAPI } from '../services/api';
 import { toast } from 'react-toastify';
-import { Plus, Search, Edit2, Trash2, X, Building2, User } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Building2, User, History, Printer, Car, CreditCard, FileText, Clock } from 'lucide-react';
+import PrintPreviewModal from '../components/PrintPreviewModal';
+
+const GENERIC_CUSTOMER_ID = '00000000-0000-0000-0000-000000000001';
 
 function CustomerModal({ customer, onClose, onSave }) {
   const [form, setForm] = useState(customer || {
@@ -10,7 +13,6 @@ function CustomerModal({ customer, onClose, onSave }) {
   });
   const [saving, setSaving] = useState(false);
 
-  // For new customers, we also need to create a user account
   const [password, setPassword] = useState('');
 
   const handleSubmit = async (e) => {
@@ -110,12 +112,243 @@ function CustomerModal({ customer, onClose, onSave }) {
   );
 }
 
+const fmtDate = (iso) => {
+  if (!iso) return '-';
+  return new Date(iso).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo', day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+const fmtDateTime = (iso) => {
+  if (!iso) return '-';
+  return new Date(iso).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+const fmtMoney = (n) => n != null ? `RD$ ${Number(n).toLocaleString('es-DO', { minimumFractionDigits: 2 })}` : '-';
+
+const statusLabel = (s) => {
+  const map = { active: 'Activa', paid: 'Pagado', pending: 'Pendiente', cancelled: 'Cancelada', suspended: 'Suspendida', past_due: 'Vencida', refunded: 'Reembolsado' };
+  return map[s] || s || '-';
+};
+const statusColor = (s) => {
+  const map = { active: 'bg-green-100 text-green-700', paid: 'bg-green-100 text-green-700', pending: 'bg-yellow-100 text-yellow-700', cancelled: 'bg-red-100 text-red-700', suspended: 'bg-orange-100 text-orange-700', past_due: 'bg-red-100 text-red-700' };
+  return map[s] || 'bg-gray-100 text-gray-700';
+};
+
+function CustomerHistoryModal({ customer, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [tab, setTab] = useState('sessions');
+  const [printOpen, setPrintOpen] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await customersAPI.history(customer.id);
+        setData(res.data.data || res.data);
+      } catch (err) {
+        toast.error('Error al cargar historial');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [customer.id]);
+
+  const isGeneric = customer.id === GENERIC_CUSTOMER_ID;
+
+  const buildPrintHtml = () => {
+    if (!data) return '';
+    const name = isGeneric ? 'Cliente Genérico (Visitantes)' : `${data.customer.first_name} ${data.customer.last_name}`;
+    let html = `
+      <div class="center bold big mb">Historial de Cliente</div>
+      <div class="line"></div>
+      <div class="bold">${name}</div>
+      ${data.customer.id_document ? `<div>Doc: ${data.customer.id_document}</div>` : ''}
+      ${data.customer.company_name ? `<div>Empresa: ${data.customer.company_name}</div>` : ''}
+      <div class="line"></div>
+      <div class="row"><span>Total Sesiones:</span><span class="bold">${data.totals.total_sessions}</span></div>
+      <div class="row"><span>Total Pagado:</span><span class="bold">${fmtMoney(data.totals.total_paid)}</span></div>
+      <div class="line"></div>
+    `;
+
+    if (data.sessions.length > 0) {
+      html += `<div class="bold mt mb">Sesiones de Parqueo</div>`;
+      data.sessions.slice(0, 20).forEach(s => {
+        html += `
+          <div class="small" style="margin-bottom:4px; border-bottom:1px dotted #ccc; padding-bottom:3px;">
+            <div class="row"><span>${s.vehicle_plate}</span><span>${s.is_active ? 'ACTIVA' : (s.payment_status === 'paid' ? 'Pagada' : 'Pendiente')}</span></div>
+            <div>Entrada: ${fmtDateTime(s.entry_time)}</div>
+            ${s.exit_time ? `<div>Salida: ${fmtDateTime(s.exit_time)}</div>` : ''}
+            ${s.paid_amount ? `<div>Monto: ${fmtMoney(s.paid_amount)}</div>` : ''}
+          </div>
+        `;
+      });
+    }
+
+    if (data.payments.length > 0) {
+      html += `<div class="line"></div><div class="bold mt mb">Pagos</div>`;
+      data.payments.slice(0, 20).forEach(p => {
+        html += `
+          <div class="small" style="margin-bottom:4px; border-bottom:1px dotted #ccc; padding-bottom:3px;">
+            <div class="row"><span>${fmtMoney(p.total_amount)}</span><span>${statusLabel(p.status)}</span></div>
+            <div>${fmtDateTime(p.paid_at || p.created_at)}</div>
+          </div>
+        `;
+      });
+    }
+
+    html += `<div class="line"></div><div class="center small mt">Impreso: ${fmtDateTime(new Date().toISOString())}</div>`;
+    return html;
+  };
+
+  const tabs = [
+    { id: 'sessions', label: 'Sesiones', icon: Car, count: data?.sessions?.length },
+    { id: 'payments', label: 'Pagos', icon: CreditCard, count: data?.payments?.length },
+    { id: 'subscriptions', label: 'Suscripciones', icon: FileText, count: data?.subscriptions?.length },
+  ];
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+        <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b">
+            <div>
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <History size={20} className="text-indigo-600" />
+                Historial de {isGeneric ? 'Visitantes' : `${customer.first_name} ${customer.last_name}`}
+              </h3>
+              {isGeneric && <p className="text-xs text-gray-500 mt-0.5">Todos los vehículos sin suscripción registrada</p>}
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setPrintOpen(true)} disabled={!data}
+                className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30"
+                title="Imprimir historial">
+                <Printer size={18} />
+              </button>
+              <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center p-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+            </div>
+          ) : !data ? (
+            <p className="p-8 text-center text-gray-400">No se pudo cargar el historial</p>
+          ) : (
+            <>
+              {/* Summary cards */}
+              <div className="grid grid-cols-2 gap-3 p-4 bg-gray-50">
+                <div className="bg-white rounded-lg p-3 border">
+                  <p className="text-xs text-gray-500">Total Sesiones</p>
+                  <p className="text-xl font-bold text-gray-800">{data.totals.total_sessions}</p>
+                </div>
+                <div className="bg-white rounded-lg p-3 border">
+                  <p className="text-xs text-gray-500">Total Pagado</p>
+                  <p className="text-xl font-bold text-green-600">{fmtMoney(data.totals.total_paid)}</p>
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b px-4">
+                {tabs.map(t => (
+                  <button key={t.id} onClick={() => setTab(t.id)}
+                    className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                      tab === t.id ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}>
+                    <t.icon size={14} />
+                    {t.label}
+                    {t.count > 0 && <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded-full">{t.count}</span>}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab content */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2" style={{ maxHeight: '400px' }}>
+                {tab === 'sessions' && (
+                  data.sessions.length === 0 ? <p className="text-center text-gray-400 py-6">Sin sesiones registradas</p> :
+                  data.sessions.map(s => (
+                    <div key={s.id} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Car size={14} className="text-gray-400" />
+                          <span className="font-mono font-bold text-sm">{s.vehicle_plate}</span>
+                          {s.plan_name && <span className="text-xs text-gray-400">({s.plan_name})</span>}
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${s.is_active ? 'bg-blue-100 text-blue-700' : statusColor(s.payment_status)}`}>
+                          {s.is_active ? 'Activa' : statusLabel(s.payment_status)}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 grid grid-cols-2 gap-x-4 text-xs text-gray-500">
+                        <div className="flex items-center gap-1"><Clock size={10} /> Entrada: {fmtDateTime(s.entry_time)}</div>
+                        {s.exit_time && <div>Salida: {fmtDateTime(s.exit_time)}</div>}
+                        {s.duration_minutes && <div>Duración: {s.duration_minutes} min</div>}
+                        {s.paid_amount != null && <div>Pagado: {fmtMoney(s.paid_amount)}</div>}
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {tab === 'payments' && (
+                  data.payments.length === 0 ? <p className="text-center text-gray-400 py-6">Sin pagos registrados</p> :
+                  data.payments.map(p => (
+                    <div key={p.id} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm">{fmtMoney(p.total_amount)}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(p.status)}`}>
+                          {statusLabel(p.status)}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500 flex items-center gap-3">
+                        <span>{fmtDateTime(p.paid_at || p.created_at)}</span>
+                        {p.payment_method && <span className="capitalize">{p.payment_method}</span>}
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {tab === 'subscriptions' && (
+                  data.subscriptions.length === 0 ? <p className="text-center text-gray-400 py-6">Sin suscripciones</p> :
+                  data.subscriptions.map(s => (
+                    <div key={s.id} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-semibold text-sm">{s.plan_name || 'Plan'}</span>
+                          {s.vehicle_plate && <span className="ml-2 text-xs font-mono text-gray-500">{s.vehicle_plate}</span>}
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(s.status)}`}>
+                          {statusLabel(s.status)}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500 flex items-center gap-3">
+                        <span>{fmtMoney(s.price_per_period)}/{s.billing_frequency === 'monthly' ? 'mes' : s.billing_frequency === 'weekly' ? 'sem' : 'hr'}</span>
+                        {s.current_period_end && <span>Vence: {fmtDate(s.current_period_end)}</span>}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <PrintPreviewModal
+        open={printOpen}
+        onClose={() => setPrintOpen(false)}
+        html={buildPrintHtml()}
+        title="Historial de Cliente"
+      />
+    </>
+  );
+}
+
 export default function ClientesPage() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [historyCustomer, setHistoryCustomer] = useState(null);
 
   const fetchCustomers = async () => {
     try {
@@ -129,6 +362,10 @@ export default function ClientesPage() {
   useEffect(() => { fetchCustomers(); }, [search]);
 
   const handleDelete = async (id) => {
+    if (id === GENERIC_CUSTOMER_ID) {
+      toast.warning('No se puede eliminar el cliente genérico');
+      return;
+    }
     if (!confirm('Eliminar este cliente?')) return;
     try {
       await customersAPI.delete(id);
@@ -138,6 +375,8 @@ export default function ClientesPage() {
       toast.error(err.response?.data?.error || 'Error al eliminar');
     }
   };
+
+  const isGeneric = (c) => c.id === GENERIC_CUSTOMER_ID;
 
   return (
     <div className="space-y-4">
@@ -178,35 +417,51 @@ export default function ClientesPage() {
               </thead>
               <tbody>
                 {customers.map((c) => (
-                  <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={c.id} className={`border-b border-gray-100 hover:bg-gray-50 ${isGeneric(c) ? 'bg-amber-50/50' : ''}`}>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
-                        {c.is_company ? <Building2 size={16} className="text-blue-500" /> : <User size={16} className="text-gray-400" />}
+                        {isGeneric(c) ? <User size={16} className="text-amber-500" /> :
+                          c.is_company ? <Building2 size={16} className="text-blue-500" /> : <User size={16} className="text-gray-400" />}
                         <div>
-                          <p className="font-medium">{c.first_name} {c.last_name}</p>
+                          <p className="font-medium">
+                            {c.first_name} {c.last_name}
+                            {isGeneric(c) && <span className="ml-1.5 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Visitantes</span>}
+                          </p>
                           {c.company_name && <p className="text-xs text-gray-400">{c.company_name}</p>}
                         </div>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600">{c.id_document || '-'}</td>
                     <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${c.is_company ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
-                        {c.is_company ? 'Empresa' : 'Personal'}
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        isGeneric(c) ? 'bg-amber-100 text-amber-700' :
+                        c.is_company ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {isGeneric(c) ? 'Genérico' : c.is_company ? 'Empresa' : 'Personal'}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-500">
-                      {new Date(c.created_at).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' })}
+                      {fmtDate(c.created_at)}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex justify-end gap-1">
-                        <button onClick={() => { setEditing(c); setShowModal(true); }}
-                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded">
-                          <Edit2 size={16} />
+                        <button onClick={() => setHistoryCustomer(c)}
+                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                          title="Ver historial">
+                          <History size={16} />
                         </button>
-                        <button onClick={() => handleDelete(c.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
-                          <Trash2 size={16} />
-                        </button>
+                        {!isGeneric(c) && (
+                          <>
+                            <button onClick={() => { setEditing(c); setShowModal(true); }}
+                              className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded">
+                              <Edit2 size={16} />
+                            </button>
+                            <button onClick={() => handleDelete(c.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
+                              <Trash2 size={16} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -222,6 +477,13 @@ export default function ClientesPage() {
           customer={editing}
           onClose={() => { setShowModal(false); setEditing(null); }}
           onSave={() => { setShowModal(false); setEditing(null); fetchCustomers(); }}
+        />
+      )}
+
+      {historyCustomer && (
+        <CustomerHistoryModal
+          customer={historyCustomer}
+          onClose={() => setHistoryCustomer(null)}
         />
       )}
     </div>

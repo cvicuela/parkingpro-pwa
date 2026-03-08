@@ -32,11 +32,12 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
     e.preventDefault();
     setSaving(true);
     try {
+      const payload = { ...form, vehicle_id: (form.vehicle_id && form.vehicle_id !== 'na') ? form.vehicle_id : null };
       if (subscription?.id) {
-        await subscriptionsAPI.update(subscription.id, form);
+        await subscriptionsAPI.update(subscription.id, payload);
         toast.success('Suscripcion actualizada');
       } else {
-        await subscriptionsAPI.create(form);
+        await subscriptionsAPI.create(payload);
         toast.success('Suscripcion creada');
       }
       onSave();
@@ -66,9 +67,10 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Vehiculo</label>
-            <select value={form.vehicle_id} onChange={set('vehicle_id')} required
+            <select value={form.vehicle_id} onChange={set('vehicle_id')}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
               <option value="">Seleccionar...</option>
+              <option value="na">No aplica</option>
               {vehicles.filter(v => !form.customer_id || v.customer_id === form.customer_id).map((v) => (
                 <option key={v.id} value={v.id}>{v.plate} - {v.make} {v.model}</option>
               ))}
