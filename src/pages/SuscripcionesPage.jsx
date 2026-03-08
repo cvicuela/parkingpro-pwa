@@ -255,8 +255,7 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Vehiculo</label>
             <select value={form.vehicle_id || ''} onChange={set('vehicle_id')}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-              size={Math.min(filteredVehicles.length + 2, 6)}>
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
               <option value="">Seleccionar...</option>
               <option value="na">No aplica</option>
               {filteredVehicles.map((v) => (
