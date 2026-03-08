@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { accessAPI, plansAPI } from '../services/api';
+import { accessAPI, plansAPI, rfidAPI } from '../services/api';
 import { printEntryTicket, printPaymentReceipt, generateEntryTicketHTML, generatePaymentReceiptHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
 import { QRCodeSVG } from 'qrcode.react';
@@ -9,7 +9,7 @@ import {
   LogIn, LogOut, Car, DollarSign, CheckCircle,
   RefreshCw, QrCode, Printer, X, Eye, Clock,
   CreditCard, Banknote, ArrowRight, ArrowLeft, Shield,
-  Hash, Timer, Copy, AlertTriangle
+  Hash, Timer, Copy, AlertTriangle, Wifi, Radio
 } from 'lucide-react';
 
 /* ─── Occupancy sidebar ─── */
@@ -91,6 +91,10 @@ export default function ControlAccesoPage() {
   const [quickQr, setQuickQr] = useState(null);
   const quickQrTimer = useRef(null);
 
+  // ── RFID state ──
+  const [accessMethod, setAccessMethod] = useState('plate'); // 'plate' | 'rfid' | 'qr'
+  const [rfidUid, setRfidUid] = useState('');
+
   // ── Print preview ──
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
@@ -167,6 +171,27 @@ export default function ControlAccesoPage() {
 
     setLoading(true);
     try {
+      // If RFID mode, resolve card first
+      if (accessMethod === 'rfid' && rfidUid) {
+        try {
+          const { data: rfidResult } = await rfidAPI.resolve(rfidUid);
+          const resolution = rfidResult.data || rfidResult;
+          if (!resolution.allowed && resolution.reason) {
+            toast.error(resolution.message || 'Tarjeta RFID no autorizada');
+            setLoading(false);
+            return;
+          }
+          // Use the resolved plate for the rest of the flow
+          const resolvedPlate = resolution.subscription?.vehicle_plate || resolution.card?.metadata?.vehicle_plate || plate;
+          if (resolvedPlate) setPlate(resolvedPlate);
+          // Continue with normal flow using resolved plate
+        } catch (err) {
+          toast.error('Error al resolver tarjeta RFID');
+          setLoading(false);
+          return;
+        }
+      }
+
       const entryPlate = plate.trim() ? plate.toUpperCase().trim() : `SIN-${timeService.timestamp().toString(36).toUpperCase()}`;
       const { data } = await accessAPI.entry({ plateNumber: entryPlate });
       const session = data.data;
@@ -191,6 +216,7 @@ export default function ControlAccesoPage() {
       }, 2000);
 
       setPlate('');
+      setRfidUid('');
       fetchOccupancy();
     } catch (err) {
       toast.error(err.message || 'Error al registrar entrada');
@@ -312,6 +338,26 @@ export default function ControlAccesoPage() {
 
   // ── Open exit popup from plate/ID input ──
   const handleExitSearch = async () => {
+    // If RFID mode, resolve card first
+    if (accessMethod === 'rfid' && rfidUid) {
+      setLoading(true);
+      try {
+        const { data: rfidResult } = await rfidAPI.resolve(rfidUid);
+        const resolution = rfidResult.data || rfidResult;
+        if (!resolution.allowed && resolution.reason) {
+          toast.error(resolution.message || 'Tarjeta RFID no autorizada');
+          setLoading(false);
+          return;
+        }
+        const resolvedPlate = resolution.subscription?.vehicle_plate || resolution.card?.metadata?.vehicle_plate || plate;
+        if (resolvedPlate) setPlate(resolvedPlate);
+      } catch (err) {
+        toast.error('Error al resolver tarjeta RFID');
+        setLoading(false);
+        return;
+      }
+    }
+
     const p = plate.toUpperCase().trim();
     if (!p) { toast.warning('Ingresa una placa o ID'); return; }
     setLoading(true);
@@ -344,6 +390,7 @@ export default function ControlAccesoPage() {
         }
       }
       setPlate('');
+      setRfidUid('');
     } finally { setLoading(false); }
   };
 
@@ -371,14 +418,46 @@ export default function ControlAccesoPage() {
                 <LogOut size={18} /> Salida / Cobro
               </button>
             </div>
+            {/* Access Method Selector */}
+            <div className="flex gap-2 mb-3">
+              <button onClick={() => setAccessMethod('plate')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${accessMethod === 'plate' ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                <Car size={14} /> Placa
+              </button>
+              <button onClick={() => setAccessMethod('rfid')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${accessMethod === 'rfid' ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                <Wifi size={14} /> RFID
+              </button>
+              <button onClick={() => setAccessMethod('qr')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${accessMethod === 'qr' ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                <QrCode size={14} /> QR
+              </button>
+            </div>
+
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && (accessType === 'entry' ? handleEntry() : handleExitSearch())}
-                  placeholder={accessType === 'entry' ? 'Placa del vehiculo (opcional)...' : 'Placa, ID de sesion o escanear QR...'}
-                  autoFocus
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-lg font-mono uppercase" />
+                {accessMethod === 'rfid' ? (
+                  <>
+                    <Wifi className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      value={rfidUid}
+                      onChange={(e) => setRfidUid(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === 'Enter' && (accessType === 'entry' ? handleEntry() : handleExitSearch())}
+                      placeholder="Escanee o ingrese UID de tarjeta RFID..."
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+                      autoFocus
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === 'Enter' && (accessType === 'entry' ? handleEntry() : handleExitSearch())}
+                      placeholder={accessType === 'entry' ? 'Placa del vehiculo (opcional)...' : 'Placa, ID de sesion o escanear QR...'}
+                      autoFocus
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-lg font-mono uppercase" />
+                  </>
+                )}
               </div>
               {accessType === 'entry' ? (
                 <button onClick={handleEntry} disabled={loading}
@@ -431,7 +510,11 @@ export default function ControlAccesoPage() {
                         <tr key={s.id}
                           onClick={() => handleRowClick(s)}
                           className={`border-b border-gray-100 cursor-pointer transition-colors ${isSelected ? 'bg-amber-50 border-l-4 border-l-amber-500' : 'hover:bg-indigo-50'}`}>
-                          <td className="py-3 px-4 font-mono font-bold text-indigo-700 text-lg">{displayPlate}</td>
+                          <td className="py-3 px-4 font-mono font-bold text-indigo-700 text-lg flex items-center gap-1.5">
+                            {displayPlate}
+                            {s.access_method === 'rfid' && <Wifi size={12} className="text-indigo-500" title="RFID" />}
+                            {s.access_method === 'qr' && <QrCode size={12} className="text-purple-500" title="QR" />}
+                          </td>
                           <td className="py-3 px-4 text-sm">{fmtTime(s.entry_time)}</td>
                           <td className="py-3 px-4">
                             <span className={`text-xs px-2 py-1 rounded font-medium ${mins > 180 ? 'bg-red-100 text-red-700' : mins > 60 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
