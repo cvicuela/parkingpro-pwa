@@ -374,6 +374,20 @@ export const cashAPI = {
   },
 };
 
+// Operators
+export const operatorsAPI = {
+  list: async () => {
+    const result = await rpc('list_operators', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_operator', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
 // Invoices
 export const invoicesAPI = {
   list: async (params = {}) => {

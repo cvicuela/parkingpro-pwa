@@ -1,38 +1,68 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { Wallet, Lock, CheckCircle, AlertTriangle, Plus, Minus, List, Printer, Eye } from 'lucide-react';
-import { cashAPI } from '../services/api';
-import { printCashReport, generateCashReportHTML } from '../services/printService';
+import {
+  Wallet, Lock, Unlock, CheckCircle, AlertTriangle, Plus, Minus,
+  List, Eye, X, DollarSign, Clock, TrendingUp, TrendingDown, ArrowUpDown
+} from 'lucide-react';
+import { cashAPI, operatorsAPI } from '../services/api';
+import { generateCashReportHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
 import { useAuth } from '../context/AuthContext';
+import timeService from '../services/timeService';
 
 const DENOMINATIONS = [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1];
 
 export default function CajaPage() {
   const { user } = useAuth();
-  const [activeRegister, setActiveRegister] = useState(null);
-  const [limits, setLimits] = useState({ cashDiffThreshold: 200, refundLimitOperator: 500 });
+  const [register, setRegister] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [limits, setLimits] = useState({ differenceThreshold: 200, refundLimitOperator: 500 });
   const [loading, setLoading] = useState(true);
+
+  // Modals
   const [showOpen, setShowOpen] = useState(false);
   const [showClose, setShowClose] = useState(false);
-  const [openForm, setOpenForm] = useState({ openingBalance: '', name: 'Caja Principal' });
-  const [denomCounts, setDenomCounts] = useState({});
-  const [closeNotes, setCloseNotes] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
 
+  // Open form
+  const [openForm, setOpenForm] = useState({ openingBalance: '', name: 'Caja Principal', operatorId: '' });
+  const [opening, setOpening] = useState(false);
+
+  // Close form
+  const [denomCounts, setDenomCounts] = useState({});
+  const [closeNotes, setCloseNotes] = useState('');
+  const [closing, setClosing] = useState(false);
+
+  /* ─── FETCH ─── */
   const fetchActive = useCallback(async () => {
     try {
-      const [regRes, limRes] = await Promise.all([cashAPI.active(), cashAPI.limits()]);
-      setActiveRegister(regRes.data.data);
-      setLimits(limRes.data.data);
-      if (regRes.data.data) {
-        const txRes = await cashAPI.transactions(regRes.data.data.id);
-        setTransactions(txRes.data.data);
+      const [regRes, limRes] = await Promise.all([
+        cashAPI.active(),
+        cashAPI.limits().catch(() => ({ data: { data: limits } }))
+      ]);
+
+      const regData = regRes.data.data;
+      if (regData && regData.register) {
+        // RPC returns { register: {...}, transactions: [...] }
+        setRegister(regData.register);
+        setTransactions(regData.transactions || []);
+      } else if (regData && regData.id) {
+        // Direct register object
+        setRegister(regData);
+        try {
+          const txRes = await cashAPI.transactions(regData.id);
+          setTransactions(txRes.data.data || []);
+        } catch { setTransactions([]); }
+      } else {
+        setRegister(null);
+        setTransactions([]);
       }
-    } catch (err) {
-      toast.error('Error cargando caja');
+
+      if (limRes.data?.data) setLimits(limRes.data.data);
+    } catch {
+      setRegister(null);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -40,239 +70,529 @@ export default function CajaPage() {
 
   useEffect(() => { fetchActive(); }, [fetchActive]);
 
+  /* ─── CALCULATIONS ─── */
+  const totalIn = transactions
+    .filter(t => t.direction === 'in' && t.type !== 'opening_float')
+    .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  const totalOut = transactions
+    .filter(t => t.direction === 'out')
+    .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  const openingBal = register ? parseFloat(register.opening_balance || 0) : 0;
+  const currentBalance = openingBal + totalIn - totalOut;
+
+  const countedBalance = DENOMINATIONS.reduce((acc, d) =>
+    acc + (d * (parseInt(denomCounts[d]) || 0)), 0);
+  const expectedBalance = currentBalance;
+  const difference = countedBalance - expectedBalance;
+  const threshold = limits.differenceThreshold || 200;
+
+  /* ─── OPEN ─── */
   const handleOpen = async (e) => {
     e.preventDefault();
+    setOpening(true);
     try {
-      await cashAPI.open({ ...openForm, openingBalance: parseFloat(openForm.openingBalance) || 0 });
+      await cashAPI.open({
+        ...openForm,
+        openingBalance: parseFloat(openForm.openingBalance) || 0
+      });
       toast.success('Caja abierta correctamente');
       setShowOpen(false);
+      setOpenForm({ openingBalance: '', name: 'Caja Principal', operatorId: '' });
       fetchActive();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error abriendo caja');
+      toast.error(err.message || 'Error abriendo caja');
+    } finally {
+      setOpening(false);
     }
   };
 
-  const countedBalance = DENOMINATIONS.reduce((acc, d) => {
-    return acc + (d * (parseInt(denomCounts[d]) || 0));
-  }, 0);
-
+  /* ─── CLOSE ─── */
   const handleClose = async (e) => {
     e.preventDefault();
+    setClosing(true);
     const denominations = DENOMINATIONS
       .filter(d => parseInt(denomCounts[d]) > 0)
       .map(d => ({ denomination: d, quantity: parseInt(denomCounts[d]) }));
     try {
-      const res = await cashAPI.close(activeRegister.id, {
+      const res = await cashAPI.close(register.id, {
         countedBalance,
         denominations,
         notes: closeNotes
       });
       const data = res.data.data;
-      if (data.requiresApproval) {
-        toast.warn(data.message, { autoClose: 8000 });
+      if (data?.requires_approval) {
+        toast.warn('Cierre requiere aprobacion del supervisor (diferencia alta)', { autoClose: 8000 });
       } else {
-        toast.success(data.message);
+        toast.success('Caja cerrada correctamente');
       }
-      printCashReport({
-        register: { ...activeRegister, closed_at: new Date().toISOString(), counted_balance: countedBalance, expected_balance: totalIn - totalOut, difference: countedBalance - (totalIn - totalOut) },
-        transactions,
-        operatorName: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : 'N/A'
-      });
       setShowClose(false);
-      setActiveRegister(null);
+      setDenomCounts({});
+      setCloseNotes('');
+      setRegister(null);
       setTransactions([]);
+      fetchActive();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error cerrando caja');
+      toast.error(err.message || 'Error cerrando caja');
+    } finally {
+      setClosing(false);
     }
   };
 
-  const totalIn = transactions.filter(t => t.direction === 'in').reduce((s, t) => s + parseFloat(t.amount), 0);
-  const totalOut = transactions.filter(t => t.direction === 'out').reduce((s, t) => s + parseFloat(t.amount), 0);
+  const buildReportData = () => ({
+    register: {
+      ...register,
+      closed_at: new Date().toISOString(),
+      counted_balance: countedBalance,
+      expected_balance: expectedBalance,
+      difference
+    },
+    transactions,
+    operatorName: user
+      ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email
+      : 'Operador'
+  });
 
-  if (loading) return <div className="flex justify-center p-12"><div className="animate-spin h-8 w-8 border-b-2 border-indigo-600 rounded-full" /></div>;
+  const fmtMoney = (v) => `RD$${(v || 0).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtTime = (iso) => {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('es-DO', {
+      day: '2-digit', month: '2-digit', year: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+      timeZone: 'America/Santo_Domingo'
+    });
+  };
 
+  /* ─── LOADING ─── */
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-12">
+        <div className="animate-spin h-10 w-10 border-b-2 border-indigo-600 rounded-full" />
+      </div>
+    );
+  }
+
+  /* ─── NO REGISTER OPEN ─── */
+  if (!register) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <Wallet className="text-indigo-600" size={28} />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Caja Registradora</h1>
+            <p className="text-sm text-gray-500">Gestiona el efectivo del turno</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Lock size={36} className="text-gray-400" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Caja cerrada</h2>
+          <p className="text-gray-500 mb-8 max-w-md mx-auto">
+            Debes abrir una sesion de caja antes de registrar cobros o reembolsos.
+            Todos los pagos se asocian a la caja activa.
+          </p>
+          <button
+            onClick={() => setShowOpen(true)}
+            className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 text-lg font-medium shadow-sm transition-colors"
+          >
+            <Unlock size={22} /> Abrir Caja
+          </button>
+        </div>
+
+        {/* Open modal */}
+        {showOpen && <OpenCajaModal
+          form={openForm}
+          setForm={setOpenForm}
+          onSubmit={handleOpen}
+          onClose={() => setShowOpen(false)}
+          saving={opening}
+        />}
+      </div>
+    );
+  }
+
+  /* ─── REGISTER ACTIVE ─── */
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Wallet size={24} />Cuadre de Caja</h1>
-        <div className="text-sm text-gray-500">
-          Umbral alerta: <strong>RD${limits.cashDiffThreshold}</strong> · Límite reembolso operador: <strong>RD${limits.refundLimitOperator}</strong>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+            <Wallet size={22} className="text-green-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Caja Registradora</h1>
+            <p className="text-sm text-gray-500">
+              {register.name} · Abierta {fmtTime(register.opened_at)}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> Abierta
+          </span>
+          <button
+            onClick={() => setShowClose(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-sm font-medium transition-colors"
+          >
+            <Lock size={16} /> Cerrar Caja
+          </button>
         </div>
       </div>
 
-      {!activeRegister ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <Lock size={48} className="mx-auto text-gray-300 mb-4" />
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">No hay caja abierta</h2>
-          <p className="text-gray-500 mb-6">Debes abrir una caja antes de registrar cobros</p>
-          <button onClick={() => setShowOpen(true)} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-            Abrir Caja
-          </button>
+      {/* Stats cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard icon={DollarSign} label="Fondo Inicial" value={fmtMoney(openingBal)} color="blue" />
+        <StatCard icon={TrendingUp} label="Total Ingresos" value={fmtMoney(totalIn)} color="green" />
+        <StatCard icon={TrendingDown} label="Total Egresos" value={fmtMoney(totalOut)} color="red" />
+        <StatCard icon={Wallet} label="Balance Actual" value={fmtMoney(currentBalance)} color="indigo" />
+      </div>
+
+      {/* Quick info bar */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-6 text-sm">
+          <span className="text-gray-500">
+            <Clock size={14} className="inline mr-1" />
+            Abierta: <strong className="text-gray-800">{fmtTime(register.opened_at)}</strong>
+          </span>
+          <span className="text-gray-500">
+            <ArrowUpDown size={14} className="inline mr-1" />
+            Movimientos: <strong className="text-gray-800">{transactions.filter(t => t.type !== 'opening_float').length}</strong>
+          </span>
+          <span className="text-gray-500">
+            Umbral: <strong className="text-gray-800">{fmtMoney(threshold)}</strong>
+          </span>
         </div>
-      ) : (
-        <>
-          {/* Resumen del turno */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: 'Fondo Inicial', value: parseFloat(activeRegister.opening_balance), color: 'blue' },
-              { label: 'Total Ingresos', value: totalIn, color: 'green' },
-              { label: 'Total Egresos', value: totalOut, color: 'red' },
-              { label: 'Balance Actual', value: totalIn - totalOut, color: 'indigo' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className={`bg-${color}-50 border border-${color}-200 rounded-lg p-4`}>
-                <p className={`text-xs text-${color}-600 font-medium uppercase`}>{label}</p>
-                <p className={`text-2xl font-bold text-${color}-700`}>RD${value.toFixed(2)}</p>
-              </div>
-            ))}
-          </div>
+      </div>
 
-          {/* Info de caja */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-gray-800">{activeRegister.name}</p>
-              <p className="text-sm text-gray-500">Abierta: {new Date(activeRegister.opened_at).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })}</p>
-            </div>
-            <button onClick={() => setShowClose(true)} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-              <Lock size={16} /> Cerrar Caja
-            </button>
+      {/* Transactions */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="p-4 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <List size={18} className="text-gray-500" />
+            <h3 className="font-semibold text-gray-700">
+              Movimientos del Turno ({transactions.filter(t => t.type !== 'opening_float').length})
+            </h3>
           </div>
-
-          {/* Transacciones */}
-          <div className="bg-white rounded-xl border border-gray-200">
-            <div className="p-4 border-b flex items-center gap-2">
-              <List size={18} className="text-gray-500" />
-              <h3 className="font-semibold text-gray-700">Movimientos del Turno ({transactions.length})</h3>
+        </div>
+        <div className="max-h-96 overflow-y-auto divide-y divide-gray-50">
+          {transactions.filter(t => t.type !== 'opening_float').length === 0 ? (
+            <div className="text-center py-12">
+              <ArrowUpDown size={40} className="mx-auto text-gray-200 mb-3" />
+              <p className="text-gray-400 font-medium">Sin movimientos registrados</p>
+              <p className="text-gray-300 text-sm mt-1">Los cobros y reembolsos apareceran aqui</p>
             </div>
-            <div className="max-h-72 overflow-y-auto">
-              {transactions.length === 0
-                ? <p className="text-center text-gray-400 py-8">Sin movimientos registrados</p>
-                : transactions.map(t => (
-                  <div key={t.id} className="flex items-center justify-between px-4 py-3 border-b last:border-0 hover:bg-gray-50">
-                    <div className="flex items-center gap-3">
+          ) : (
+            transactions
+              .filter(t => t.type !== 'opening_float')
+              .map(t => (
+                <div key={t.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      t.direction === 'in' ? 'bg-green-100' : 'bg-red-100'
+                    }`}>
                       {t.direction === 'in'
-                        ? <Plus size={16} className="text-green-500" />
-                        : <Minus size={16} className="text-red-500" />}
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{t.description || t.type}</p>
-                        <p className="text-xs text-gray-400">{new Date(t.created_at).toLocaleTimeString('es-DO', { timeZone: 'America/Santo_Domingo' })}</p>
-                      </div>
+                        ? <Plus size={16} className="text-green-600" />
+                        : <Minus size={16} className="text-red-600" />}
                     </div>
-                    <span className={`font-semibold ${t.direction === 'in' ? 'text-green-600' : 'text-red-600'}`}>
-                      {t.direction === 'in' ? '+' : '-'}RD${parseFloat(t.amount).toFixed(2)}
-                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">
+                        {t.description || (t.type === 'payment' ? 'Cobro' : t.type === 'refund' ? 'Reembolso' : t.type)}
+                      </p>
+                      <p className="text-xs text-gray-400">{fmtTime(t.created_at)}</p>
+                    </div>
                   </div>
-                ))
-              }
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Modal Abrir Caja */}
-      {showOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-md p-6">
-            <h2 className="text-lg font-bold mb-4">Abrir Caja</h2>
-            <form onSubmit={handleOpen} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la caja</label>
-                <input value={openForm.name} onChange={e => setOpenForm(p => ({ ...p, name: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fondo inicial (RD$)</label>
-                <input type="number" min="0" step="0.01" placeholder="0.00"
-                  value={openForm.openingBalance}
-                  onChange={e => setOpenForm(p => ({ ...p, openingBalance: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowOpen(false)} className="flex-1 border border-gray-300 rounded-lg py-2 text-gray-700 hover:bg-gray-50">Cancelar</button>
-                <button type="submit" className="flex-1 bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700">Abrir Caja</button>
-              </div>
-            </form>
-          </div>
+                  <span className={`font-bold text-sm ${t.direction === 'in' ? 'text-green-600' : 'text-red-600'}`}>
+                    {t.direction === 'in' ? '+' : '-'}{fmtMoney(parseFloat(t.amount))}
+                  </span>
+                </div>
+              ))
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Modal Cierre de Caja */}
-      {showClose && activeRegister && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl w-full max-w-lg p-6 my-4">
-            <h2 className="text-lg font-bold mb-2">Cierre de Caja</h2>
-            <p className="text-sm text-gray-500 mb-4">Cuenta el efectivo por denominación</p>
+      {/* Close modal */}
+      {showClose && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={() => setShowClose(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg my-4 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">Cierre de Caja</h2>
+                <p className="text-sm text-gray-500">Cuenta el efectivo por denominacion</p>
+              </div>
+              <button onClick={() => setShowClose(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
 
-            <form onSubmit={handleClose} className="space-y-4">
-              <div className="border rounded-lg overflow-hidden">
+            <form onSubmit={handleClose} className="p-5 space-y-4">
+              {/* Denomination table */}
+              <div className="border rounded-xl overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-2 text-left">Denominación</th>
-                      <th className="px-4 py-2 text-center">Cantidad</th>
-                      <th className="px-4 py-2 text-right">Subtotal</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Billete/Moneda</th>
+                      <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-500 uppercase">Cantidad</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y">
                     {DENOMINATIONS.map(d => (
-                      <tr key={d} className="border-t">
-                        <td className="px-4 py-2 font-medium">RD${d}</td>
+                      <tr key={d} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 font-medium text-gray-700">RD${d.toLocaleString()}</td>
                         <td className="px-4 py-2">
                           <input type="number" min="0" placeholder="0"
                             value={denomCounts[d] || ''}
                             onChange={e => setDenomCounts(p => ({ ...p, [d]: e.target.value }))}
-                            className="w-20 mx-auto block text-center border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                            className="w-20 mx-auto block text-center border rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                         </td>
-                        <td className="px-4 py-2 text-right">RD${(d * (parseInt(denomCounts[d]) || 0)).toFixed(2)}</td>
+                        <td className="px-4 py-2 text-right font-medium text-gray-600">
+                          {fmtMoney(d * (parseInt(denomCounts[d]) || 0))}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
-                <div className="flex justify-between"><span>Saldo esperado:</span><span className="font-semibold">RD${(totalIn - totalOut).toFixed(2)}</span></div>
-                <div className="flex justify-between"><span>Saldo contado:</span><span className="font-semibold text-indigo-600">RD${countedBalance.toFixed(2)}</span></div>
-                <div className={`flex justify-between font-bold ${Math.abs(countedBalance - (totalIn - totalOut)) > limits.cashDiffThreshold ? 'text-red-600' : 'text-green-600'}`}>
-                  <span>Diferencia:</span>
-                  <span>RD${(countedBalance - (totalIn - totalOut)).toFixed(2)}</span>
+              {/* Summary */}
+              <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Fondo inicial:</span>
+                  <span className="font-medium">{fmtMoney(openingBal)}</span>
                 </div>
-                {Math.abs(countedBalance - (totalIn - totalOut)) > limits.cashDiffThreshold && (
-                  <div className="flex items-center gap-2 text-orange-600 bg-orange-50 rounded p-2 mt-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Saldo esperado:</span>
+                  <span className="font-semibold">{fmtMoney(expectedBalance)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Saldo contado:</span>
+                  <span className="font-semibold text-indigo-600">{fmtMoney(countedBalance)}</span>
+                </div>
+                <hr className="border-gray-200" />
+                <div className={`flex justify-between font-bold text-base ${
+                  Math.abs(difference) > threshold ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  <span>Diferencia:</span>
+                  <span>{difference >= 0 ? '+' : ''}{fmtMoney(difference)}</span>
+                </div>
+                {Math.abs(difference) > threshold && (
+                  <div className="flex items-center gap-2 text-orange-700 bg-orange-50 rounded-lg p-3 mt-2">
                     <AlertTriangle size={16} />
-                    <span>Diferencia supera RD${limits.cashDiffThreshold} — requiere aprobación del supervisor</span>
+                    <span className="text-xs">Diferencia supera {fmtMoney(threshold)} — requiere aprobacion</span>
                   </div>
                 )}
               </div>
 
+              {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notas</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notas del cierre</label>
                 <textarea rows={2} value={closeNotes} onChange={e => setCloseNotes(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Observaciones del cierre..." />
+                  className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  placeholder="Observaciones opcionales..." />
               </div>
 
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setShowClose(false)} className="flex-1 border border-gray-300 rounded-lg py-2 text-gray-700 hover:bg-gray-50">Cancelar</button>
+              {/* Actions */}
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setShowClose(false)}
+                  className="flex-1 border border-gray-300 rounded-xl py-2.5 text-gray-700 hover:bg-gray-50 text-sm font-medium">
+                  Cancelar
+                </button>
                 <button type="button" onClick={() => {
-                  const reportData = {
-                    register: { ...activeRegister, closed_at: new Date().toISOString(), counted_balance: countedBalance, expected_balance: totalIn - totalOut, difference: countedBalance - (totalIn - totalOut) },
-                    transactions,
-                    operatorName: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : 'N/A'
-                  };
-                  setPreviewHtml(generateCashReportHTML(reportData));
+                  setPreviewHtml(generateCashReportHTML(buildReportData()));
                   setPreviewOpen(true);
-                }} className="flex-1 bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700 flex items-center justify-center gap-2">
+                }}
+                  className="flex-1 bg-indigo-600 text-white rounded-xl py-2.5 hover:bg-indigo-700 flex items-center justify-center gap-2 text-sm font-medium">
                   <Eye size={16} /> Vista Previa
                 </button>
-                <button type="submit" className="flex-1 bg-red-600 text-white rounded-lg py-2 hover:bg-red-700 flex items-center justify-center gap-2">
-                  <CheckCircle size={16} /> Confirmar Cierre
+                <button type="submit" disabled={closing}
+                  className="flex-1 bg-red-600 text-white rounded-xl py-2.5 hover:bg-red-700 flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50">
+                  <CheckCircle size={16} /> {closing ? 'Cerrando...' : 'Cerrar Caja'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Open modal (in case they want to re-open) */}
+      {showOpen && <OpenCajaModal
+        form={openForm}
+        setForm={setOpenForm}
+        onSubmit={handleOpen}
+        onClose={() => setShowOpen(false)}
+        saving={opening}
+      />}
+
       <PrintPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} html={previewHtml} title="Cierre de Caja" />
+    </div>
+  );
+}
+
+/* ─── Stat Card ─── */
+function StatCard({ icon: Icon, label, value, color }) {
+  return (
+    <div className={`bg-${color}-50 border border-${color}-200 rounded-xl p-4`}>
+      <div className="flex items-center gap-2 mb-1">
+        <Icon size={14} className={`text-${color}-500`} />
+        <p className={`text-xs text-${color}-600 font-medium uppercase`}>{label}</p>
+      </div>
+      <p className={`text-xl font-bold text-${color}-700`}>{value}</p>
+    </div>
+  );
+}
+
+/* ─── Open Caja Modal with Operator Selection ─── */
+function OpenCajaModal({ form, setForm, onSubmit, onClose, saving }) {
+  const [operators, setOperators] = useState([]);
+  const [loadingOps, setLoadingOps] = useState(true);
+  const [showNewOperator, setShowNewOperator] = useState(false);
+  const [newOp, setNewOp] = useState({ first_name: '', last_name: '', email: '', phone: '', password: 'operator123' });
+  const [creatingOp, setCreatingOp] = useState(false);
+
+  useEffect(() => {
+    operatorsAPI.list()
+      .then(({ data }) => setOperators(data.data || []))
+      .catch(() => {})
+      .finally(() => setLoadingOps(false));
+  }, []);
+
+  const handleCreateOperator = async (e) => {
+    e.preventDefault();
+    if (!newOp.first_name.trim() || !newOp.email.trim()) {
+      toast.warning('Nombre y email son requeridos');
+      return;
+    }
+    setCreatingOp(true);
+    try {
+      const { data } = await operatorsAPI.create(newOp);
+      const created = data.data;
+      setOperators(prev => [...prev, created]);
+      setForm(p => ({ ...p, operatorId: created.id }));
+      setShowNewOperator(false);
+      setNewOp({ first_name: '', last_name: '', email: '', phone: '', password: 'operator123' });
+      toast.success('Operador registrado');
+    } catch (err) {
+      toast.error(err.message || 'Error creando operador');
+    } finally {
+      setCreatingOp(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl my-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+              <Unlock size={20} className="text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">Abrir Caja</h2>
+              <p className="text-sm text-gray-500">Inicia una sesion de caja</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={onSubmit} className="p-5 space-y-4">
+          {/* Operator selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Encargado de caja</label>
+            <div className="flex gap-2">
+              <select
+                value={form.operatorId || ''}
+                onChange={e => setForm(p => ({ ...p, operatorId: e.target.value }))}
+                required
+                className="flex-1 border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">Seleccionar encargado...</option>
+                {operators.map(op => (
+                  <option key={op.id} value={op.id}>
+                    {op.display_name || op.email} ({op.role})
+                  </option>
+                ))}
+              </select>
+              <button type="button" onClick={() => setShowNewOperator(true)}
+                className="px-3 py-2.5 border border-dashed border-indigo-400 rounded-xl text-indigo-600 hover:bg-indigo-50 transition-colors"
+                title="Registrar nuevo operador">
+                <Plus size={18} />
+              </button>
+            </div>
+            {loadingOps && <p className="text-xs text-gray-400 mt-1">Cargando operadores...</p>}
+          </div>
+
+          {/* Inline new operator form */}
+          {showNewOperator && (
+            <div className="border border-dashed border-indigo-300 rounded-xl p-4 bg-indigo-50/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="font-medium text-sm text-gray-700">Nuevo Operador</p>
+                <button type="button" onClick={() => setShowNewOperator(false)} className="text-gray-400 hover:text-gray-600">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input placeholder="Nombre *" value={newOp.first_name}
+                  onChange={e => setNewOp(p => ({ ...p, first_name: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                <input placeholder="Apellido" value={newOp.last_name}
+                  onChange={e => setNewOp(p => ({ ...p, last_name: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <input placeholder="Email *" type="email" value={newOp.email}
+                onChange={e => setNewOp(p => ({ ...p, email: e.target.value }))}
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+              <div className="grid grid-cols-2 gap-2">
+                <input placeholder="Telefono" value={newOp.phone}
+                  onChange={e => setNewOp(p => ({ ...p, phone: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                <input placeholder="Contrasena" value={newOp.password}
+                  onChange={e => setNewOp(p => ({ ...p, password: e.target.value }))}
+                  className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <button type="button" onClick={handleCreateOperator} disabled={creatingOp}
+                className="w-full bg-indigo-600 text-white rounded-lg py-2 text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-1">
+                <Plus size={14} /> {creatingOp ? 'Registrando...' : 'Registrar Operador'}
+              </button>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la caja</label>
+            <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              placeholder="Ej: Caja Principal"
+              className="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fondo inicial (RD$)</label>
+            <input type="number" min="0" step="0.01" placeholder="0.00"
+              value={form.openingBalance}
+              onChange={e => setForm(p => ({ ...p, openingBalance: e.target.value }))}
+              className="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-lg font-mono" />
+            <p className="text-xs text-gray-400 mt-1">Cantidad de efectivo con la que inicias el turno</p>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+            <p className="text-xs text-blue-700">
+              <strong>Nota:</strong> Todos los cobros realizados durante el turno se registraran automaticamente en esta caja.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 border border-gray-300 rounded-xl py-2.5 text-gray-700 hover:bg-gray-50 font-medium">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 bg-indigo-600 text-white rounded-xl py-2.5 hover:bg-indigo-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+              <Unlock size={18} /> {saving ? 'Abriendo...' : 'Abrir Caja'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
