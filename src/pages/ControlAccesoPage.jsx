@@ -4,6 +4,7 @@ import { printEntryTicket, printPaymentReceipt, generateEntryTicketHTML, generat
 import PrintPreviewModal from '../components/PrintPreviewModal';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
+import timeService from '../services/timeService';
 import {
   LogIn, LogOut, Car, DollarSign, CheckCircle,
   RefreshCw, QrCode, Printer, X, Eye, Clock,
@@ -56,7 +57,7 @@ const fmtTime = (iso) => new Date(iso).toLocaleTimeString('es-DO', { hour: '2-di
 const fmtDateTime = (iso) => new Date(iso).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 const fmtMoney = (n) => `RD$ ${parseFloat(n || 0).toFixed(2)}`;
 const elapsed = (iso) => {
-  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  const mins = Math.round((timeService.timestamp() - new Date(iso).getTime()) / 60000);
   return { mins, text: `${Math.floor(mins / 60)}h ${mins % 60}m` };
 };
 
@@ -157,14 +158,14 @@ export default function ControlAccesoPage() {
 
     setLoading(true);
     try {
-      const entryPlate = plate.trim() ? plate.toUpperCase().trim() : `SIN-${Date.now().toString(36).toUpperCase()}`;
+      const entryPlate = plate.trim() ? plate.toUpperCase().trim() : `SIN-${timeService.timestamp().toString(36).toUpperCase()}`;
       const { data } = await accessAPI.entry({ plateNumber: entryPlate });
       const session = data.data;
       toast.success('Entrada registrada');
 
       const ticketData = {
         plate: entryPlate,
-        entryTime: session?.entry_time || new Date().toISOString(),
+        entryTime: session?.entry_time || timeService.nowISO(),
         type: session?.subscription_id ? 'subscriber' : 'hourly',
         planName: session?.subscription_id ? 'Suscriptor' : 'Por Hora',
         sessionId: session?.id,
@@ -306,7 +307,7 @@ export default function ControlAccesoPage() {
           openExitPopup(found);
         } else {
           // Try to calculate fee directly
-          openExitPopup({ id: p, vehicle_plate: '---', entry_time: new Date().toISOString() });
+          openExitPopup({ id: p, vehicle_plate: '---', entry_time: timeService.nowISO() });
         }
       } else {
         // Search by plate
@@ -558,7 +559,7 @@ export default function ControlAccesoPage() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Ahora</span>
-                        <span className="font-medium">{fmtTime(fee.exitTime || new Date().toISOString())}</span>
+                        <span className="font-medium">{fmtTime(fee.exitTime || timeService.nowISO())}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Tiempo</span>
