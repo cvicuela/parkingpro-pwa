@@ -4,6 +4,7 @@
 // QR codes generated locally via 'qrcode' library (works offline)
 
 import QRCode from 'qrcode';
+import timeService from './timeService';
 
 const PARKING_NAME = 'ParkingPro';
 const PARKING_ADDRESS = 'Santo Domingo, Rep. Dominicana';
@@ -116,7 +117,7 @@ export async function generatePaymentReceiptHTML({ receipt, showQr = true }) {
 
 export function generateCashReportHTML({ register, transactions, operatorName }) {
   const opened = new Date(register.opened_at).toLocaleString('es-DO');
-  const closed = new Date(register.closed_at || new Date()).toLocaleString('es-DO');
+  const closed = new Date(register.closed_at || timeService.nowISO()).toLocaleString('es-DO');
   const payments = transactions.filter(t => t.type === 'payment' && t.direction === 'in');
   const refunds = transactions.filter(t => t.type === 'refund');
   const totalIn = transactions.filter(t => t.direction === 'in').reduce((s, t) => s + parseFloat(t.amount), 0);
@@ -158,12 +159,12 @@ export function generateCashReportHTML({ register, transactions, operatorName })
     ${txRows || '<div class="center small">Sin movimientos</div>'}
     <div class="line"></div>
     <div class="center small mt">Total transacciones: ${transactions.length}</div>
-    <div class="center small mt mb">Impreso: ${new Date().toLocaleString('es-DO')}</div>
+    <div class="center small mt mb">Impreso: ${timeService.nowFullDisplay()}</div>
   `;
 }
 
 export function generateDailySummaryHTML({ date, stats }) {
-  const d = new Date(date || new Date()).toLocaleDateString('es-DO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const d = new Date(date || timeService.nowISO()).toLocaleDateString('es-DO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
   return `
     <div class="center mb">
@@ -182,7 +183,7 @@ export function generateDailySummaryHTML({ date, stats }) {
     <div class="row"><span>Ingresos tarjeta:</span><span>RD$ ${(stats.cardRevenue || 0).toFixed(2)}</span></div>
     <div class="row bold big"><span>Total dia:</span><span>RD$ ${(stats.totalRevenue || 0).toFixed(2)}</span></div>
     <div class="line"></div>
-    <div class="center small mt mb">Generado: ${new Date().toLocaleString('es-DO')}</div>
+    <div class="center small mt mb">Generado: ${timeService.nowFullDisplay()}</div>
   `;
 }
 

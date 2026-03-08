@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { startTimeService, stopTimeService } from './services/timeService';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -52,6 +54,11 @@ function AppRoutes() {
 }
 
 export default function App() {
+  useEffect(() => {
+    startTimeService();
+    return () => stopTimeService();
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>
