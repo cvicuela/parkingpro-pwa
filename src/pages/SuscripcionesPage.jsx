@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { subscriptionsAPI, customersAPI, vehiclesAPI, plansAPI } from '../services/api';
 import { toast } from 'react-toastify';
-import { Plus, Search, X, Pause, Play, Trash2, QrCode } from 'lucide-react';
+import { Plus, Search, X, Pause, Play, Trash2, QrCode, AlertTriangle } from 'lucide-react';
 
 const statusBadge = {
   active: 'bg-green-100 text-green-700',
@@ -117,6 +117,8 @@ export default function SuscripcionesPage() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [cancelModal, setCancelModal] = useState(null); // { id } of subscription being cancelled
+  const [cancelReason, setCancelReason] = useState('');
 
   const fetchSubs = async () => {
     try {
@@ -143,11 +145,22 @@ export default function SuscripcionesPage() {
     } catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   };
 
-  const handleCancel = async (id) => {
-    if (!confirm('Cancelar esta suscripcion?')) return;
+  const openCancelModal = (id) => {
+    setCancelReason('');
+    setCancelModal({ id });
+  };
+
+  const handleCancel = async () => {
+    if (!cancelModal) return;
+    if (!cancelReason.trim()) {
+      toast.warning('Debe ingresar un motivo para la cancelacion');
+      return;
+    }
     try {
-      await subscriptionsAPI.cancel(id);
+      await subscriptionsAPI.cancel(cancelModal.id, cancelReason.trim());
       toast.success('Suscripcion cancelada');
+      setCancelModal(null);
+      setCancelReason('');
       fetchSubs();
     } catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   };
@@ -211,7 +224,7 @@ export default function SuscripcionesPage() {
                           <button onClick={() => handleReactivate(s.id)} title="Reactivar"
                             className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"><Play size={14} /></button>
                         )}
-                        <button onClick={() => handleCancel(s.id)} title="Cancelar"
+                        <button onClick={() => openCancelModal(s.id)} title="Cancelar"
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                       </div>
                     </td>
@@ -229,6 +242,41 @@ export default function SuscripcionesPage() {
           onClose={() => { setShowModal(false); setEditing(null); }}
           onSave={() => { setShowModal(false); setEditing(null); fetchSubs(); }}
         />
+      )}
+
+      {/* Cancel Reason Modal */}
+      {cancelModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setCancelModal(null)}>
+          <div className="bg-white rounded-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <AlertTriangle size={20} className="text-red-500" /> Cancelar Suscripcion
+              </h3>
+              <button onClick={() => setCancelModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <p className="text-sm text-gray-500">Ingrese el motivo de la cancelacion. Este campo es obligatorio.</p>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Ej: Cliente solicita cancelacion por cambio de plan..."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                autoFocus
+              />
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setCancelModal(null)}
+                  className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                  Volver
+                </button>
+                <button onClick={handleCancel} disabled={!cancelReason.trim()}
+                  className="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                  <Trash2 size={16} /> Confirmar Cancelacion
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
