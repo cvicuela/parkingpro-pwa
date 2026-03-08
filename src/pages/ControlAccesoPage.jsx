@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { accessAPI, plansAPI } from '../services/api';
 import { printEntryTicket, printPaymentReceipt, generateEntryTicketHTML, generatePaymentReceiptHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
@@ -7,7 +7,8 @@ import { toast } from 'react-toastify';
 import {
   LogIn, LogOut, Car, DollarSign, CheckCircle,
   RefreshCw, QrCode, Printer, X, Eye,
-  CreditCard, Banknote, ArrowRight, ArrowLeft, Shield
+  CreditCard, Banknote, ArrowRight, ArrowLeft, Shield,
+  Search, Hash
 } from 'lucide-react';
 
 function OccupancyPanel({ plans }) {
@@ -53,6 +54,11 @@ export default function ControlAccesoPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewTitle, setPreviewTitle] = useState('');
+  const [quickQr, setQuickQr] = useState(null); // quick flash QR popup
+  const [quickReceipt, setQuickReceipt] = useState(null); // quick flash receipt popup on exit
+  const [exitSessionId, setExitSessionId] = useState(''); // manual exit by ID
+  const quickQrTimer = useRef(null);
+  const quickReceiptTimer = useRef(null);
 
   const fetchOccupancy = useCallback(async () => {
     try {
@@ -68,9 +74,12 @@ export default function ControlAccesoPage() {
     return () => clearInterval(interval);
   }, [fetchOccupancy]);
 
+  // Cleanup timers
+  useEffect(() => { return () => { if (quickQrTimer.current) clearTimeout(quickQrTimer.current); if (quickReceiptTimer.current) clearTimeout(quickReceiptTimer.current); }; }, []);
+
   const resetWizard = () => { setStep(STEPS.IDLE); setFeeData(null); setPayMethod('cash'); setReceiptData(null); setEntryTicket(null); setPlate(''); };
 
-  // ── ENTRY ──
+  // ── ENTRY with quick QR flash ──
   const handleEntry = async () => {
     setLoading(true);
     try {
@@ -78,14 +87,26 @@ export default function ControlAccesoPage() {
       const { data } = await accessAPI.entry({ plateNumber: entryPlate });
       const session = data.data;
       toast.success('Entrada registrada');
-      setEntryTicket({
+
+      const ticketData = {
         plate: entryPlate,
         entryTime: session?.entry_time || new Date().toISOString(),
         type: session?.subscription_id ? 'subscriber' : 'hourly',
         planName: session?.subscription_id ? 'Suscriptor' : 'Por Hora',
         sessionId: session?.id,
         qrData: session?.id || entryPlate,
-      });
+      };
+
+      // Show quick QR flash for 2 seconds
+      setQuickQr(ticketData);
+      if (quickQrTimer.current) clearTimeout(quickQrTimer.current);
+      quickQrTimer.current = setTimeout(() => {
+        setQuickQr(null);
+        // Then show full ticket modal for print options
+        setEntryTicket(ticketData);
+      }, 2000);
+
+      setPlate('');
       fetchOccupancy();
     } catch (err) { toast.error(err.message || 'Error al registrar entrada'); } finally { setLoading(false); }
   };
@@ -93,14 +114,14 @@ export default function ControlAccesoPage() {
   // ── CALCULATE FEE ──
   const handleCalculateFee = async (plateOrId) => {
     const p = (typeof plateOrId === 'string' ? plateOrId : plate).toUpperCase().trim();
-    if (!p) { toast.warning('Ingresa una placa'); return; }
+    if (!p) { toast.warning('Ingresa una placa o ID de sesion'); return; }
     setLoading(true);
     try {
       const params = p.match(/^[0-9a-f-]{36}$/i) ? { sessionId: p } : { plateNumber: p };
       const { data } = await accessAPI.calculateFee(params);
       const fee = data.data;
       if (fee.type === 'subscriber' || fee.type === 'grace_period') {
-        await accessAPI.exit({ plateNumber: fee.plateNumber || p });
+        await accessAPI.exit({ plateNumber: fee.plateNumber || p, sessionId: params.sessionId || undefined });
         toast.success(fee.message);
         resetWizard(); fetchOccupancy(); return;
       }
@@ -108,6 +129,19 @@ export default function ControlAccesoPage() {
       setFeeData(fee);
       setStep(STEPS.CONFIRM);
     } catch (err) { toast.error(err.message || 'Error al calcular tarifa'); } finally { setLoading(false); }
+  };
+
+  // ── MANUAL EXIT BY SESSION ID ──
+  const handleManualExit = async () => {
+    const sid = exitSessionId.trim();
+    if (!sid) { toast.warning('Ingresa un ID de sesion'); return; }
+    setLoading(true);
+    try {
+      await accessAPI.endSession(sid);
+      toast.success('Sesion cerrada manualmente');
+      setExitSessionId('');
+      fetchOccupancy();
+    } catch (err) { toast.error(err.message || 'Error al cerrar sesion'); } finally { setLoading(false); }
   };
 
   // ── PROCESS PAYMENT ──
@@ -119,14 +153,30 @@ export default function ControlAccesoPage() {
         sessionId: feeData.sessionId, amount: feeData.subtotal,
         tax: feeData.tax, total: feeData.total, hours: feeData.hours, paymentMethod: payMethod
       });
-      setReceiptData(data.data.receipt);
-      setStep(STEPS.RECEIPT);
+      const receipt = data.data.receipt;
+      setReceiptData(receipt);
+      // Show quick receipt flash for 2 seconds, then show full receipt step
+      setQuickReceipt(receipt);
+      if (quickReceiptTimer.current) clearTimeout(quickReceiptTimer.current);
+      quickReceiptTimer.current = setTimeout(() => {
+        setQuickReceipt(null);
+        setStep(STEPS.RECEIPT);
+      }, 2000);
       toast.success('Pago procesado');
       fetchOccupancy();
     } catch (err) { toast.error(err.message || 'Error al procesar pago'); } finally { setLoading(false); }
   };
 
   const handleQuickPay = (s) => handleCalculateFee(s.id);
+  const handleQuickExit = async (s) => {
+    if (!confirm(`Dar salida manual a ${s.vehicle_plate || s.plate_number || 'este vehiculo'}?`)) return;
+    setLoading(true);
+    try {
+      await accessAPI.endSession(s.id);
+      toast.success('Salida registrada');
+      fetchOccupancy();
+    } catch (err) { toast.error(err.message || 'Error al registrar salida'); } finally { setLoading(false); }
+  };
   const fmtTime = (iso) => new Date(iso).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
   const fmtMoney = (n) => `RD$ ${parseFloat(n || 0).toFixed(2)}`;
 
@@ -154,7 +204,8 @@ export default function ControlAccesoPage() {
                   <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === 'Enter' && (accessType === 'entry' ? handleEntry() : handleCalculateFee())}
-                    placeholder="Placa del vehiculo (opcional)..." autoFocus
+                    placeholder={accessType === 'entry' ? 'Placa del vehiculo (opcional)...' : 'Placa o ID de sesion...'}
+                    autoFocus
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-lg font-mono uppercase" />
                 </div>
                 {accessType === 'entry' ? (
@@ -169,6 +220,23 @@ export default function ControlAccesoPage() {
                   </button>
                 )}
               </div>
+
+              {/* Manual exit by session ID */}
+              {accessType === 'exit' && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 mb-2 flex items-center gap-1"><Hash size={12} /> Salida manual por ID de sesion</p>
+                  <div className="flex gap-2">
+                    <input value={exitSessionId} onChange={(e) => setExitSessionId(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleManualExit()}
+                      placeholder="ID de sesion (ej: a1b2c3d4-...)..."
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-sm font-mono" />
+                    <button onClick={handleManualExit} disabled={loading || !exitSessionId.trim()}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium flex items-center gap-1">
+                      <LogOut size={14} /> Salida
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Sessions Table */}
@@ -183,22 +251,37 @@ export default function ControlAccesoPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
-                      <tr><th className="py-2 px-4">Placa</th><th className="py-2 px-4">Entrada</th><th className="py-2 px-4">Tiempo</th><th className="py-2 px-4">Tipo</th><th className="py-2 px-4">Accion</th></tr>
+                      <tr>
+                        <th className="py-2 px-4">Placa</th>
+                        <th className="py-2 px-4">Entrada</th>
+                        <th className="py-2 px-4">Tiempo</th>
+                        <th className="py-2 px-4">Tipo</th>
+                        <th className="py-2 px-4">ID</th>
+                        <th className="py-2 px-4">Acciones</th>
+                      </tr>
                     </thead>
                     <tbody>
                       {sessions.map((s) => {
                         const mins = Math.round((Date.now() - new Date(s.entry_time).getTime()) / 60000);
-                        const isSub = !!s.subscription_id;
+                        const isSub = !!(s.subscription_id || (s.metadata && s.metadata.subscription_id));
+                        const displayPlate = s.vehicle_plate || s.plate_number || '---';
+                        const shortId = s.id ? s.id.substring(0, 8) : '';
                         return (
                           <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-2 px-4 font-mono font-bold text-indigo-700">{s.plate_number || '---'}</td>
+                            <td className="py-2 px-4 font-mono font-bold text-indigo-700">{displayPlate}</td>
                             <td className="py-2 px-4 text-sm">{fmtTime(s.entry_time)}</td>
                             <td className="py-2 px-4"><span className={`text-xs px-2 py-0.5 rounded font-medium ${mins > 180 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{Math.floor(mins/60)}h {mins%60}m</span></td>
                             <td className="py-2 px-4"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isSub ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{isSub ? 'Suscriptor' : 'Por hora'}</span></td>
+                            <td className="py-2 px-4"><span className="text-xs font-mono text-gray-400 cursor-pointer" title={s.id} onClick={() => { navigator.clipboard.writeText(s.id); toast.info('ID copiado'); }}>{shortId}...</span></td>
                             <td className="py-2 px-4">
-                              <button onClick={() => handleQuickPay(s)} className="text-xs px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 font-medium flex items-center gap-1">
-                                <DollarSign size={12} /> Cobrar
-                              </button>
+                              <div className="flex gap-1">
+                                <button onClick={() => handleQuickPay(s)} className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 font-medium flex items-center gap-1">
+                                  <DollarSign size={12} /> Cobrar
+                                </button>
+                                <button onClick={() => handleQuickExit(s)} className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium flex items-center gap-1">
+                                  <LogOut size={12} /> Salida
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -287,8 +370,44 @@ export default function ControlAccesoPage() {
         <div><OccupancyPanel plans={plans} /></div>
       </div>
 
-      {/* Entry Ticket Modal */}
-      {entryTicket && (
+      {/* Quick Receipt Flash Popup - auto-closes after 2 seconds on payment/exit */}
+      {quickReceipt && (
+        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4"
+          onClick={() => { setQuickReceipt(null); setStep(STEPS.RECEIPT); }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <CheckCircle className="text-green-600" size={40} />
+            </div>
+            <p className="text-2xl font-bold text-green-700 mb-2">Pago Completado</p>
+            <p className="text-3xl font-mono font-bold text-indigo-700 mb-2">{quickReceipt.plateNumber}</p>
+            <p className="text-xl font-bold text-green-600 mb-1">{fmtMoney(quickReceipt.total)}</p>
+            <p className="text-sm text-gray-500 mb-1">{{cash:'Efectivo',card:'Tarjeta',transfer:'Transferencia'}[quickReceipt.paymentMethod]}</p>
+            {quickReceipt.invoiceNumber && <p className="text-xs text-gray-400">Factura: {quickReceipt.invoiceNumber}</p>}
+            <div className="mx-auto w-32 h-32 flex items-center justify-center mt-3">
+              <QRCodeSVG value={quickReceipt.code || quickReceipt.invoiceNumber || 'N/A'} size={120} level="M" />
+            </div>
+            <p className="text-xs text-gray-400 mt-2">Desaparece en 2 segundos...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Quick QR Flash Popup - auto-closes after 2 seconds */}
+      {quickQr && (
+        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4"
+          onClick={() => { setQuickQr(null); setEntryTicket(quickQr); }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center animate-pulse" onClick={e => e.stopPropagation()}>
+            <div className="mx-auto w-56 h-56 flex items-center justify-center mb-4">
+              <QRCodeSVG value={quickQr.qrData} size={220} level="M" />
+            </div>
+            <p className="text-3xl font-mono font-bold text-indigo-700 mb-2">{quickQr.plate}</p>
+            <p className="text-green-600 font-semibold text-lg">Entrada Registrada</p>
+            <p className="text-xs text-gray-400 mt-2">Este QR desaparecera en 2 segundos...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Entry Ticket Modal (full version after quick QR flash) */}
+      {entryTicket && !quickQr && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => { setEntryTicket(null); resetWizard(); }}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
@@ -302,6 +421,12 @@ export default function ControlAccesoPage() {
               <p className="text-2xl font-mono font-bold text-indigo-700">{entryTicket.plate}</p>
               <p className="text-sm text-gray-500">Entrada: {new Date(entryTicket.entryTime).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}</p>
               <p className="text-sm text-gray-500">{entryTicket.type === 'subscriber' ? 'Suscriptor' : 'Por Hora'}</p>
+              {entryTicket.sessionId && (
+                <p className="text-xs text-gray-400 font-mono cursor-pointer" title={entryTicket.sessionId}
+                  onClick={() => { navigator.clipboard.writeText(entryTicket.sessionId); toast.info('ID copiado'); }}>
+                  ID: {entryTicket.sessionId.substring(0, 8)}... (click para copiar)
+                </p>
+              )}
               <div className="flex gap-2 pt-2">
                 <button onClick={async () => { setPreviewHtml(await generateEntryTicketHTML(entryTicket)); setPreviewTitle('Ticket de Entrada'); setPreviewOpen(true); }}
                   className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 rounded-lg py-2 hover:bg-gray-200"><Eye size={16} /> Vista Previa</button>

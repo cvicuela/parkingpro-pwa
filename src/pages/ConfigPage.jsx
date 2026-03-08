@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import {
   Settings, Save, RotateCw, Building2, Receipt, Shield,
   Bell, Wallet, Globe, ChevronDown, ChevronRight, Plus, Trash2,
-  Printer, Star, Eye
+  Printer, Star, Eye, QrCode, Wifi, Radio, MapPin, Edit2
 } from 'lucide-react';
 import { getPrinters, addPrinter, removePrinter, setDefaultPrinter, getDefaultPrinter, generateEntryTicketHTML, generatePaymentReceiptHTML, generateCashReportHTML, generateDailySummaryHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
@@ -63,6 +63,12 @@ export default function ConfigPage() {
   const [newPrinter, setNewPrinter] = useState({ name: '', type: 'thermal', paperSize: '80mm', location: '' });
   const [showPrinterSection, setShowPrinterSection] = useState(true);
   const [testingPrinter, setTestingPrinter] = useState(false);
+  // Scanner / perimeter devices state
+  const [showScannerSection, setShowScannerSection] = useState(true);
+  const [scanners, setScanners] = useState([]);
+  const [showAddScanner, setShowAddScanner] = useState(false);
+  const [newScanner, setNewScanner] = useState({ name: '', type: 'qr_fixed', location: 'entry', ip: '', port: '' });
+  const [editingScanner, setEditingScanner] = useState(null);
   // Preview state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
@@ -72,7 +78,12 @@ export default function ConfigPage() {
     setPrinters(getPrinters());
     setDefaultPrinterId(getDefaultPrinter());
   };
-  useEffect(() => { loadPrinters(); }, []);
+  const SCANNERS_KEY = 'pp_scanners';
+  const loadScanners = () => {
+    try { setScanners(JSON.parse(localStorage.getItem(SCANNERS_KEY) || '[]')); } catch { setScanners([]); }
+  };
+  const saveScanners = (list) => { localStorage.setItem(SCANNERS_KEY, JSON.stringify(list)); setScanners(list); };
+  useEffect(() => { loadPrinters(); loadScanners(); }, []);
 
   const fetchSettings = async () => {
     try {
@@ -515,6 +526,151 @@ export default function ConfigPage() {
                     className="flex items-center justify-center gap-2 px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
                     <Eye size={14} /> {label}
                   </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── QR SCANNER / PERIMETER DEVICES SECTION ─── */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <button onClick={() => setShowScannerSection(p => !p)}
+          className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <QrCode size={20} className="text-emerald-600" />
+            </div>
+            <div className="text-left">
+              <h3 className="font-semibold text-gray-800">Dispositivos Perimetrales</h3>
+              <p className="text-xs text-gray-400">Escaner QR, barreras y lectores de acceso ({scanners.length} configurados)</p>
+            </div>
+          </div>
+          {showScannerSection ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
+        </button>
+
+        {showScannerSection && (
+          <div className="border-t p-5 space-y-4">
+            {/* Info box */}
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+              <p className="text-sm text-emerald-800 font-medium mb-1">Configuracion de Perimetrales</p>
+              <p className="text-xs text-emerald-600">Registra los escaner QR fijos y dispositivos de barrera para automatizar la entrada y salida de vehiculos. Los dispositivos se conectan por red local (IP) o USB. Cuando estan instalados, el sistema valida automaticamente el QR del ticket o suscripcion.</p>
+            </div>
+
+            {/* Registered scanners */}
+            <div>
+              <p className="font-medium text-gray-700 text-sm mb-2">Dispositivos Registrados</p>
+              {scanners.length === 0 ? (
+                <div className="text-center py-6 bg-gray-50 rounded-lg">
+                  <Radio size={36} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-gray-500 text-sm">No hay dispositivos registrados</p>
+                  <p className="text-gray-400 text-xs">Los dispositivos se configuran al instalar barreras y escaner QR</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {scanners.map(sc => (
+                    <div key={sc.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-emerald-300 transition-colors">
+                      <div className="flex items-center gap-3">
+                        {sc.type === 'qr_fixed' ? <QrCode size={20} className="text-emerald-500" /> :
+                         sc.type === 'barrier' ? <Shield size={20} className="text-amber-500" /> :
+                         <Wifi size={20} className="text-blue-500" />}
+                        <div>
+                          <p className="font-medium text-gray-800 text-sm flex items-center gap-2">
+                            {sc.name}
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${sc.location === 'entry' ? 'bg-green-100 text-green-700' : sc.location === 'exit' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {sc.location === 'entry' ? 'Entrada' : sc.location === 'exit' ? 'Salida' : 'Ambos'}
+                            </span>
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {sc.type === 'qr_fixed' ? 'Escaner QR Fijo' : sc.type === 'barrier' ? 'Barrera Automatica' : sc.type === 'camera' ? 'Camara LPR' : 'Otro'}
+                            {sc.ip ? ` · IP: ${sc.ip}` : ''}
+                            {sc.port ? `:${sc.port}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className={`w-2 h-2 rounded-full ${sc.enabled !== false ? 'bg-green-400' : 'bg-gray-300'}`} title={sc.enabled !== false ? 'Activo' : 'Inactivo'} />
+                        <button onClick={() => {
+                          const updated = scanners.map(s => s.id === sc.id ? { ...s, enabled: !s.enabled } : s);
+                          saveScanners(updated);
+                          toast.success(sc.enabled !== false ? 'Dispositivo desactivado' : 'Dispositivo activado');
+                        }} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-emerald-600" title="Activar/Desactivar">
+                          <Radio size={14} />
+                        </button>
+                        <button onClick={() => { const updated = scanners.filter(s => s.id !== sc.id); saveScanners(updated); toast.success('Dispositivo eliminado'); }}
+                          className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" title="Eliminar">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Add scanner form */}
+            {showAddScanner ? (
+              <div className="border border-dashed border-emerald-300 rounded-lg p-4 bg-emerald-50/50 space-y-3">
+                <p className="font-medium text-gray-700 text-sm">Registrar Dispositivo</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <input placeholder="Nombre (ej: Scanner Entrada Principal)" value={newScanner.name}
+                    onChange={e => setNewScanner(p => ({ ...p, name: e.target.value }))}
+                    className="col-span-2 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
+                  <select value={newScanner.type} onChange={e => setNewScanner(p => ({ ...p, type: e.target.value }))}
+                    className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                    <option value="qr_fixed">Escaner QR Fijo</option>
+                    <option value="barrier">Barrera Automatica</option>
+                    <option value="camera">Camara LPR (Lectura Placas)</option>
+                    <option value="handheld">Escaner QR Portatil</option>
+                  </select>
+                  <select value={newScanner.location} onChange={e => setNewScanner(p => ({ ...p, location: e.target.value }))}
+                    className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                    <option value="entry">Entrada</option>
+                    <option value="exit">Salida</option>
+                    <option value="both">Ambos (Entrada/Salida)</option>
+                  </select>
+                  <input placeholder="IP (ej: 192.168.1.100)" value={newScanner.ip}
+                    onChange={e => setNewScanner(p => ({ ...p, ip: e.target.value }))}
+                    className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
+                  <input placeholder="Puerto (ej: 8080)" value={newScanner.port}
+                    onChange={e => setNewScanner(p => ({ ...p, port: e.target.value }))}
+                    className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowAddScanner(false)}
+                    className="flex-1 border border-gray-300 rounded-lg py-2 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                  <button onClick={() => {
+                    if (!newScanner.name.trim()) { toast.warning('Ingresa un nombre para el dispositivo'); return; }
+                    const device = { ...newScanner, id: `scanner_${Date.now()}`, enabled: true, createdAt: new Date().toISOString() };
+                    saveScanners([...scanners, device]);
+                    setNewScanner({ name: '', type: 'qr_fixed', location: 'entry', ip: '', port: '' });
+                    setShowAddScanner(false);
+                    toast.success('Dispositivo registrado');
+                  }} className="flex-1 bg-emerald-600 text-white rounded-lg py-2 text-sm hover:bg-emerald-700 flex items-center justify-center gap-1">
+                    <Plus size={14} /> Registrar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowAddScanner(true)}
+                className="w-full border border-dashed border-gray-300 rounded-lg py-3 text-sm text-gray-500 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/50 flex items-center justify-center gap-2 transition-colors">
+                <Plus size={16} /> Registrar Dispositivo Perimetral
+              </button>
+            )}
+
+            {/* Integration info */}
+            <div className="border-t pt-4 mt-2">
+              <p className="font-medium text-gray-700 text-sm mb-2 flex items-center gap-2"><Wifi size={14} className="text-blue-500" /> Estado de Integracion</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+                {[
+                  { label: 'Escaner QR', desc: scanners.filter(s => s.type === 'qr_fixed' && s.enabled !== false).length > 0 ? 'Configurado' : 'No instalado', active: scanners.filter(s => s.type === 'qr_fixed' && s.enabled !== false).length > 0 },
+                  { label: 'Barreras', desc: scanners.filter(s => s.type === 'barrier' && s.enabled !== false).length > 0 ? 'Configurado' : 'No instalado', active: scanners.filter(s => s.type === 'barrier' && s.enabled !== false).length > 0 },
+                  { label: 'Camara LPR', desc: scanners.filter(s => s.type === 'camera' && s.enabled !== false).length > 0 ? 'Configurado' : 'No instalado', active: scanners.filter(s => s.type === 'camera' && s.enabled !== false).length > 0 },
+                ].map(({ label, desc, active }) => (
+                  <div key={label} className={`p-3 rounded-lg border ${active ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <p className={`font-medium ${active ? 'text-green-700' : 'text-gray-600'}`}>{label}</p>
+                    <p className={`text-xs ${active ? 'text-green-600' : 'text-gray-400'}`}>{desc}</p>
+                  </div>
                 ))}
               </div>
             </div>
