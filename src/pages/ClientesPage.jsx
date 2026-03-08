@@ -320,7 +320,7 @@ function CustomerHistoryModal({ customer, onClose }) {
                         </span>
                       </div>
                       <div className="mt-1 text-xs text-gray-500 flex items-center gap-3">
-                        <span>{fmtMoney(s.price_per_period)}/{s.billing_frequency === 'monthly' ? 'mes' : s.billing_frequency === 'weekly' ? 'sem' : 'hr'}</span>
+                        <span>{fmtMoney(s.price_per_period)}/{s.billing_frequency === 'monthly' ? 'mes' : s.billing_frequency === 'quarterly' ? 'trim' : s.billing_frequency === 'semiannual' ? 'sem' : s.billing_frequency === 'annual' ? 'anual' : 'mes'}</span>
                         {s.current_period_end && <span>Vence: {fmtDate(s.current_period_end)}</span>}
                       </div>
                     </div>
