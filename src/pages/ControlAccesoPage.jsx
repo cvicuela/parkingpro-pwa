@@ -6,11 +6,12 @@ import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
 import {
   LogIn, LogOut, Car, DollarSign, CheckCircle,
-  RefreshCw, QrCode, Printer, X, Eye,
+  RefreshCw, QrCode, Printer, X, Eye, Clock,
   CreditCard, Banknote, ArrowRight, ArrowLeft, Shield,
-  Search, Hash
+  Hash, Timer, Copy
 } from 'lucide-react';
 
+/* ─── Occupancy sidebar ─── */
 function OccupancyPanel({ plans }) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">
@@ -38,28 +39,54 @@ function OccupancyPanel({ plans }) {
   );
 }
 
-const STEPS = { IDLE: 0, CONFIRM: 1, RECEIPT: 2 };
+/* ─── Countdown bar component ─── */
+function CountdownBar({ seconds, total }) {
+  const pct = Math.max(0, (seconds / total) * 100);
+  const color = seconds <= 5 ? 'bg-red-500' : seconds <= 15 ? 'bg-amber-500' : 'bg-green-500';
+  return (
+    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+      <div className={`h-1.5 rounded-full transition-all duration-1000 ${color}`}
+        style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+/* ─── Helpers ─── */
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
+const fmtDateTime = (iso) => new Date(iso).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+const fmtMoney = (n) => `RD$ ${parseFloat(n || 0).toFixed(2)}`;
+const elapsed = (iso) => {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  return { mins, text: `${Math.floor(mins / 60)}h ${mins % 60}m` };
+};
+
+const POPUP_TIMEOUT = 30; // seconds
 
 export default function ControlAccesoPage() {
+  // ── Core state ──
   const [plate, setPlate] = useState('');
   const [accessType, setAccessType] = useState('entry');
   const [plans, setPlans] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(STEPS.IDLE);
-  const [feeData, setFeeData] = useState(null);
-  const [payMethod, setPayMethod] = useState('cash');
-  const [receiptData, setReceiptData] = useState(null);
+
+  // ── Exit popup state (unified for click, QR scan, manual ID) ──
+  const [exitPopup, setExitPopup] = useState(null);       // { session, feeData, payMethod, step: 'loading'|'fee'|'paying'|'receipt', receiptData }
+  const [exitCountdown, setExitCountdown] = useState(POPUP_TIMEOUT);
+  const exitTimerRef = useRef(null);
+  const exitCountdownRef = useRef(null);
+
+  // ── Entry popup state ──
   const [entryTicket, setEntryTicket] = useState(null);
+  const [quickQr, setQuickQr] = useState(null);
+  const quickQrTimer = useRef(null);
+
+  // ── Print preview ──
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewTitle, setPreviewTitle] = useState('');
-  const [quickQr, setQuickQr] = useState(null); // quick flash QR popup
-  const [quickReceipt, setQuickReceipt] = useState(null); // quick flash receipt popup on exit
-  const [exitSessionId, setExitSessionId] = useState(''); // manual exit by ID
-  const quickQrTimer = useRef(null);
-  const quickReceiptTimer = useRef(null);
 
+  // ── Fetch sessions & plans ──
   const fetchOccupancy = useCallback(async () => {
     try {
       const [plansRes, sessionsRes] = await Promise.allSettled([plansAPI.list(), accessAPI.activeSessions()]);
@@ -74,13 +101,60 @@ export default function ControlAccesoPage() {
     return () => clearInterval(interval);
   }, [fetchOccupancy]);
 
-  // Cleanup timers
-  useEffect(() => { return () => { if (quickQrTimer.current) clearTimeout(quickQrTimer.current); if (quickReceiptTimer.current) clearTimeout(quickReceiptTimer.current); }; }, []);
+  // ── Cleanup all timers ──
+  useEffect(() => {
+    return () => {
+      if (quickQrTimer.current) clearTimeout(quickQrTimer.current);
+      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+      if (exitCountdownRef.current) clearInterval(exitCountdownRef.current);
+    };
+  }, []);
 
-  const resetWizard = () => { setStep(STEPS.IDLE); setFeeData(null); setPayMethod('cash'); setReceiptData(null); setEntryTicket(null); setPlate(''); };
+  // ── Exit popup auto-close countdown ──
+  const startExitCountdown = useCallback(() => {
+    // Clear any existing
+    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    if (exitCountdownRef.current) clearInterval(exitCountdownRef.current);
+    setExitCountdown(POPUP_TIMEOUT);
 
-  // ── ENTRY with quick QR flash ──
+    exitCountdownRef.current = setInterval(() => {
+      setExitCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(exitCountdownRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    exitTimerRef.current = setTimeout(() => {
+      setExitPopup(null);
+      clearInterval(exitCountdownRef.current);
+    }, POPUP_TIMEOUT * 1000);
+  }, []);
+
+  const stopExitCountdown = useCallback(() => {
+    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    if (exitCountdownRef.current) clearInterval(exitCountdownRef.current);
+  }, []);
+
+  const closeExitPopup = useCallback(() => {
+    setExitPopup(null);
+    stopExitCountdown();
+  }, [stopExitCountdown]);
+
+  // ── Reset on interaction (restart countdown) ──
+  const resetCountdown = useCallback(() => {
+    startExitCountdown();
+  }, [startExitCountdown]);
+
+  // ─────────────────────────────────────────────────
+  // ENTRY FLOW
+  // ─────────────────────────────────────────────────
   const handleEntry = async () => {
+    // If exit popup is open, close it silently (like QR scan replacing)
+    if (exitPopup) closeExitPopup();
+
     setLoading(true);
     try {
       const entryPlate = plate.trim() ? plate.toUpperCase().trim() : `SIN-${Date.now().toString(36).toUpperCase()}`;
@@ -97,348 +171,567 @@ export default function ControlAccesoPage() {
         qrData: session?.id || entryPlate,
       };
 
-      // Show quick QR flash for 2 seconds
+      // Quick QR flash (2s) then full ticket
       setQuickQr(ticketData);
       if (quickQrTimer.current) clearTimeout(quickQrTimer.current);
       quickQrTimer.current = setTimeout(() => {
         setQuickQr(null);
-        // Then show full ticket modal for print options
         setEntryTicket(ticketData);
       }, 2000);
 
       setPlate('');
       fetchOccupancy();
-    } catch (err) { toast.error(err.message || 'Error al registrar entrada'); } finally { setLoading(false); }
+    } catch (err) {
+      toast.error(err.message || 'Error al registrar entrada');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ── CALCULATE FEE ──
-  const handleCalculateFee = async (plateOrId) => {
-    const p = (typeof plateOrId === 'string' ? plateOrId : plate).toUpperCase().trim();
-    if (!p) { toast.warning('Ingresa una placa o ID de sesion'); return; }
-    setLoading(true);
+  // ─────────────────────────────────────────────────
+  // EXIT FLOW — Opens popup, auto-calculates fee
+  // ─────────────────────────────────────────────────
+  const openExitPopup = useCallback(async (session) => {
+    // If another popup is open, close it silently (QR scan behavior)
+    if (exitPopup) {
+      stopExitCountdown();
+    }
+
+    // Build session data
+    const sessionData = {
+      id: session.id,
+      vehicle_plate: session.vehicle_plate || session.plate_number || '---',
+      entry_time: session.entry_time,
+      subscription_id: session.subscription_id || session.metadata?.subscription_id || null,
+    };
+
+    // Open popup in loading state
+    setExitPopup({
+      session: sessionData,
+      feeData: null,
+      payMethod: 'cash',
+      step: 'loading',
+      receiptData: null,
+    });
+    startExitCountdown();
+
+    // Auto-calculate fee
     try {
-      const params = p.match(/^[0-9a-f-]{36}$/i) ? { sessionId: p } : { plateNumber: p };
-      const { data } = await accessAPI.calculateFee(params);
+      const { data } = await accessAPI.calculateFee({ sessionId: session.id });
       const fee = data.data;
+
+      // Subscriber or grace period = auto-exit
       if (fee.type === 'subscriber' || fee.type === 'grace_period') {
-        await accessAPI.exit({ plateNumber: fee.plateNumber || p, sessionId: params.sessionId || undefined });
-        toast.success(fee.message);
-        resetWizard(); fetchOccupancy(); return;
+        try {
+          await accessAPI.exit({ sessionId: session.id });
+        } catch {}
+        setExitPopup(prev => prev ? {
+          ...prev,
+          step: 'auto_exit',
+          feeData: fee,
+        } : null);
+        toast.success(fee.message || 'Salida libre');
+        fetchOccupancy();
+        // Close after 3 seconds
+        if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+        exitTimerRef.current = setTimeout(() => closeExitPopup(), 3000);
+        return;
       }
-      setPlate(fee.plateNumber || p);
-      setFeeData(fee);
-      setStep(STEPS.CONFIRM);
-    } catch (err) { toast.error(err.message || 'Error al calcular tarifa'); } finally { setLoading(false); }
-  };
 
-  // ── MANUAL EXIT BY SESSION ID ──
-  const handleManualExit = async () => {
-    const sid = exitSessionId.trim();
-    if (!sid) { toast.warning('Ingresa un ID de sesion'); return; }
-    setLoading(true);
-    try {
-      await accessAPI.endSession(sid);
-      toast.success('Sesion cerrada manualmente');
-      setExitSessionId('');
-      fetchOccupancy();
-    } catch (err) { toast.error(err.message || 'Error al cerrar sesion'); } finally { setLoading(false); }
-  };
+      setExitPopup(prev => prev ? {
+        ...prev,
+        step: 'fee',
+        feeData: fee,
+      } : null);
+    } catch (err) {
+      toast.error(err.message || 'Error al calcular tarifa');
+      setExitPopup(prev => prev ? { ...prev, step: 'error', errorMsg: err.message } : null);
+    }
+  }, [exitPopup, startExitCountdown, stopExitCountdown, closeExitPopup, fetchOccupancy]);
 
-  // ── PROCESS PAYMENT ──
-  const handleProcessPayment = async () => {
-    if (!feeData) return;
-    setLoading(true);
+  // Process payment inside popup
+  const handlePopupPayment = async () => {
+    if (!exitPopup?.feeData) return;
+    resetCountdown(); // keep alive
+    const fee = exitPopup.feeData;
+    setExitPopup(prev => prev ? { ...prev, step: 'paying' } : null);
     try {
       const { data } = await accessAPI.processPayment({
-        sessionId: feeData.sessionId, amount: feeData.subtotal,
-        tax: feeData.tax, total: feeData.total, hours: feeData.hours, paymentMethod: payMethod
+        sessionId: fee.sessionId,
+        amount: fee.subtotal,
+        tax: fee.tax,
+        total: fee.total,
+        hours: fee.hours,
+        paymentMethod: exitPopup.payMethod,
       });
       const receipt = data.data.receipt;
-      setReceiptData(receipt);
-      // Show quick receipt flash for 2 seconds, then show full receipt step
-      setQuickReceipt(receipt);
-      if (quickReceiptTimer.current) clearTimeout(quickReceiptTimer.current);
-      quickReceiptTimer.current = setTimeout(() => {
-        setQuickReceipt(null);
-        setStep(STEPS.RECEIPT);
-      }, 2000);
+      setExitPopup(prev => prev ? { ...prev, step: 'receipt', receiptData: receipt } : null);
       toast.success('Pago procesado');
       fetchOccupancy();
-    } catch (err) { toast.error(err.message || 'Error al procesar pago'); } finally { setLoading(false); }
+      // Stop auto-close on receipt (user may want to print)
+      stopExitCountdown();
+    } catch (err) {
+      toast.error(err.message || 'Error al procesar pago');
+      setExitPopup(prev => prev ? { ...prev, step: 'fee' } : null);
+    }
   };
 
-  const handleQuickPay = (s) => handleCalculateFee(s.id);
-  const handleQuickExit = async (s) => {
-    if (!confirm(`Dar salida manual a ${s.vehicle_plate || s.plate_number || 'este vehiculo'}?`)) return;
+  // Manual exit (no payment)
+  const handlePopupManualExit = async () => {
+    if (!exitPopup?.session) return;
+    resetCountdown();
+    try {
+      await accessAPI.endSession(exitPopup.session.id);
+      toast.success('Salida manual registrada');
+      setExitPopup(prev => prev ? { ...prev, step: 'manual_done' } : null);
+      fetchOccupancy();
+      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+      exitTimerRef.current = setTimeout(() => closeExitPopup(), 4000);
+    } catch (err) {
+      toast.error(err.message || 'Error al registrar salida');
+    }
+  };
+
+  // ── Open exit popup from plate/ID input ──
+  const handleExitSearch = async () => {
+    const p = plate.toUpperCase().trim();
+    if (!p) { toast.warning('Ingresa una placa o ID'); return; }
     setLoading(true);
     try {
-      await accessAPI.endSession(s.id);
-      toast.success('Salida registrada');
-      fetchOccupancy();
-    } catch (err) { toast.error(err.message || 'Error al registrar salida'); } finally { setLoading(false); }
+      // Check if it's a UUID
+      if (p.match(/^[0-9a-f-]{36}$/i)) {
+        // Find session in current list or try direct
+        const found = sessions.find(s => s.id === p);
+        if (found) {
+          openExitPopup(found);
+        } else {
+          // Try to calculate fee directly
+          openExitPopup({ id: p, vehicle_plate: '---', entry_time: new Date().toISOString() });
+        }
+      } else {
+        // Search by plate
+        const found = sessions.find(s => (s.vehicle_plate || '').toUpperCase() === p);
+        if (found) {
+          openExitPopup(found);
+        } else {
+          // Try API
+          try {
+            const { data } = await accessAPI.sessionByPlate(p);
+            const sess = data.data;
+            if (sess) openExitPopup(sess);
+            else toast.warning('No hay sesion activa para esta placa');
+          } catch {
+            toast.warning('No se encontro sesion activa');
+          }
+        }
+      }
+      setPlate('');
+    } finally { setLoading(false); }
   };
-  const fmtTime = (iso) => new Date(iso).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
-  const fmtMoney = (n) => `RD$ ${parseFloat(n || 0).toFixed(2)}`;
+
+  // ── Row click → open exit popup ──
+  const handleRowClick = (session) => {
+    openExitPopup(session);
+  };
 
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold text-gray-800">Control de Acceso</h2>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
 
-          {/* ── STEP 0: Input ── */}
-          {step === STEPS.IDLE && (<>
-            <div className="bg-white rounded-xl shadow-sm p-4">
-              <div className="flex gap-3 mb-3">
-                <button onClick={() => setAccessType('entry')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${accessType === 'entry' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                  <LogIn size={18} /> Entrada
-                </button>
-                <button onClick={() => setAccessType('exit')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${accessType === 'exit' ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                  <LogOut size={18} /> Salida / Cobro
-                </button>
-              </div>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => e.key === 'Enter' && (accessType === 'entry' ? handleEntry() : handleCalculateFee())}
-                    placeholder={accessType === 'entry' ? 'Placa del vehiculo (opcional)...' : 'Placa o ID de sesion...'}
-                    autoFocus
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-lg font-mono uppercase" />
-                </div>
-                {accessType === 'entry' ? (
-                  <button onClick={handleEntry} disabled={loading}
-                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium flex items-center gap-2">
-                    {loading ? <RefreshCw size={20} className="animate-spin" /> : <><LogIn size={20} /> Entrada</>}
-                  </button>
-                ) : (
-                  <button onClick={() => handleCalculateFee()} disabled={loading}
-                    className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 font-medium flex items-center gap-2">
-                    {loading ? <RefreshCw size={20} className="animate-spin" /> : <><DollarSign size={20} /> Calcular</>}
-                  </button>
-                )}
-              </div>
-
-              {/* Manual exit by session ID */}
-              {accessType === 'exit' && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-xs text-gray-500 mb-2 flex items-center gap-1"><Hash size={12} /> Salida manual por ID de sesion</p>
-                  <div className="flex gap-2">
-                    <input value={exitSessionId} onChange={(e) => setExitSessionId(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleManualExit()}
-                      placeholder="ID de sesion (ej: a1b2c3d4-...)..."
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-sm font-mono" />
-                    <button onClick={handleManualExit} disabled={loading || !exitSessionId.trim()}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium flex items-center gap-1">
-                      <LogOut size={14} /> Salida
-                    </button>
-                  </div>
-                </div>
-              )}
+          {/* ── Input bar ── */}
+          <div className="bg-white rounded-xl shadow-sm p-4">
+            <div className="flex gap-3 mb-3">
+              <button onClick={() => setAccessType('entry')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${accessType === 'entry' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                <LogIn size={18} /> Entrada
+              </button>
+              <button onClick={() => setAccessType('exit')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${accessType === 'exit' ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                <LogOut size={18} /> Salida / Cobro
+              </button>
             </div>
-
-            {/* Sessions Table */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="p-4 border-b flex justify-between items-center">
-                <h3 className="font-semibold text-gray-700">Vehiculos en Parqueo ({sessions.length})</h3>
-                <button onClick={fetchOccupancy} className="text-gray-400 hover:text-gray-600"><RefreshCw size={16} /></button>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && (accessType === 'entry' ? handleEntry() : handleExitSearch())}
+                  placeholder={accessType === 'entry' ? 'Placa del vehiculo (opcional)...' : 'Placa, ID de sesion o escanear QR...'}
+                  autoFocus
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-lg font-mono uppercase" />
               </div>
-              {sessions.length === 0 ? (
-                <p className="p-6 text-center text-gray-400">No hay vehiculos en el parqueo</p>
+              {accessType === 'entry' ? (
+                <button onClick={handleEntry} disabled={loading}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium flex items-center gap-2">
+                  {loading ? <RefreshCw size={20} className="animate-spin" /> : <><LogIn size={20} /> Entrada</>}
+                </button>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
-                      <tr>
-                        <th className="py-2 px-4">Placa</th>
-                        <th className="py-2 px-4">Entrada</th>
-                        <th className="py-2 px-4">Tiempo</th>
-                        <th className="py-2 px-4">Tipo</th>
-                        <th className="py-2 px-4">ID</th>
-                        <th className="py-2 px-4">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sessions.map((s) => {
-                        const mins = Math.round((Date.now() - new Date(s.entry_time).getTime()) / 60000);
-                        const isSub = !!(s.subscription_id || (s.metadata && s.metadata.subscription_id));
-                        const displayPlate = s.vehicle_plate || s.plate_number || '---';
-                        const shortId = s.id ? s.id.substring(0, 8) : '';
-                        return (
-                          <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-2 px-4 font-mono font-bold text-indigo-700">{displayPlate}</td>
-                            <td className="py-2 px-4 text-sm">{fmtTime(s.entry_time)}</td>
-                            <td className="py-2 px-4"><span className={`text-xs px-2 py-0.5 rounded font-medium ${mins > 180 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{Math.floor(mins/60)}h {mins%60}m</span></td>
-                            <td className="py-2 px-4"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isSub ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{isSub ? 'Suscriptor' : 'Por hora'}</span></td>
-                            <td className="py-2 px-4"><span className="text-xs font-mono text-gray-400 cursor-pointer" title={s.id} onClick={() => { navigator.clipboard.writeText(s.id); toast.info('ID copiado'); }}>{shortId}...</span></td>
-                            <td className="py-2 px-4">
-                              <div className="flex gap-1">
-                                <button onClick={() => handleQuickPay(s)} className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 font-medium flex items-center gap-1">
-                                  <DollarSign size={12} /> Cobrar
-                                </button>
-                                <button onClick={() => handleQuickExit(s)} className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium flex items-center gap-1">
-                                  <LogOut size={12} /> Salida
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <button onClick={handleExitSearch} disabled={loading}
+                  className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 font-medium flex items-center gap-2">
+                  {loading ? <RefreshCw size={20} className="animate-spin" /> : <><DollarSign size={20} /> Buscar</>}
+                </button>
               )}
             </div>
-          </>)}
+            {accessType === 'exit' && (
+              <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                <QrCode size={12} /> Tambien puedes hacer click en un vehiculo de la tabla para abrir el cobro
+              </p>
+            )}
+          </div>
 
-          {/* ── STEP 1: Confirm Payment ── */}
-          {step === STEPS.CONFIRM && feeData && (
-            <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><DollarSign className="text-green-600" size={24} /> Confirmar Pago</h3>
-                <button onClick={resetWizard} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                <div className="flex justify-between items-center"><span className="text-gray-500">Placa</span><span className="text-2xl font-mono font-bold text-indigo-700">{feeData.plateNumber}</span></div>
-                {feeData.brand && <div className="flex justify-between text-sm"><span className="text-gray-500">Vehiculo</span><span>{feeData.brand} {feeData.model} {feeData.color}</span></div>}
-                <div className="flex justify-between text-sm"><span className="text-gray-500">Entrada</span><span className="font-medium">{fmtTime(feeData.entryTime)}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-gray-500">Salida</span><span className="font-medium">{fmtTime(feeData.exitTime)}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-gray-500">Tiempo</span><span className="font-medium">{Math.floor(feeData.minutes/60)}h {feeData.minutes%60}m ({feeData.hours}h facturadas)</span></div>
-                <div className="flex justify-between text-sm"><span className="text-gray-500">Tarifa</span><span>{fmtMoney(feeData.ratePerHour)}/hora</span></div>
-              </div>
-              <div className="border rounded-lg p-4 space-y-2">
-                <div className="flex justify-between"><span>Subtotal</span><span>{fmtMoney(feeData.subtotal)}</span></div>
-                <div className="flex justify-between text-sm text-gray-500"><span>ITBIS (18%)</span><span>{fmtMoney(feeData.tax)}</span></div>
-                <div className="border-t pt-2 flex justify-between text-xl font-bold text-green-700"><span>TOTAL</span><span>{fmtMoney(feeData.total)}</span></div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Metodo de Pago</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[{ id:'cash', label:'Efectivo', icon:Banknote }, { id:'card', label:'Tarjeta', icon:CreditCard }, { id:'transfer', label:'Transferencia', icon:Shield }].map(({id, label, icon:Icon}) => (
-                    <button key={id} onClick={() => setPayMethod(id)}
-                      className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-colors ${payMethod === id ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                      <Icon size={24} /><span className="text-xs font-medium">{label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={resetWizard} className="flex-1 flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-3 text-gray-700 hover:bg-gray-50 font-medium"><ArrowLeft size={18} /> Cancelar</button>
-                <button onClick={handleProcessPayment} disabled={loading}
-                  className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white rounded-lg py-3 hover:bg-green-700 disabled:opacity-50 font-bold text-lg">
-                  {loading ? <RefreshCw size={20} className="animate-spin" /> : <><CheckCircle size={20} /> Cobrar {fmtMoney(feeData.total)}</>}
-                </button>
-              </div>
+          {/* ── Sessions table ── */}
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="font-semibold text-gray-700">Vehiculos en Parqueo ({sessions.length})</h3>
+              <button onClick={fetchOccupancy} className="text-gray-400 hover:text-gray-600"><RefreshCw size={16} /></button>
             </div>
-          )}
+            {sessions.length === 0 ? (
+              <p className="p-6 text-center text-gray-400">No hay vehiculos en el parqueo</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                    <tr>
+                      <th className="py-2 px-4">Placa</th>
+                      <th className="py-2 px-4">Entrada</th>
+                      <th className="py-2 px-4">Tiempo</th>
+                      <th className="py-2 px-4">Tipo</th>
+                      <th className="py-2 px-4">ID</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sessions.map((s) => {
+                      const { mins, text: timeText } = elapsed(s.entry_time);
+                      const isSub = !!(s.subscription_id || s.metadata?.subscription_id);
+                      const displayPlate = s.vehicle_plate || s.plate_number || '---';
+                      const shortId = s.id ? s.id.substring(0, 8) : '';
+                      const isSelected = exitPopup?.session?.id === s.id;
+                      return (
+                        <tr key={s.id}
+                          onClick={() => handleRowClick(s)}
+                          className={`border-b border-gray-100 cursor-pointer transition-colors ${isSelected ? 'bg-amber-50 border-l-4 border-l-amber-500' : 'hover:bg-indigo-50'}`}>
+                          <td className="py-3 px-4 font-mono font-bold text-indigo-700 text-lg">{displayPlate}</td>
+                          <td className="py-3 px-4 text-sm">{fmtTime(s.entry_time)}</td>
+                          <td className="py-3 px-4">
+                            <span className={`text-xs px-2 py-1 rounded font-medium ${mins > 180 ? 'bg-red-100 text-red-700' : mins > 60 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                              <Clock size={10} className="inline mr-1" />{timeText}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isSub ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {isSub ? 'Suscriptor' : 'Por hora'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="text-xs font-mono text-gray-400 hover:text-indigo-600 cursor-pointer"
+                              title={`Click para copiar: ${s.id}`}
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(s.id); toast.info('ID copiado'); }}>
+                              {shortId}...
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
 
-          {/* ── STEP 2: Receipt ── */}
-          {step === STEPS.RECEIPT && receiptData && (
-            <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3"><CheckCircle className="text-green-600" size={32} /></div>
-                <h3 className="text-xl font-bold text-green-700">Pago Completado</h3>
-                <p className="text-gray-500">El vehiculo puede salir del parqueo</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Placa</span><span className="font-bold text-lg">{receiptData.plateNumber}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Factura</span><span>{receiptData.invoiceNumber}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">NCF</span><span>{receiptData.ncf}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Total</span><span className="font-bold text-green-700 text-lg">{fmtMoney(receiptData.total)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Metodo</span><span>{{cash:'Efectivo',card:'Tarjeta',transfer:'Transferencia'}[receiptData.paymentMethod]}</span></div>
-                {receiptData.code && <div className="flex justify-between"><span className="text-gray-500">Codigo</span><span className="font-mono">{receiptData.code}</span></div>}
-              </div>
-              <div className="text-center">
-                <div className="mx-auto w-40 h-40 flex items-center justify-center">
-                  <QRCodeSVG value={receiptData.code || receiptData.invoiceNumber || 'N/A'} size={150} level="M" />
-                </div>
-                <p className="text-xs text-gray-400 mt-1">Presente este QR para salir</p>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={async () => { setPreviewHtml(await generatePaymentReceiptHTML({ receipt: receiptData })); setPreviewTitle('Recibo de Pago'); setPreviewOpen(true); }}
-                  className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 rounded-lg py-3 hover:bg-gray-200 font-medium"><Eye size={18} /> Vista Previa</button>
-                <button onClick={() => printPaymentReceipt({ receipt: receiptData })}
-                  className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg py-3 hover:bg-indigo-700 font-medium"><Printer size={18} /> Imprimir</button>
-              </div>
-              <button onClick={resetWizard}
-                className="w-full flex items-center justify-center gap-2 bg-green-600 text-white rounded-lg py-3 hover:bg-green-700 font-medium mt-2"><ArrowRight size={18} /> Siguiente</button>
-            </div>
-          )}
         </div>
         <div><OccupancyPanel plans={plans} /></div>
       </div>
 
-      {/* Quick Receipt Flash Popup - auto-closes after 2 seconds on payment/exit */}
-      {quickReceipt && (
-        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4"
-          onClick={() => { setQuickReceipt(null); setStep(STEPS.RECEIPT); }}>
-          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-              <CheckCircle className="text-green-600" size={40} />
+      {/* ════════════════════════════════════════════════════════
+          EXIT POPUP — Full-screen overlay for exit/payment
+          Opens on: row click, plate search, QR scan
+          Auto-closes after 30s if no interaction
+          Dismissed silently if another QR is scanned
+         ════════════════════════════════════════════════════════ */}
+      {exitPopup && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={closeExitPopup}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            onClick={(e) => { e.stopPropagation(); resetCountdown(); }}>
+
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3 text-white">
+                <LogOut size={24} />
+                <div>
+                  <h3 className="font-bold text-lg">Salida de Vehiculo</h3>
+                  <p className="text-amber-100 text-sm font-mono">{exitPopup.session.vehicle_plate}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {exitPopup.step !== 'receipt' && (
+                  <span className="text-amber-100 text-xs flex items-center gap-1">
+                    <Timer size={12} /> {exitCountdown}s
+                  </span>
+                )}
+                <button onClick={closeExitPopup} className="text-white/80 hover:text-white"><X size={20} /></button>
+              </div>
             </div>
-            <p className="text-2xl font-bold text-green-700 mb-2">Pago Completado</p>
-            <p className="text-3xl font-mono font-bold text-indigo-700 mb-2">{quickReceipt.plateNumber}</p>
-            <p className="text-xl font-bold text-green-600 mb-1">{fmtMoney(quickReceipt.total)}</p>
-            <p className="text-sm text-gray-500 mb-1">{{cash:'Efectivo',card:'Tarjeta',transfer:'Transferencia'}[quickReceipt.paymentMethod]}</p>
-            {quickReceipt.invoiceNumber && <p className="text-xs text-gray-400">Factura: {quickReceipt.invoiceNumber}</p>}
-            <div className="mx-auto w-32 h-32 flex items-center justify-center mt-3">
-              <QRCodeSVG value={quickReceipt.code || quickReceipt.invoiceNumber || 'N/A'} size={120} level="M" />
+
+            {/* Countdown bar */}
+            {exitPopup.step !== 'receipt' && exitPopup.step !== 'manual_done' && exitPopup.step !== 'auto_exit' && (
+              <CountdownBar seconds={exitCountdown} total={POPUP_TIMEOUT} />
+            )}
+
+            <div className="p-5">
+              {/* ── LOADING state ── */}
+              {exitPopup.step === 'loading' && (
+                <div className="text-center py-8">
+                  <RefreshCw size={40} className="animate-spin text-amber-500 mx-auto mb-3" />
+                  <p className="text-gray-600 font-medium">Calculando tarifa...</p>
+                  <p className="text-sm text-gray-400">Entrada: {fmtDateTime(exitPopup.session.entry_time)}</p>
+                </div>
+              )}
+
+              {/* ── ERROR state ── */}
+              {exitPopup.step === 'error' && (
+                <div className="text-center py-6 space-y-3">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+                    <X className="text-red-600" size={32} />
+                  </div>
+                  <p className="text-red-700 font-medium">{exitPopup.errorMsg || 'Error al calcular'}</p>
+                  <div className="flex gap-2">
+                    <button onClick={closeExitPopup}
+                      className="flex-1 border border-gray-300 rounded-lg py-2 text-gray-600 hover:bg-gray-50">
+                      Cerrar
+                    </button>
+                    <button onClick={handlePopupManualExit}
+                      className="flex-1 bg-red-600 text-white rounded-lg py-2 hover:bg-red-700 flex items-center justify-center gap-1">
+                      <LogOut size={16} /> Salida Manual
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── AUTO EXIT (subscriber/grace) ── */}
+              {exitPopup.step === 'auto_exit' && (
+                <div className="text-center py-6 space-y-3">
+                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle className="text-green-600" size={40} />
+                  </div>
+                  <p className="text-xl font-bold text-green-700">Salida Libre</p>
+                  <p className="text-gray-500">{exitPopup.feeData?.message || 'Suscriptor activo o periodo de gracia'}</p>
+                  <p className="text-3xl font-mono font-bold text-indigo-700">{exitPopup.session.vehicle_plate}</p>
+                  <p className="text-sm text-gray-400">Abrir barrera</p>
+                </div>
+              )}
+
+              {/* ── MANUAL EXIT DONE ── */}
+              {exitPopup.step === 'manual_done' && (
+                <div className="text-center py-6 space-y-3">
+                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                    <LogOut className="text-blue-600" size={40} />
+                  </div>
+                  <p className="text-xl font-bold text-blue-700">Salida Manual</p>
+                  <p className="text-gray-500">Sesion cerrada sin cobro</p>
+                  <p className="text-3xl font-mono font-bold text-indigo-700">{exitPopup.session.vehicle_plate}</p>
+                </div>
+              )}
+
+              {/* ── FEE DISPLAY + PAYMENT ── */}
+              {(exitPopup.step === 'fee' || exitPopup.step === 'paying') && exitPopup.feeData && (() => {
+                const fee = exitPopup.feeData;
+                return (
+                  <div className="space-y-4">
+                    {/* Session info */}
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500">Placa</span>
+                        <span className="text-2xl font-mono font-bold text-indigo-700">{fee.plateNumber || exitPopup.session.vehicle_plate}</span>
+                      </div>
+                      {fee.brand && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Vehiculo</span>
+                          <span>{fee.brand} {fee.model} {fee.color}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Entrada</span>
+                        <span className="font-medium">{fmtDateTime(fee.entryTime || exitPopup.session.entry_time)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Ahora</span>
+                        <span className="font-medium">{fmtTime(fee.exitTime || new Date().toISOString())}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Tiempo</span>
+                        <span className="font-medium flex items-center gap-1">
+                          <Clock size={12} />
+                          {Math.floor((fee.minutes || 0) / 60)}h {(fee.minutes || 0) % 60}m ({fee.hours}h facturadas)
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Tarifa</span>
+                        <span>{fmtMoney(fee.ratePerHour)}/hora</span>
+                      </div>
+                    </div>
+
+                    {/* Totals */}
+                    <div className="border rounded-lg p-4 space-y-2">
+                      <div className="flex justify-between text-sm"><span>Subtotal</span><span>{fmtMoney(fee.subtotal)}</span></div>
+                      <div className="flex justify-between text-xs text-gray-500"><span>ITBIS (18%)</span><span>{fmtMoney(fee.tax)}</span></div>
+                      <div className="border-t pt-2 flex justify-between text-xl font-bold text-green-700">
+                        <span>TOTAL</span><span>{fmtMoney(fee.total)}</span>
+                      </div>
+                    </div>
+
+                    {/* Payment method */}
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Metodo de Pago</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { id: 'cash', label: 'Efectivo', icon: Banknote },
+                          { id: 'card', label: 'Tarjeta', icon: CreditCard },
+                          { id: 'transfer', label: 'Transfer.', icon: Shield },
+                        ].map(({ id, label, icon: Icon }) => (
+                          <button key={id}
+                            onClick={() => setExitPopup(prev => prev ? { ...prev, payMethod: id } : null)}
+                            className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border-2 transition-colors ${exitPopup.payMethod === id ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                            <Icon size={20} /><span className="text-xs font-medium">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={handlePopupManualExit}
+                        className="px-3 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium flex items-center gap-1">
+                        <LogOut size={14} /> Sin cobro
+                      </button>
+                      <button onClick={handlePopupPayment} disabled={exitPopup.step === 'paying'}
+                        className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white rounded-lg py-2.5 hover:bg-green-700 disabled:opacity-50 font-bold text-lg">
+                        {exitPopup.step === 'paying'
+                          ? <RefreshCw size={20} className="animate-spin" />
+                          : <><CheckCircle size={20} /> Cobrar {fmtMoney(fee.total)}</>
+                        }
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── RECEIPT ── */}
+              {exitPopup.step === 'receipt' && exitPopup.receiptData && (() => {
+                const r = exitPopup.receiptData;
+                return (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <CheckCircle className="text-green-600" size={32} />
+                      </div>
+                      <h3 className="text-xl font-bold text-green-700">Pago Completado</h3>
+                      <p className="text-gray-500 text-sm">El vehiculo puede salir</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-gray-500">Placa</span><span className="font-bold text-lg text-indigo-700">{r.plateNumber}</span></div>
+                      {r.invoiceNumber && <div className="flex justify-between"><span className="text-gray-500">Factura</span><span>{r.invoiceNumber}</span></div>}
+                      {r.ncf && <div className="flex justify-between"><span className="text-gray-500">NCF</span><span>{r.ncf}</span></div>}
+                      <div className="flex justify-between"><span className="text-gray-500">Total</span><span className="font-bold text-green-700 text-lg">{fmtMoney(r.total)}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">Metodo</span><span>{{ cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' }[r.paymentMethod]}</span></div>
+                      {r.code && <div className="flex justify-between"><span className="text-gray-500">Codigo</span><span className="font-mono">{r.code}</span></div>}
+                    </div>
+                    <div className="text-center">
+                      <div className="mx-auto w-36 h-36 flex items-center justify-center">
+                        <QRCodeSVG value={r.code || r.invoiceNumber || 'N/A'} size={140} level="M" />
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Presente este QR para salir</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={async () => {
+                        setPreviewHtml(await generatePaymentReceiptHTML({ receipt: r }));
+                        setPreviewTitle('Recibo de Pago');
+                        setPreviewOpen(true);
+                      }} className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 rounded-lg py-2.5 hover:bg-gray-200 font-medium text-sm">
+                        <Eye size={16} /> Vista Previa
+                      </button>
+                      <button onClick={() => printPaymentReceipt({ receipt: r })}
+                        className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg py-2.5 hover:bg-indigo-700 font-medium text-sm">
+                        <Printer size={16} /> Imprimir
+                      </button>
+                    </div>
+                    <button onClick={closeExitPopup}
+                      className="w-full flex items-center justify-center gap-2 bg-green-600 text-white rounded-lg py-2.5 hover:bg-green-700 font-medium">
+                      <ArrowRight size={18} /> Siguiente Vehiculo
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
-            <p className="text-xs text-gray-400 mt-2">Desaparece en 2 segundos...</p>
           </div>
         </div>
       )}
 
-      {/* Quick QR Flash Popup - auto-closes after 2 seconds */}
+      {/* ── Quick QR Flash (2s on entry) ── */}
       {quickQr && (
         <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4"
           onClick={() => { setQuickQr(null); setEntryTicket(quickQr); }}>
-          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center animate-pulse" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center" onClick={e => e.stopPropagation()}>
             <div className="mx-auto w-56 h-56 flex items-center justify-center mb-4">
               <QRCodeSVG value={quickQr.qrData} size={220} level="M" />
             </div>
             <p className="text-3xl font-mono font-bold text-indigo-700 mb-2">{quickQr.plate}</p>
             <p className="text-green-600 font-semibold text-lg">Entrada Registrada</p>
-            <p className="text-xs text-gray-400 mt-2">Este QR desaparecera en 2 segundos...</p>
+            <p className="text-xs text-gray-400 mt-2">Desaparece en 2 segundos...</p>
           </div>
         </div>
       )}
 
-      {/* Entry Ticket Modal (full version after quick QR flash) */}
+      {/* ── Entry Ticket Modal (after quick flash) ── */}
       {entryTicket && !quickQr && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => { setEntryTicket(null); resetWizard(); }}>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => setEntryTicket(null)}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2"><QrCode className="text-indigo-600" size={24} /><h3 className="text-lg font-bold text-gray-800">Ticket de Entrada</h3></div>
-              <button onClick={() => { setEntryTicket(null); resetWizard(); }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+              <div className="flex items-center gap-2">
+                <QrCode className="text-indigo-600" size={24} />
+                <h3 className="text-lg font-bold text-gray-800">Ticket de Entrada</h3>
+              </div>
+              <button onClick={() => setEntryTicket(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
             <div className="text-center space-y-3">
               <div className="mx-auto w-48 h-48 flex items-center justify-center">
                 <QRCodeSVG value={entryTicket.qrData} size={180} level="M" />
               </div>
               <p className="text-2xl font-mono font-bold text-indigo-700">{entryTicket.plate}</p>
-              <p className="text-sm text-gray-500">Entrada: {new Date(entryTicket.entryTime).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}</p>
+              <p className="text-sm text-gray-500">Entrada: {fmtTime(entryTicket.entryTime)}</p>
               <p className="text-sm text-gray-500">{entryTicket.type === 'subscriber' ? 'Suscriptor' : 'Por Hora'}</p>
               {entryTicket.sessionId && (
-                <p className="text-xs text-gray-400 font-mono cursor-pointer" title={entryTicket.sessionId}
+                <p className="text-xs text-gray-400 font-mono cursor-pointer flex items-center justify-center gap-1"
+                  title={entryTicket.sessionId}
                   onClick={() => { navigator.clipboard.writeText(entryTicket.sessionId); toast.info('ID copiado'); }}>
-                  ID: {entryTicket.sessionId.substring(0, 8)}... (click para copiar)
+                  <Copy size={10} /> {entryTicket.sessionId.substring(0, 12)}...
                 </p>
               )}
               <div className="flex gap-2 pt-2">
-                <button onClick={async () => { setPreviewHtml(await generateEntryTicketHTML(entryTicket)); setPreviewTitle('Ticket de Entrada'); setPreviewOpen(true); }}
-                  className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 rounded-lg py-2 hover:bg-gray-200"><Eye size={16} /> Vista Previa</button>
+                <button onClick={async () => {
+                  setPreviewHtml(await generateEntryTicketHTML(entryTicket));
+                  setPreviewTitle('Ticket de Entrada');
+                  setPreviewOpen(true);
+                }} className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 rounded-lg py-2 hover:bg-gray-200">
+                  <Eye size={16} /> Vista Previa
+                </button>
                 <button onClick={() => printEntryTicket(entryTicket)}
-                  className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700"><Printer size={16} /> Imprimir</button>
+                  className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700">
+                  <Printer size={16} /> Imprimir
+                </button>
               </div>
-              <button onClick={() => { setEntryTicket(null); resetWizard(); }}
-                className="w-full mt-2 flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2 text-gray-700 hover:bg-gray-50">Cerrar</button>
+              <button onClick={() => setEntryTicket(null)}
+                className="w-full mt-2 flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2 text-gray-700 hover:bg-gray-50">
+                Cerrar
+              </button>
             </div>
           </div>
         </div>
       )}
+
       <PrintPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} html={previewHtml} title={previewTitle} />
     </div>
   );
