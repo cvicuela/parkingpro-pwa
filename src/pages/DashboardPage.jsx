@@ -58,6 +58,15 @@ function OccupancyBar({ plan }) {
   );
 }
 
+const sessionStatusLabel = (s) => {
+  const map = { active: 'Activa', paid: 'Pagada', closed: 'Cerrada', abandoned: 'Abandonada' };
+  return map[s] || s || 'Activa';
+};
+const sessionStatusColor = (s) => {
+  const map = { active: 'bg-green-100 text-green-700', paid: 'bg-blue-100 text-blue-700', closed: 'bg-gray-100 text-gray-700', abandoned: 'bg-amber-100 text-amber-700' };
+  return map[s] || 'bg-green-100 text-green-700';
+};
+
 function ActiveSessionRow({ session }) {
   const minutes = Math.round(session.minutes_elapsed || 0);
   const hours = Math.floor(minutes / 60);
@@ -70,6 +79,11 @@ function ActiveSessionRow({ session }) {
         {new Date(session.entry_time).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Santo_Domingo' })}
       </td>
       <td className="py-3 px-4 text-sm">{hours}h {mins}m</td>
+      <td className="py-3 px-4">
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${sessionStatusColor(session.status)}`}>
+          {sessionStatusLabel(session.status)}
+        </span>
+      </td>
       <td className="py-3 px-4 text-sm font-medium text-green-600">
         RD$ {(session.current_amount || 0).toFixed(2)}
       </td>
@@ -188,6 +202,7 @@ export default function DashboardPage() {
                   <th className="py-2 px-4">Placa</th>
                   <th className="py-2 px-4">Entrada</th>
                   <th className="py-2 px-4">Duracion</th>
+                  <th className="py-2 px-4">Estado</th>
                   <th className="py-2 px-4">Monto Actual</th>
                 </tr>
               </thead>

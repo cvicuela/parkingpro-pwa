@@ -63,6 +63,15 @@ const elapsed = (iso) => {
 
 const POPUP_TIMEOUT = 30; // seconds
 
+const sessionStatusLabel = (s) => {
+  const map = { active: 'Activa', paid: 'Pagada', closed: 'Cerrada', abandoned: 'Abandonada' };
+  return map[s] || s || 'Activa';
+};
+const sessionStatusColor = (s) => {
+  const map = { active: 'bg-green-100 text-green-700', paid: 'bg-blue-100 text-blue-700', closed: 'bg-gray-100 text-gray-700', abandoned: 'bg-amber-100 text-amber-700' };
+  return map[s] || 'bg-green-100 text-green-700';
+};
+
 export default function ControlAccesoPage() {
   // ── Core state ──
   const [plate, setPlate] = useState('');
@@ -406,6 +415,7 @@ export default function ControlAccesoPage() {
                       <th className="py-2 px-4">Placa</th>
                       <th className="py-2 px-4">Entrada</th>
                       <th className="py-2 px-4">Tiempo</th>
+                      <th className="py-2 px-4">Estado</th>
                       <th className="py-2 px-4">Tipo</th>
                       <th className="py-2 px-4">ID</th>
                     </tr>
@@ -426,6 +436,11 @@ export default function ControlAccesoPage() {
                           <td className="py-3 px-4">
                             <span className={`text-xs px-2 py-1 rounded font-medium ${mins > 180 ? 'bg-red-100 text-red-700' : mins > 60 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
                               <Clock size={10} className="inline mr-1" />{timeText}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${sessionStatusColor(s.status)}`}>
+                              {sessionStatusLabel(s.status)}
                             </span>
                           </td>
                           <td className="py-3 px-4">

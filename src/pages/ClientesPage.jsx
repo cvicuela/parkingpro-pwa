@@ -123,11 +123,11 @@ const fmtDateTime = (iso) => {
 const fmtMoney = (n) => n != null ? `RD$ ${Number(n).toLocaleString('es-DO', { minimumFractionDigits: 2 })}` : '-';
 
 const statusLabel = (s) => {
-  const map = { active: 'Activa', paid: 'Pagado', pending: 'Pendiente', cancelled: 'Cancelada', suspended: 'Suspendida', past_due: 'Vencida', refunded: 'Reembolsado' };
+  const map = { active: 'Activa', paid: 'Pagado', closed: 'Cerrada', abandoned: 'Abandonada', pending: 'Pendiente', cancelled: 'Cancelada', suspended: 'Suspendida', past_due: 'Vencida', refunded: 'Reembolsado' };
   return map[s] || s || '-';
 };
 const statusColor = (s) => {
-  const map = { active: 'bg-green-100 text-green-700', paid: 'bg-green-100 text-green-700', pending: 'bg-yellow-100 text-yellow-700', cancelled: 'bg-red-100 text-red-700', suspended: 'bg-orange-100 text-orange-700', past_due: 'bg-red-100 text-red-700' };
+  const map = { active: 'bg-green-100 text-green-700', paid: 'bg-blue-100 text-blue-700', closed: 'bg-gray-100 text-gray-700', abandoned: 'bg-amber-100 text-amber-700', pending: 'bg-yellow-100 text-yellow-700', cancelled: 'bg-red-100 text-red-700', suspended: 'bg-orange-100 text-orange-700', past_due: 'bg-red-100 text-red-700' };
   return map[s] || 'bg-gray-100 text-gray-700';
 };
 
@@ -172,7 +172,7 @@ function CustomerHistoryModal({ customer, onClose }) {
       data.sessions.slice(0, 20).forEach(s => {
         html += `
           <div class="small" style="margin-bottom:4px; border-bottom:1px dotted #ccc; padding-bottom:3px;">
-            <div class="row"><span>${s.vehicle_plate}</span><span>${s.is_active ? 'ACTIVA' : (s.payment_status === 'paid' ? 'Pagada' : 'Pendiente')}</span></div>
+            <div class="row"><span>${s.vehicle_plate}</span><span>${statusLabel(s.status || 'active')}</span></div>
             <div>Entrada: ${fmtDateTime(s.entry_time)}</div>
             ${s.exit_time ? `<div>Salida: ${fmtDateTime(s.exit_time)}</div>` : ''}
             ${s.paid_amount ? `<div>Monto: ${fmtMoney(s.paid_amount)}</div>` : ''}
@@ -274,8 +274,8 @@ function CustomerHistoryModal({ customer, onClose }) {
                           <span className="font-mono font-bold text-sm">{s.vehicle_plate}</span>
                           {s.plan_name && <span className="text-xs text-gray-400">({s.plan_name})</span>}
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${s.is_active ? 'bg-blue-100 text-blue-700' : statusColor(s.payment_status)}`}>
-                          {s.is_active ? 'Activa' : statusLabel(s.payment_status)}
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(s.status || 'active')}`}>
+                          {statusLabel(s.status || 'active')}
                         </span>
                       </div>
                       <div className="mt-1.5 grid grid-cols-2 gap-x-4 text-xs text-gray-500">
