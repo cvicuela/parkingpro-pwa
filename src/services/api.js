@@ -528,6 +528,10 @@ export const rfidAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
+  listByCustomer: async (customerId) =>
+    apiFetch(`/api/v1/rfid/cards/by-customer/${customerId}`),
+  listBySubscription: async (subscriptionId) =>
+    apiFetch(`/api/v1/rfid/cards/by-subscription/${subscriptionId}`),
 };
 
 // Default export for backward compatibility
