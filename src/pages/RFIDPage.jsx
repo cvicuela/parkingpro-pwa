@@ -69,7 +69,11 @@ export default function RFIDPage() {
 
   // Socket.IO for card scanning
   useEffect(() => {
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const token = localStorage.getItem('pp_token');
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      auth: { token },
+    });
     socketRef.current = socket;
 
     socket.on('connect', () => { socket.emit('join_dashboard'); });
