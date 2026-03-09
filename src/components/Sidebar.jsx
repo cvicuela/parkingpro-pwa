@@ -19,6 +19,7 @@ const navItems = [
   { to: '/facturas', icon: FileText, label: 'Facturas', roles: ['operator','admin','super_admin'] },
   { to: '/gastos', icon: TrendingDown, label: 'Gastos', roles: ['admin','super_admin'] },
   { to: '/reportes', icon: BarChart3, label: 'Reportes', roles: ['admin','super_admin'] },
+  { to: '/fiscal', icon: FileText, label: 'DGII 606/607', roles: ['admin','super_admin'] },
   { to: '/auditoria', icon: ShieldAlert, label: 'Auditoría', roles: ['admin','super_admin'] },
   { to: '/config', icon: Settings, label: 'Configuracion', roles: ['admin','super_admin'] },
 ];

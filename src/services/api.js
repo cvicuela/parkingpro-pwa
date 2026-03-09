@@ -554,6 +554,30 @@ export const expensesAPI = {
   },
 };
 
+// Fiscal Reports (DGII 606/607)
+export const fiscalAPI = {
+  generate607: async (params = {}) => {
+    const result = await rpc('generate_607_report', {
+      p_token: getToken(),
+      p_period: params?.period || null,
+      p_from_date: params?.fromDate || null,
+      p_to_date: params?.toDate || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  generate606: async (params = {}) => {
+    const result = await rpc('generate_606_report', {
+      p_token: getToken(),
+      p_period: params?.period || null,
+      p_from_date: params?.fromDate || null,
+      p_to_date: params?.toDate || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
 // REST helper for Express backend routes (not Supabase RPC)
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 

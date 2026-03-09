@@ -22,6 +22,7 @@ import CajaHistorialPage from './pages/CajaHistorialPage';
 import RFIDPage from './pages/RFIDPage';
 import DispositivosPage from './pages/DispositivosPage';
 import GastosPage from './pages/GastosPage';
+import ReportesFiscalesPage from './pages/ReportesFiscalesPage';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="caja/historial" element={<ProtectedRoute roles={['admin','super_admin']}><CajaHistorialPage /></ProtectedRoute>} />
         <Route path="gastos" element={<ProtectedRoute roles={['admin','super_admin']}><GastosPage /></ProtectedRoute>} />
         <Route path="reportes" element={<ProtectedRoute roles={['admin','super_admin']}><ReportesPage /></ProtectedRoute>} />
+        <Route path="fiscal" element={<ProtectedRoute roles={['admin','super_admin']}><ReportesFiscalesPage /></ProtectedRoute>} />
         <Route path="auditoria" element={<ProtectedRoute roles={['admin','super_admin']}><AuditPage /></ProtectedRoute>} />
         <Route path="config" element={<ProtectedRoute roles={['admin','super_admin']}><ConfigPage /></ProtectedRoute>} />
         <Route path="rfid" element={<ProtectedRoute roles={['admin','super_admin']}><RFIDPage /></ProtectedRoute>} />
