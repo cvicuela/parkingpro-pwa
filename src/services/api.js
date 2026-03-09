@@ -578,6 +578,37 @@ export const fiscalAPI = {
   },
 };
 
+// NCF (Comprobantes Fiscales) Management
+export const ncfAPI = {
+  listSequences: async () => {
+    const result = await rpc('list_ncf_sequences', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  updateSequence: async (id, data) => {
+    const result = await rpc('update_ncf_sequence', {
+      p_token: getToken(),
+      p_id: id,
+      p_range_to: data.rangeTo ?? null,
+      p_alert_threshold: data.alertThreshold ?? null,
+      p_is_active: data.isActive ?? null,
+      p_authorized_date: data.authorizedDate ?? null,
+      p_expiration_date: data.expirationDate ?? null,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  assignToInvoice: async (invoiceId, ncfType = '02') => {
+    const result = await rpc('assign_ncf_to_invoice', {
+      p_token: getToken(),
+      p_invoice_id: invoiceId,
+      p_ncf_type: ncfType,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
 // REST helper for Express backend routes (not Supabase RPC)
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
