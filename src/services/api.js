@@ -637,6 +637,11 @@ export const devicesAPI = {
     apiFetch(`/api/v1/zkteco/devices/${serial}/open`, { method: 'POST' }),
   closeBarrier: async (serial) =>
     apiFetch(`/api/v1/zkteco/devices/${serial}/close`, { method: 'POST' }),
+  requestCardRead: async (serial) =>
+    apiFetch(`/api/v1/zkteco/devices/${serial}/read-card`, { method: 'POST' }),
+  stopReading: async (serial) =>
+    apiFetch(`/api/v1/zkteco/devices/${serial}/stop-reading`, { method: 'POST' }),
+  readers: async () => apiFetch('/api/v1/zkteco/readers'),
   stats: async () => apiFetch('/api/v1/zkteco/stats'),
   events: async (params = {}) => {
     const query = new URLSearchParams();

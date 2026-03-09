@@ -42,7 +42,7 @@ const MODELS = {
   barrier: ['PB3000', 'PB4000', 'PROBG3060', 'BGM-P060', 'PB-BG1000', 'CMP200'],
   lpr_camera: ['LPR6500', 'LPRS2000', 'ZK-LPR-CAM', 'IPC-B2200'],
   controller: ['C3-100', 'C3-200', 'C3-400', 'inBio160', 'inBio260', 'inBio460'],
-  reader: ['SpeedFace-V5L', 'ProFace-X', 'ZK-RFID101', 'KR500E', 'FR1300'],
+  reader: ['KR500E', 'KR600E', 'KR500M', 'FR1300', 'FR1500-WP', 'ZK-RFID101', 'ZK-RFID201', 'CR10MW', 'CR20MW', 'SpeedFace-V5L', 'ProFace-X'],
 };
 
 const fmtTime = (d) => d ? new Date(d).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '-';
@@ -64,6 +64,10 @@ function DeviceModal({ device, onClose, onSave }) {
     relay_number: device.config?.relay_number || 1,
     heartbeat_interval: device.config?.heartbeat_interval || 30,
     lpr_sensitivity: device.config?.lpr_sensitivity || 'high',
+    wiegand_format: device.config?.wiegand_format || 26,
+    read_mode: device.config?.read_mode || 'rfid',
+    reader_buzzer: device.config?.reader_buzzer !== false,
+    reader_led: device.config?.reader_led !== false,
   } : {
     serial_number: '',
     name: '',
@@ -79,6 +83,10 @@ function DeviceModal({ device, onClose, onSave }) {
     relay_number: 1,
     heartbeat_interval: 30,
     lpr_sensitivity: 'high',
+    wiegand_format: 26,
+    read_mode: 'rfid',
+    reader_buzzer: true,
+    reader_led: true,
   });
   const [saving, setSaving] = useState(false);
 
@@ -107,6 +115,10 @@ function DeviceModal({ device, onClose, onSave }) {
           relay_number: parseInt(form.relay_number) || 1,
           heartbeat_interval: parseInt(form.heartbeat_interval) || 30,
           lpr_sensitivity: form.lpr_sensitivity,
+          wiegand_format: parseInt(form.wiegand_format) || 26,
+          read_mode: form.read_mode,
+          reader_buzzer: form.reader_buzzer,
+          reader_led: form.reader_led,
         }
       };
 
@@ -262,6 +274,51 @@ function DeviceModal({ device, onClose, onSave }) {
             </div>
           )}
 
+          {/* Reader-specific config */}
+          {form.type === 'reader' && (
+            <div className="bg-teal-50 rounded-lg p-3 space-y-2">
+              <p className="text-sm font-semibold text-teal-800">Config. Lector RFID/NFC</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-teal-700 mb-1">Formato Wiegand</label>
+                  <select value={form.wiegand_format} onChange={set('wiegand_format')}
+                    className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-teal-400 outline-none">
+                    <option value="26">Wiegand 26 bits</option>
+                    <option value="34">Wiegand 34 bits</option>
+                    <option value="37">Wiegand 37 bits</option>
+                    <option value="0">Auto-detectar</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-teal-700 mb-1">Modo de Lectura</label>
+                  <select value={form.read_mode} onChange={set('read_mode')}
+                    className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-teal-400 outline-none">
+                    <option value="rfid">Solo RFID/NFC</option>
+                    <option value="rfid_pin">RFID + PIN</option>
+                    <option value="fingerprint">Huella Digital</option>
+                    <option value="face">Reconocimiento Facial</option>
+                    <option value="multi">Multi-Factor</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 text-sm text-teal-700">
+                  <input type="checkbox" checked={form.reader_buzzer} onChange={set('reader_buzzer')}
+                    className="rounded border-teal-300" />
+                  Buzzer al leer
+                </label>
+                <label className="flex items-center gap-2 text-sm text-teal-700">
+                  <input type="checkbox" checked={form.reader_led} onChange={set('reader_led')}
+                    className="rounded border-teal-300" />
+                  LED indicador
+                </label>
+              </div>
+              <p className="text-[11px] text-teal-600 mt-1">
+                Este lector se puede usar para registrar y asignar tarjetas RFID/NFC desde la pagina de Tarjetas RFID.
+              </p>
+            </div>
+          )}
+
           {/* Heartbeat */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Intervalo Heartbeat (seg)</label>
@@ -370,6 +427,13 @@ function DeviceCard({ device, onEdit, onDelete, onOpen, onClose: onCloseBarrier 
             {device.type === 'lpr_camera' && (
               <>
                 <span>Sensibilidad LPR:</span><span className="font-medium capitalize">{device.config?.lpr_sensitivity || 'high'}</span>
+              </>
+            )}
+            {device.type === 'reader' && (
+              <>
+                <span>Formato Wiegand:</span><span className="font-medium">{device.config?.wiegand_format || 26} bits</span>
+                <span>Modo lectura:</span><span className="font-medium capitalize">{device.config?.read_mode || 'rfid'}</span>
+                <span>Buzzer:</span><span className="font-medium">{device.config?.reader_buzzer !== false ? 'Si' : 'No'}</span>
               </>
             )}
             <span>Ultimo reporte:</span><span className="font-medium">{fmtTime(device.last_seen)}</span>
