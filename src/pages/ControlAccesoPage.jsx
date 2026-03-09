@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { accessAPI, plansAPI, rfidAPI } from '../services/api';
+import { accessAPI, plansAPI, rfidAPI, cashAPI } from '../services/api';
 import { printEntryTicket, printPaymentReceipt, generateEntryTicketHTML, generatePaymentReceiptHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
 import { QRCodeSVG } from 'qrcode.react';
@@ -9,8 +9,23 @@ import {
   LogIn, LogOut, Car, DollarSign, CheckCircle,
   RefreshCw, QrCode, Printer, X, Eye, Clock,
   CreditCard, Banknote, ArrowRight, ArrowLeft, Shield,
-  Hash, Timer, Copy, AlertTriangle, Wifi, Radio
+  Hash, Timer, Copy, AlertTriangle, Wifi, Radio,
+  Wallet, ChevronDown, Send, FileText
 } from 'lucide-react';
+
+/* ─── Dominican Peso denominations ─── */
+const DENOMINATIONS = [
+  { value: 2000, label: 'RD$2,000' },
+  { value: 1000, label: 'RD$1,000' },
+  { value: 500, label: 'RD$500' },
+  { value: 200, label: 'RD$200' },
+  { value: 100, label: 'RD$100' },
+  { value: 50, label: 'RD$50' },
+  { value: 25, label: 'RD$25' },
+  { value: 10, label: 'RD$10' },
+  { value: 5, label: 'RD$5' },
+  { value: 1, label: 'RD$1' },
+];
 
 /* ─── Occupancy sidebar ─── */
 function OccupancyPanel({ plans }) {
@@ -99,6 +114,52 @@ export default function ControlAccesoPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewTitle, setPreviewTitle] = useState('');
+
+  // ── Cash register state ──
+  const [activeRegister, setActiveRegister] = useState(null);
+  const [registerLoading, setRegisterLoading] = useState(true);
+  const [showOpenRegister, setShowOpenRegister] = useState(false);
+  const [openingBalance, setOpeningBalance] = useState({});
+  const [openingRegister, setOpeningRegister] = useState(false);
+
+  // ── Cash payment popup state ──
+  const [cashPopup, setCashPopup] = useState(null); // { total, denominations: {}, received: 0, change: 0 }
+
+  // ── Card type state ──
+  const [cardType, setCardType] = useState('visa');
+
+  // ── Transfer reference state ──
+  const [transferRef, setTransferRef] = useState('');
+
+  const fetchActiveRegister = useCallback(async () => {
+    try {
+      const { data } = await cashAPI.active();
+      const reg = data.data || data;
+      setActiveRegister(reg && reg.id ? reg : null);
+    } catch {
+      setActiveRegister(null);
+    } finally {
+      setRegisterLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchActiveRegister(); }, [fetchActiveRegister]);
+
+  const handleOpenRegister = async () => {
+    setOpeningRegister(true);
+    try {
+      const total = Object.entries(openingBalance).reduce((sum, [denom, qty]) => sum + (Number(denom) * Number(qty || 0)), 0);
+      await cashAPI.open({ opening_balance: total, denominations: openingBalance });
+      toast.success('Caja abierta exitosamente');
+      setShowOpenRegister(false);
+      setOpeningBalance({});
+      await fetchActiveRegister();
+    } catch (err) {
+      toast.error(err.message || 'Error al abrir caja');
+    } finally {
+      setOpeningRegister(false);
+    }
+  };
 
   // ── Fetch sessions & plans ──
   const fetchOccupancy = useCallback(async () => {
@@ -300,18 +361,58 @@ export default function ControlAccesoPage() {
   // Process payment inside popup
   const handlePopupPayment = async () => {
     if (!exitPopup?.feeData) return;
+
+    // Check active register for cash payments
+    if (!activeRegister) {
+      toast.error('Debe abrir una sesion de caja antes de cobrar');
+      setShowOpenRegister(true);
+      return;
+    }
+
+    // For cash: open cash breakdown popup first
+    if (exitPopup.payMethod === 'cash' && !cashPopup) {
+      setCashPopup({ total: parseFloat(exitPopup.feeData.total), denominations: {}, received: 0 });
+      return;
+    }
+
     resetCountdown(); // keep alive
     const fee = exitPopup.feeData;
     setExitPopup(prev => prev ? { ...prev, step: 'paying' } : null);
     try {
-      const { data } = await accessAPI.processPayment({
+      const paymentData = {
         sessionId: fee.sessionId,
         paymentMethod: exitPopup.payMethod,
-      });
+      };
+      // Add method-specific metadata
+      if (exitPopup.payMethod === 'cash' && cashPopup) {
+        paymentData.cashReceived = cashPopup.received;
+        paymentData.cashChange = cashPopup.received - cashPopup.total;
+        paymentData.cashDenominations = cashPopup.denominations;
+      }
+      if (exitPopup.payMethod === 'card') {
+        paymentData.cardType = cardType;
+      }
+      if (exitPopup.payMethod === 'transfer') {
+        paymentData.transferReference = transferRef;
+      }
+
+      const { data } = await accessAPI.processPayment(paymentData);
       const receipt = data.data.receipt;
+      // Enrich receipt with payment details
+      if (exitPopup.payMethod === 'cash' && cashPopup) {
+        receipt.cashReceived = cashPopup.received;
+        receipt.cashChange = cashPopup.received - cashPopup.total;
+      }
+      if (exitPopup.payMethod === 'card') receipt.cardType = cardType;
+      if (exitPopup.payMethod === 'transfer') receipt.transferReference = transferRef;
+
       setExitPopup(prev => prev ? { ...prev, step: 'receipt', receiptData: receipt } : null);
+      setCashPopup(null);
+      setCardType('visa');
+      setTransferRef('');
       toast.success('Pago procesado');
       fetchOccupancy();
+      fetchActiveRegister(); // refresh register balance
       // Stop auto-close on receipt (user may want to print)
       stopExitCountdown();
     } catch (err) {
@@ -401,7 +502,25 @@ export default function ControlAccesoPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-gray-800">Control de Acceso</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-800">Control de Acceso</h2>
+        {!registerLoading && (
+          activeRegister ? (
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <Wallet size={14} className="text-green-600" />
+              <span className="text-sm font-medium text-green-700">Caja Activa</span>
+            </div>
+          ) : (
+            <button onClick={() => setShowOpenRegister(true)}
+              className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5 hover:bg-red-100 transition-colors">
+              <div className="w-2 h-2 bg-red-500 rounded-full" />
+              <Wallet size={14} className="text-red-500" />
+              <span className="text-sm font-medium text-red-700">Abrir Caja</span>
+            </button>
+          )
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
@@ -709,6 +828,28 @@ export default function ControlAccesoPage() {
                       </div>
                     </div>
 
+                    {/* Cash register status banner */}
+                    {!activeRegister && !registerLoading && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
+                        <AlertTriangle size={16} className="text-red-500 shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-red-700">Caja no abierta</p>
+                          <p className="text-xs text-red-500">Debe abrir una sesion de caja para procesar pagos</p>
+                        </div>
+                        <button onClick={() => setShowOpenRegister(true)}
+                          className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 font-medium whitespace-nowrap">
+                          Abrir Caja
+                        </button>
+                      </div>
+                    )}
+                    {activeRegister && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                        <Wallet size={14} className="text-green-600" />
+                        <span className="text-xs text-green-700 font-medium">Caja activa</span>
+                        <span className="text-xs text-green-600">{activeRegister.register_name || 'Principal'}</span>
+                      </div>
+                    )}
+
                     {/* Payment method */}
                     <div>
                       <p className="text-sm font-medium text-gray-700 mb-2">Metodo de Pago</p>
@@ -716,7 +857,7 @@ export default function ControlAccesoPage() {
                         {[
                           { id: 'cash', label: 'Efectivo', icon: Banknote },
                           { id: 'card', label: 'Tarjeta', icon: CreditCard },
-                          { id: 'transfer', label: 'Transfer.', icon: Shield },
+                          { id: 'transfer', label: 'Transfer.', icon: Send },
                         ].map(({ id, label, icon: Icon }) => (
                           <button key={id}
                             onClick={() => setExitPopup(prev => prev ? { ...prev, payMethod: id } : null)}
@@ -726,6 +867,31 @@ export default function ControlAccesoPage() {
                         ))}
                       </div>
                     </div>
+
+                    {/* Card type selector */}
+                    {exitPopup.payMethod === 'card' && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                        <p className="text-xs font-semibold text-blue-800">Tipo de Tarjeta</p>
+                        <select value={cardType} onChange={(e) => setCardType(e.target.value)}
+                          className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                          <option value="visa">Visa</option>
+                          <option value="mastercard">Mastercard</option>
+                          <option value="amex">American Express</option>
+                          <option value="otra">Otra</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Transfer reference */}
+                    {exitPopup.payMethod === 'transfer' && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 space-y-2">
+                        <p className="text-xs font-semibold text-purple-800">Referencia de Transferencia</p>
+                        <textarea value={transferRef} onChange={(e) => setTransferRef(e.target.value)}
+                          placeholder="Numero de referencia, banco emisor, notas..."
+                          rows={2}
+                          className="w-full px-3 py-2 border border-purple-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 outline-none resize-none" />
+                      </div>
+                    )}
 
                     {/* Actions */}
                     <div className="flex gap-2 pt-1">
@@ -763,6 +929,14 @@ export default function ControlAccesoPage() {
                       {r.ncf && <div className="flex justify-between"><span className="text-gray-500">NCF</span><span>{r.ncf}</span></div>}
                       <div className="flex justify-between"><span className="text-gray-500">Total</span><span className="font-bold text-green-700 text-lg">{fmtMoney(r.total)}</span></div>
                       <div className="flex justify-between"><span className="text-gray-500">Metodo</span><span>{{ cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' }[r.paymentMethod]}</span></div>
+                      {r.cardType && <div className="flex justify-between"><span className="text-gray-500">Tarjeta</span><span className="capitalize">{r.cardType}</span></div>}
+                      {r.transferReference && <div className="flex justify-between"><span className="text-gray-500">Referencia</span><span className="text-xs">{r.transferReference}</span></div>}
+                      {r.cashReceived > 0 && (
+                        <>
+                          <div className="flex justify-between"><span className="text-gray-500">Recibido</span><span className="font-medium">{fmtMoney(r.cashReceived)}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">Devuelta</span><span className="font-bold text-blue-700">{fmtMoney(r.cashChange)}</span></div>
+                        </>
+                      )}
                       {r.code && <div className="flex justify-between"><span className="text-gray-500">Codigo</span><span className="font-mono">{r.code}</span></div>}
                       {r.verification_code && <div className="flex justify-between"><span className="text-gray-500">Verificacion</span><span className="font-mono font-bold text-indigo-700">{r.verification_code}</span></div>}
                     </div>
@@ -864,6 +1038,164 @@ export default function ControlAccesoPage() {
                 className="w-full mt-2 flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2 text-gray-700 hover:bg-gray-50">
                 Cerrar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════
+          CASH BREAKDOWN POPUP — Shows when paying with cash
+         ════════════════════════════════════════════════════════ */}
+      {cashPopup && (
+        <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4"
+          onClick={() => setCashPopup(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-green-500 to-green-600 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-white">
+                <Banknote size={22} />
+                <div>
+                  <h3 className="font-bold">Pago en Efectivo</h3>
+                  <p className="text-green-100 text-sm">Total: {fmtMoney(cashPopup.total)}</p>
+                </div>
+              </div>
+              <button onClick={() => setCashPopup(null)} className="text-white/80 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <p className="text-xs text-gray-500 font-medium uppercase">Desglose del dinero recibido</p>
+              <div className="grid grid-cols-2 gap-2">
+                {DENOMINATIONS.map(({ value, label }) => (
+                  <div key={value} className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-gray-600 w-20">{label}</span>
+                    <input type="number" min="0"
+                      value={cashPopup.denominations[value] || ''}
+                      onChange={(e) => {
+                        const qty = parseInt(e.target.value) || 0;
+                        setCashPopup(prev => {
+                          const newDenoms = { ...prev.denominations, [value]: qty };
+                          const received = Object.entries(newDenoms).reduce((sum, [d, q]) => sum + (Number(d) * Number(q || 0)), 0);
+                          return { ...prev, denominations: newDenoms, received };
+                        });
+                      }}
+                      className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm font-mono focus:ring-2 focus:ring-green-500 outline-none"
+                      placeholder="0"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Quick amount buttons */}
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Monto rapido</p>
+                <div className="flex gap-1 flex-wrap">
+                  {[50, 100, 200, 500, 1000, 2000].map(amt => (
+                    <button key={amt} onClick={() => {
+                      setCashPopup(prev => ({ ...prev, received: amt, denominations: { [amt]: 1 } }));
+                    }} className={`px-2 py-1 rounded text-xs font-medium border transition-colors ${
+                      cashPopup.received === amt ? 'bg-green-100 border-green-400 text-green-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}>
+                      ${amt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="bg-gray-50 rounded-lg p-3 space-y-2 border">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Total a cobrar</span>
+                  <span className="font-bold text-gray-800">{fmtMoney(cashPopup.total)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Recibido</span>
+                  <span className={`font-bold ${cashPopup.received >= cashPopup.total ? 'text-green-700' : 'text-red-600'}`}>
+                    {fmtMoney(cashPopup.received)}
+                  </span>
+                </div>
+                <div className="border-t pt-2 flex justify-between">
+                  <span className="font-semibold text-gray-700">Devuelta</span>
+                  <span className={`text-xl font-bold ${cashPopup.received >= cashPopup.total ? 'text-blue-700' : 'text-red-600'}`}>
+                    {cashPopup.received >= cashPopup.total
+                      ? fmtMoney(cashPopup.received - cashPopup.total)
+                      : `Faltan ${fmtMoney(cashPopup.total - cashPopup.received)}`
+                    }
+                  </span>
+                </div>
+              </div>
+
+              <button onClick={() => {
+                if (cashPopup.received < cashPopup.total) {
+                  toast.warning('El monto recibido es menor al total');
+                  return;
+                }
+                handlePopupPayment();
+              }} disabled={cashPopup.received < cashPopup.total}
+                className="w-full flex items-center justify-center gap-2 bg-green-600 text-white rounded-lg py-3 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg">
+                <CheckCircle size={20} /> Confirmar Cobro
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════
+          OPEN CASH REGISTER MODAL
+         ════════════════════════════════════════════════════════ */}
+      {showOpenRegister && (
+        <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4"
+          onClick={() => setShowOpenRegister(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-white">
+                <Wallet size={22} />
+                <div>
+                  <h3 className="font-bold">Abrir Sesion de Caja</h3>
+                  <p className="text-blue-100 text-sm">Registre el efectivo inicial</p>
+                </div>
+              </div>
+              <button onClick={() => setShowOpenRegister(false)} className="text-white/80 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-800 font-medium">Conteo de efectivo inicial</p>
+                <p className="text-xs text-blue-600">Ingrese la cantidad de cada denominacion con la que inicia la caja</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {DENOMINATIONS.map(({ value, label }) => (
+                  <div key={value} className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-gray-600 w-20">{label}</span>
+                    <input type="number" min="0"
+                      value={openingBalance[value] || ''}
+                      onChange={(e) => setOpeningBalance(prev => ({ ...prev, [value]: parseInt(e.target.value) || 0 }))}
+                      className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="0"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-3 border">
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-700">Balance Inicial</span>
+                  <span className="text-xl font-bold text-blue-700">
+                    {fmtMoney(Object.entries(openingBalance).reduce((sum, [d, q]) => sum + (Number(d) * Number(q || 0)), 0))}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={() => setShowOpenRegister(false)}
+                  className="flex-1 border border-gray-300 rounded-lg py-2.5 text-gray-600 hover:bg-gray-50 font-medium">
+                  Cancelar
+                </button>
+                <button onClick={handleOpenRegister} disabled={openingRegister}
+                  className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white rounded-lg py-2.5 hover:bg-blue-700 disabled:opacity-50 font-bold">
+                  {openingRegister ? <RefreshCw size={16} className="animate-spin" /> : <Wallet size={16} />}
+                  Abrir Caja
+                </button>
+              </div>
             </div>
           </div>
         </div>
