@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Printer, Eye, Download, Maximize2, Minimize2 } from 'lucide-react';
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
 const PRINTER_STYLES = `
   @page { margin: 0; size: 80mm auto; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -36,7 +41,7 @@ export default function PrintPreviewModal({ open, onClose, html, title = 'Vista 
     const selectedPrinter = localStorage.getItem('pp_default_printer');
     const w = window.open('', '_blank', 'width=350,height=600');
     if (!w) return;
-    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
 <style>${PRINTER_STYLES} @media print { body { width: 80mm; } }</style></head><body>${html}
 <script>setTimeout(()=>{window.print();setTimeout(()=>window.close(),500)},400)<\/script>
 </body></html>`);

@@ -11,6 +11,11 @@ const PARKING_ADDRESS = 'Santo Domingo, Rep. Dominicana';
 const PARKING_RNC = 'RNC: 000-000000-0';
 const PARKING_PHONE = 'Tel: (809) 000-0000';
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
 // Generate QR as data URL (base64 PNG) - works offline
 async function qrDataUrl(data, size = 300) {
   try {
@@ -65,14 +70,14 @@ export async function generateEntryTicketHTML({ plate, entryTime, type, planName
     <div class="center bold mt">TICKET DE ENTRADA</div>
     <div class="line"></div>
     <div class="center mt mb">
-      <div class="plate">${plate}</div>
+      <div class="plate">${escapeHtml(plate)}</div>
     </div>
-    <img class="qr" src="${qrSrc}" alt="QR" />
+    <img class="qr" src="${escapeHtml(qrSrc)}" alt="QR" />
     <div class="line"></div>
-    <div class="row"><span>Fecha/Hora:</span><span class="bold">${time}</span></div>
+    <div class="row"><span>Fecha/Hora:</span><span class="bold">${escapeHtml(time)}</span></div>
     <div class="row"><span>Tipo:</span><span>${type === 'subscriber' ? 'Suscriptor' : 'Por Hora'}</span></div>
-    ${planName ? `<div class="row"><span>Plan:</span><span>${planName}</span></div>` : ''}
-    ${sessionId ? `<div class="row mt"><span class="small">ID: ${sessionId.substring(0, 8)}</span></div>` : ''}
+    ${planName ? `<div class="row"><span>Plan:</span><span>${escapeHtml(planName)}</span></div>` : ''}
+    ${sessionId ? `<div class="row mt"><span class="small">ID: ${escapeHtml(sessionId.substring(0, 8))}</span></div>` : ''}
     <div class="line"></div>
     <div class="center small mt">Conserve este ticket para la salida</div>
     <div class="center small">Tarifa por hora segun plan vigente</div>
@@ -96,21 +101,21 @@ export async function generatePaymentReceiptHTML({ receipt, showQr = true }) {
     </div>
     <div class="line"></div>
     <div class="center bold">RECIBO DE PAGO</div>
-    ${r.invoiceNumber ? `<div class="center small">Factura: ${r.invoiceNumber}</div>` : ''}
-    ${r.ncf ? `<div class="center small">NCF: ${r.ncf}</div>` : ''}
+    ${r.invoiceNumber ? `<div class="center small">Factura: ${escapeHtml(r.invoiceNumber)}</div>` : ''}
+    ${r.ncf ? `<div class="center small">NCF: ${escapeHtml(r.ncf)}</div>` : ''}
     <div class="line"></div>
-    <div class="row"><span>Placa:</span><span class="bold">${r.plateNumber}</span></div>
-    <div class="row"><span>Entrada:</span><span>${entryTime}</span></div>
-    <div class="row"><span>Salida:</span><span>${exitTime}</span></div>
-    <div class="row"><span>Duracion:</span><span>${r.hours}h</span></div>
-    <div class="row"><span>Metodo:</span><span>${method}</span></div>
+    <div class="row"><span>Placa:</span><span class="bold">${escapeHtml(r.plateNumber)}</span></div>
+    <div class="row"><span>Entrada:</span><span>${escapeHtml(entryTime)}</span></div>
+    <div class="row"><span>Salida:</span><span>${escapeHtml(exitTime)}</span></div>
+    <div class="row"><span>Duracion:</span><span>${escapeHtml(String(r.hours))}h</span></div>
+    <div class="row"><span>Metodo:</span><span>${escapeHtml(method)}</span></div>
     <div class="line"></div>
     <div class="row"><span>Subtotal:</span><span>RD$ ${parseFloat(r.subtotal).toFixed(2)}</span></div>
     <div class="row"><span>ITBIS (18%):</span><span>RD$ ${parseFloat(r.tax).toFixed(2)}</span></div>
     <div class="row bold big mt"><span>TOTAL:</span><span>RD$ ${parseFloat(r.total).toFixed(2)}</span></div>
     <div class="line"></div>
     ${showQr && qrSrc ? `<img class="qr" src="${qrSrc}" alt="QR" />` : ''}
-    ${r.code ? `<div class="center small">Codigo: ${r.code}</div>` : ''}
+    ${r.code ? `<div class="center small">Codigo: ${escapeHtml(r.code)}</div>` : ''}
     <div class="center small mt">Presente este recibo para salir</div>
     <div class="center small mt mb">Gracias por su preferencia</div>
   `;
@@ -127,7 +132,7 @@ export function generateCashReportHTML({ register, transactions, operatorName })
   const txRows = transactions.map(t => {
     const time = new Date(t.created_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Santo_Domingo' });
     const sign = t.direction === 'in' ? '+' : '-';
-    return `<div class="row small"><span>${time} ${t.description || t.type}</span><span>${sign}RD$${parseFloat(t.amount).toFixed(2)}</span></div>`;
+    return `<div class="row small"><span>${escapeHtml(time)} ${escapeHtml(t.description || t.type)}</span><span>${sign}RD$${parseFloat(t.amount).toFixed(2)}</span></div>`;
   }).join('');
 
   const diff = parseFloat(register.difference || 0);
@@ -140,9 +145,9 @@ export function generateCashReportHTML({ register, transactions, operatorName })
     </div>
     <div class="line"></div>
     <div class="center bold">CIERRE DE CAJA</div>
-    <div class="center small">${register.name || 'Caja Principal'}</div>
+    <div class="center small">${escapeHtml(register.name || 'Caja Principal')}</div>
     <div class="line"></div>
-    <div class="row"><span>Operador:</span><span>${operatorName || 'N/A'}</span></div>
+    <div class="row"><span>Operador:</span><span>${escapeHtml(operatorName || 'N/A')}</span></div>
     <div class="row"><span>Apertura:</span><span>${opened}</span></div>
     <div class="row"><span>Cierre:</span><span>${closed}</span></div>
     <div class="line"></div>
