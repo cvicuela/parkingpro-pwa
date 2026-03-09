@@ -513,6 +513,179 @@ export const auditAPI = {
   },
 };
 
+// Expenses (Gastos - feeds DGII 606)
+export const expensesAPI = {
+  list: async (params = {}) => {
+    const result = await rpc('list_expenses', {
+      p_token: getToken(),
+      p_from_date: params?.fromDate || null,
+      p_to_date: params?.toDate || null,
+      p_category: params?.category || null,
+      p_status: params?.status || 'active',
+      p_limit: params?.limit || 50,
+      p_offset: params?.offset || 0
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_expense', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  update: async (id, data) => {
+    const result = await rpc('update_expense', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  delete: async (id) => {
+    const result = await rpc('delete_expense', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  stats: async (params = {}) => {
+    const result = await rpc('expense_stats', {
+      p_token: getToken(),
+      p_from_date: params?.fromDate || null,
+      p_to_date: params?.toDate || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
+// Fiscal Reports (DGII 606/607)
+export const fiscalAPI = {
+  generate607: async (params = {}) => {
+    const result = await rpc('generate_607_report', {
+      p_token: getToken(),
+      p_period: params?.period || null,
+      p_from_date: params?.fromDate || null,
+      p_to_date: params?.toDate || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  generate606: async (params = {}) => {
+    const result = await rpc('generate_606_report', {
+      p_token: getToken(),
+      p_period: params?.period || null,
+      p_from_date: params?.fromDate || null,
+      p_to_date: params?.toDate || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
+// NCF (Comprobantes Fiscales) Management
+export const ncfAPI = {
+  listSequences: async () => {
+    const result = await rpc('list_ncf_sequences', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  updateSequence: async (id, data) => {
+    const result = await rpc('update_ncf_sequence', {
+      p_token: getToken(),
+      p_id: id,
+      p_range_to: data.rangeTo ?? null,
+      p_alert_threshold: data.alertThreshold ?? null,
+      p_is_active: data.isActive ?? null,
+      p_authorized_date: data.authorizedDate ?? null,
+      p_expiration_date: data.expirationDate ?? null,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  assignToInvoice: async (invoiceId, ncfType = '02') => {
+    const result = await rpc('assign_ncf_to_invoice', {
+      p_token: getToken(),
+      p_invoice_id: invoiceId,
+      p_ncf_type: ncfType,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
+// Notifications
+export const notificationsAPI = {
+  list: async (params = {}) => {
+    const result = await rpc('list_notifications', {
+      p_token: getToken(),
+      p_channel: params?.channel || null,
+      p_status: params?.status || null,
+      p_from_date: params?.fromDate || null,
+      p_to_date: params?.toDate || null,
+      p_limit: params?.limit || 50,
+      p_offset: params?.offset || 0,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  stats: async () => {
+    const result = await rpc('notification_stats', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  send: async (data) => {
+    const result = await rpc('send_notification', {
+      p_token: getToken(),
+      p_channel: data.channel,
+      p_recipient: data.recipient,
+      p_subject: data.subject || null,
+      p_body: data.body || null,
+      p_type: data.type || 'manual',
+      p_template_id: data.templateId || null,
+      p_template_data: data.templateData || null,
+      p_customer_id: data.customerId || null,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
+// Incidents
+export const incidentsAPI = {
+  list: async (params = {}) => {
+    const result = await rpc('list_incidents', {
+      p_token: getToken(),
+      p_status: params?.status || null,
+      p_severity: params?.severity || null,
+      p_type: params?.type || null,
+      p_limit: params?.limit || 50,
+      p_offset: params?.offset || 0,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_incident', {
+      p_token: getToken(),
+      p_type: data.type,
+      p_title: data.title,
+      p_description: data.description || null,
+      p_severity: data.severity || 'medium',
+      p_vehicle_plate: data.vehiclePlate || null,
+      p_subscription_id: data.subscriptionId || null,
+      p_photos: data.photos || null,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  resolve: async (id, data = {}) => {
+    const result = await rpc('resolve_incident', {
+      p_token: getToken(),
+      p_id: id,
+      p_resolution_notes: data.notes || null,
+      p_status: data.status || 'resolved',
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
 // REST helper for Express backend routes (not Supabase RPC)
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
