@@ -609,6 +609,43 @@ export const ncfAPI = {
   },
 };
 
+// Notifications
+export const notificationsAPI = {
+  list: async (params = {}) => {
+    const result = await rpc('list_notifications', {
+      p_token: getToken(),
+      p_channel: params?.channel || null,
+      p_status: params?.status || null,
+      p_from_date: params?.fromDate || null,
+      p_to_date: params?.toDate || null,
+      p_limit: params?.limit || 50,
+      p_offset: params?.offset || 0,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  stats: async () => {
+    const result = await rpc('notification_stats', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  send: async (data) => {
+    const result = await rpc('send_notification', {
+      p_token: getToken(),
+      p_channel: data.channel,
+      p_recipient: data.recipient,
+      p_subject: data.subject || null,
+      p_body: data.body || null,
+      p_type: data.type || 'manual',
+      p_template_id: data.templateId || null,
+      p_template_data: data.templateData || null,
+      p_customer_id: data.customerId || null,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
 // REST helper for Express backend routes (not Supabase RPC)
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
