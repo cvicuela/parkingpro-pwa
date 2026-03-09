@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { plansAPI } from '../services/api';
 import { toast } from 'react-toastify';
-import { Plus, Edit2, Trash2, X, Clock, Sun, Moon, Timer } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Clock, Sun, Moon, Timer, DollarSign, Save, RefreshCw, AlertTriangle } from 'lucide-react';
 
 const planIcons = { diurno: Sun, nocturno: Moon, '24h': Clock, hourly: Timer };
 const planColors = {
@@ -11,13 +11,142 @@ const planColors = {
   hourly: 'bg-cyan-100 text-cyan-700',
 };
 
+/* ─── Hourly Rates Editor (embedded in modal) ─── */
+function HourlyRatesEditor({ planId }) {
+  const [rates, setRates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (!planId) { setLoading(false); return; }
+    (async () => {
+      try {
+        const { data } = await plansAPI.getHourlyRates(planId);
+        const r = data.data || data || [];
+        setRates(r.length > 0 ? r.map(x => ({
+          hour_number: x.hour_number,
+          rate: parseFloat(x.rate),
+          description: x.description || '',
+        })) : [{ hour_number: 1, rate: 50, description: 'Primera hora' }]);
+      } catch {
+        setRates([{ hour_number: 1, rate: 50, description: 'Primera hora' }]);
+      } finally { setLoading(false); }
+    })();
+  }, [planId]);
+
+  const updateRate = (idx, field, value) => {
+    setRates(prev => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+    setDirty(true);
+  };
+
+  const addRate = () => {
+    const nextHour = rates.length > 0 ? Math.max(...rates.map(r => r.hour_number)) + 1 : 1;
+    const lastRate = rates.length > 0 ? rates[rates.length - 1].rate : 50;
+    setRates(prev => [...prev, { hour_number: nextHour, rate: lastRate, description: '' }]);
+    setDirty(true);
+  };
+
+  const removeRate = (idx) => {
+    if (rates.length <= 1) { toast.warning('Debe haber al menos una tarifa'); return; }
+    setRates(prev => prev.filter((_, i) => i !== idx));
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    if (!planId) { toast.error('Guarde el plan primero antes de configurar tarifas'); return; }
+    setSaving(true);
+    try {
+      await plansAPI.updateHourlyRates(planId, rates);
+      toast.success('Tarifas por hora actualizadas');
+      setDirty(false);
+    } catch (err) {
+      toast.error(err.message || 'Error al guardar tarifas');
+    } finally { setSaving(false); }
+  };
+
+  if (loading) return (
+    <div className="flex justify-center py-6">
+      <RefreshCw size={20} className="animate-spin text-indigo-500" />
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-gray-700">Tarifas por Hora</p>
+        {dirty && (
+          <span className="text-xs text-amber-600 flex items-center gap-1">
+            <AlertTriangle size={12} /> Sin guardar
+          </span>
+        )}
+      </div>
+
+      <div className="bg-gray-50 rounded-lg border">
+        <div className="grid grid-cols-[60px_1fr_1fr_40px] gap-2 px-3 py-2 text-xs font-semibold text-gray-500 uppercase border-b">
+          <span>Hora</span>
+          <span>Tarifa (RD$)</span>
+          <span>Descripcion</span>
+          <span></span>
+        </div>
+        {rates.map((rate, idx) => (
+          <div key={idx} className="grid grid-cols-[60px_1fr_1fr_40px] gap-2 px-3 py-2 items-center border-b last:border-b-0">
+            <input type="number" min="1"
+              value={rate.hour_number}
+              onChange={(e) => updateRate(idx, 'hour_number', parseInt(e.target.value) || 1)}
+              className="w-full px-2 py-1.5 border rounded text-center text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <input type="number" min="0" step="0.01"
+              value={rate.rate}
+              onChange={(e) => updateRate(idx, 'rate', parseFloat(e.target.value) || 0)}
+              className="w-full px-2 py-1.5 border rounded text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <input type="text"
+              value={rate.description}
+              onChange={(e) => updateRate(idx, 'description', e.target.value)}
+              placeholder="Ej: Primera hora"
+              className="w-full px-2 py-1.5 border rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <button onClick={() => removeRate(idx)}
+              className="p-1 text-gray-400 hover:text-red-500 transition-colors" title="Eliminar">
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2">
+        <button type="button" onClick={addRate}
+          className="flex items-center gap-1 px-3 py-1.5 text-sm border border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-indigo-400 hover:text-indigo-600 transition-colors">
+          <Plus size={14} /> Agregar Tarifa
+        </button>
+        <div className="flex-1" />
+        <button type="button" onClick={handleSave} disabled={saving || !dirty}
+          className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium transition-colors">
+          {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+          Guardar Tarifas
+        </button>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+        <p className="text-xs text-blue-700">
+          <strong>Nota:</strong> La hora con el numero mas alto aplica para esa hora y todas las siguientes.
+          Ej: Si hora 3 = RD$100, las horas 3, 4, 5... se cobran a RD$100.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Plan Modal with tabs ─── */
 function PlanModal({ plan, onClose, onSave }) {
+  const [tab, setTab] = useState('details');
   const [form, setForm] = useState(plan || {
     name: '', type: 'diurno', description: '', base_price: '',
     max_capacity: '', start_hour: '', end_hour: '', tolerance_minutes: 15,
     daily_entry_limit: 5, overage_hourly_rate: 100
   });
   const [saving, setSaving] = useState(false);
+
+  const isHourly = form.type === 'hourly';
+  const isEditing = !!plan?.id;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,7 +171,7 @@ function PlanModal({ plan, onClose, onSave }) {
       }
       onSave();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error al guardar');
+      toast.error(err.message || 'Error al guardar');
     } finally { setSaving(false); }
   };
 
@@ -55,86 +184,129 @@ function PlanModal({ plan, onClose, onSave }) {
           <h3 className="text-lg font-semibold">{plan ? 'Editar Plan' : 'Nuevo Plan'}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-              <input value={form.name} onChange={set('name')} required
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-              <select value={form.type} onChange={set('type')}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                <option value="diurno">Diurno</option>
-                <option value="nocturno">Nocturno</option>
-                <option value="24h">24 Horas</option>
-                <option value="hourly">Por Hora</option>
-              </select>
-            </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
-            <textarea value={form.description || ''} onChange={set('description')} rows={2}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Precio Base (RD$)</label>
-              <input type="number" value={form.base_price} onChange={set('base_price')} required step="0.01"
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Capacidad Max</label>
-              <input type="number" value={form.max_capacity} onChange={set('max_capacity')} required
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-            </div>
-          </div>
-
-          {(form.type === 'diurno' || form.type === 'nocturno') && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Hora Inicio</label>
-                <input type="number" min="0" max="23" value={form.start_hour || ''} onChange={set('start_hour')}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Hora Fin</label>
-                <input type="number" min="0" max="23" value={form.end_hour || ''} onChange={set('end_hour')}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tolerancia (min)</label>
-              <input type="number" value={form.tolerance_minutes} onChange={set('tolerance_minutes')}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Entradas/dia</label>
-              <input type="number" value={form.daily_entry_limit} onChange={set('daily_entry_limit')}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Exceso/h (RD$)</label>
-              <input type="number" value={form.overage_hourly_rate} onChange={set('overage_hourly_rate')} step="0.01"
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose}
-              className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancelar</button>
-            <button type="submit" disabled={saving}
-              className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-              {saving ? 'Guardando...' : 'Guardar'}
+        {/* Tabs — only show if editing an hourly plan */}
+        {isEditing && isHourly && (
+          <div className="flex border-b px-4">
+            <button onClick={() => setTab('details')}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === 'details' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              <Edit2 size={14} /> Detalles
+            </button>
+            <button onClick={() => setTab('rates')}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === 'rates' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              <DollarSign size={14} /> Tarifas por Hora
             </button>
           </div>
-        </form>
+        )}
+
+        {/* Details tab */}
+        {tab === 'details' && (
+          <form onSubmit={handleSubmit} className="p-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <input value={form.name} onChange={set('name')} required
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                <select value={form.type} onChange={set('type')}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                  <option value="diurno">Diurno</option>
+                  <option value="nocturno">Nocturno</option>
+                  <option value="24h">24 Horas</option>
+                  <option value="hourly">Por Hora</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
+              <textarea value={form.description || ''} onChange={set('description')} rows={2}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio Base (RD$)</label>
+                <input type="number" value={form.base_price} onChange={set('base_price')} required step="0.01"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Capacidad Max</label>
+                <input type="number" value={form.max_capacity} onChange={set('max_capacity')} required
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+            </div>
+
+            {(form.type === 'diurno' || form.type === 'nocturno') && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Hora Inicio</label>
+                  <input type="number" min="0" max="23" value={form.start_hour || ''} onChange={set('start_hour')}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Hora Fin</label>
+                  <input type="number" min="0" max="23" value={form.end_hour || ''} onChange={set('end_hour')}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tolerancia (min)</label>
+                <input type="number" value={form.tolerance_minutes} onChange={set('tolerance_minutes')}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Entradas/dia</label>
+                <input type="number" value={form.daily_entry_limit} onChange={set('daily_entry_limit')}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Exceso/h (RD$)</label>
+                <input type="number" value={form.overage_hourly_rate} onChange={set('overage_hourly_rate')} step="0.01"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+            </div>
+
+            {/* Hint to go to rates tab for hourly plans */}
+            {isHourly && isEditing && (
+              <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-3 flex items-center gap-2 cursor-pointer hover:bg-cyan-100 transition-colors"
+                onClick={() => setTab('rates')}>
+                <DollarSign size={16} className="text-cyan-600" />
+                <div>
+                  <p className="text-sm font-medium text-cyan-800">Configurar Tarifas por Hora</p>
+                  <p className="text-xs text-cyan-600">Haga clic aqui o en la pestaña "Tarifas por Hora" para editar las tarifas escalonadas</p>
+                </div>
+              </div>
+            )}
+            {isHourly && !isEditing && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-2">
+                <AlertTriangle size={16} className="text-amber-500" />
+                <p className="text-xs text-amber-700">Guarde el plan primero, luego podra configurar las tarifas por hora desde la pestaña de tarifas.</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={onClose}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancelar</button>
+              <button type="submit" disabled={saving}
+                className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                {saving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Rates tab */}
+        {tab === 'rates' && isEditing && isHourly && (
+          <div className="p-4">
+            <HourlyRatesEditor planId={plan.id} />
+          </div>
+        )}
       </div>
     </div>
   );
