@@ -25,6 +25,7 @@ import GastosPage from './pages/GastosPage';
 import ReportesFiscalesPage from './pages/ReportesFiscalesPage';
 import NCFPage from './pages/NCFPage';
 import NotificacionesPage from './pages/NotificacionesPage';
+import IncidentesPage from './pages/IncidentesPage';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -56,6 +57,7 @@ function AppRoutes() {
         <Route path="fiscal" element={<ProtectedRoute roles={['admin','super_admin']}><ReportesFiscalesPage /></ProtectedRoute>} />
         <Route path="ncf" element={<ProtectedRoute roles={['admin','super_admin']}><NCFPage /></ProtectedRoute>} />
         <Route path="notificaciones" element={<ProtectedRoute roles={['admin','super_admin']}><NotificacionesPage /></ProtectedRoute>} />
+        <Route path="incidentes" element={<ProtectedRoute><IncidentesPage /></ProtectedRoute>} />
         <Route path="auditoria" element={<ProtectedRoute roles={['admin','super_admin']}><AuditPage /></ProtectedRoute>} />
         <Route path="config" element={<ProtectedRoute roles={['admin','super_admin']}><ConfigPage /></ProtectedRoute>} />
         <Route path="rfid" element={<ProtectedRoute roles={['admin','super_admin']}><RFIDPage /></ProtectedRoute>} />

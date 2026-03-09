@@ -646,6 +646,46 @@ export const notificationsAPI = {
   },
 };
 
+// Incidents
+export const incidentsAPI = {
+  list: async (params = {}) => {
+    const result = await rpc('list_incidents', {
+      p_token: getToken(),
+      p_status: params?.status || null,
+      p_severity: params?.severity || null,
+      p_type: params?.type || null,
+      p_limit: params?.limit || 50,
+      p_offset: params?.offset || 0,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_incident', {
+      p_token: getToken(),
+      p_type: data.type,
+      p_title: data.title,
+      p_description: data.description || null,
+      p_severity: data.severity || 'medium',
+      p_vehicle_plate: data.vehiclePlate || null,
+      p_subscription_id: data.subscriptionId || null,
+      p_photos: data.photos || null,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  resolve: async (id, data = {}) => {
+    const result = await rpc('resolve_incident', {
+      p_token: getToken(),
+      p_id: id,
+      p_resolution_notes: data.notes || null,
+      p_status: data.status || 'resolved',
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
 // REST helper for Express backend routes (not Supabase RPC)
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
