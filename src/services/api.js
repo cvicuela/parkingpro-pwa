@@ -530,20 +530,33 @@ const apiFetch = async (path, options = {}) => {
   return wrap(json);
 };
 
-// User Management (REST)
+// User Management (RPC)
 export const usersAPI = {
-  list: async () => apiFetch('/api/v1/users'),
-  create: async (data) =>
-    apiFetch('/api/v1/users', { method: 'POST', body: JSON.stringify(data) }),
-  update: async (id, data) =>
-    apiFetch(`/api/v1/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: async (id) =>
-    apiFetch(`/api/v1/users/${id}`, { method: 'DELETE' }),
-  resetPassword: async (id, newPassword) =>
-    apiFetch(`/api/v1/users/${id}/reset-password`, {
-      method: 'PUT',
-      body: JSON.stringify({ newPassword }),
-    }),
+  list: async () => {
+    const result = await rpc('list_system_users', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_system_user', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  update: async (id, data) => {
+    const result = await rpc('update_system_user', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  delete: async (id) => {
+    const result = await rpc('update_system_user', { p_token: getToken(), p_id: id, p_data: { status: 'inactive' } });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  resetPassword: async (id, newPassword) => {
+    const result = await rpc('reset_user_password', { p_token: getToken(), p_id: id, p_new_password: newPassword });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // RFID Cards
