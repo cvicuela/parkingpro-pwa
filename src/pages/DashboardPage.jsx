@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { reportsAPI, plansAPI, accessAPI } from '../services/api';
+import { reportsAPI, plansAPI, accessAPI, expensesAPI, incidentsAPI } from '../services/api';
 import { connectSocket, disconnectSocket } from '../services/socket';
-import { DollarSign, Users, Car, AlertTriangle, TrendingUp } from 'lucide-react';
+import { DollarSign, Users, Car, AlertTriangle, TrendingUp, TrendingDown, Shield, Receipt, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 function StatCard({ icon: Icon, label, value, color, subtext }) {
   const colors = {
@@ -95,19 +95,31 @@ export default function DashboardPage() {
   const [dashboard, setDashboard] = useState(null);
   const [plans, setPlans] = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [expenseStats, setExpenseStats] = useState(null);
+  const [openIncidents, setOpenIncidents] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
-      const [dashRes, plansRes, sessionsRes] = await Promise.allSettled([
+      const [dashRes, plansRes, sessionsRes, expRes, incRes] = await Promise.allSettled([
         reportsAPI.dashboard(),
         plansAPI.list(),
         accessAPI.activeSessions(),
+        expensesAPI.stats(),
+        incidentsAPI.list({ status: 'open', limit: 1 }),
       ]);
 
       if (dashRes.status === 'fulfilled') setDashboard(dashRes.value.data.data || dashRes.value.data);
       if (plansRes.status === 'fulfilled') setPlans(plansRes.value.data.data || plansRes.value.data || []);
       if (sessionsRes.status === 'fulfilled') setSessions(sessionsRes.value.data.data || sessionsRes.value.data || []);
+      if (expRes.status === 'fulfilled') {
+        const d = expRes.value.data?.data || expRes.value.data;
+        setExpenseStats(d);
+      }
+      if (incRes.status === 'fulfilled') {
+        const d = incRes.value.data?.data || incRes.value.data;
+        setOpenIncidents(d?.total || 0);
+      }
     } catch {} finally {
       setLoading(false);
     }
@@ -150,12 +162,14 @@ export default function DashboardPage() {
           label="Ingresos del Mes"
           value={`RD$ ${(dashboard?.revenue || 0).toLocaleString()}`}
           color="green"
+          subtext={<span className="flex items-center gap-0.5 text-green-600"><ArrowUpRight size={10} />Ventas</span>}
         />
         <StatCard
-          icon={Users}
-          label="Clientes Activos"
-          value={dashboard?.active_customers || 0}
-          color="indigo"
+          icon={TrendingDown}
+          label="Gastos del Mes"
+          value={`RD$ ${(parseFloat(expenseStats?.total_amount) || 0).toLocaleString()}`}
+          color="amber"
+          subtext={`ITBIS: RD$ ${(parseFloat(expenseStats?.total_itbis) || 0).toLocaleString()}`}
         />
         <StatCard
           icon={Car}
@@ -165,11 +179,46 @@ export default function DashboardPage() {
           subtext="Sesiones activas ahora"
         />
         <StatCard
-          icon={AlertTriangle}
-          label="Morosos"
-          value={dashboard?.overdue_count || 0}
-          color="red"
+          icon={Users}
+          label="Clientes Activos"
+          value={dashboard?.active_customers || 0}
+          color="indigo"
         />
+      </div>
+
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl p-4 shadow-sm border flex items-center gap-4">
+          <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+            <Receipt size={20} />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Utilidad Neta (Mes)</p>
+            <p className={`text-xl font-bold ${(dashboard?.revenue || 0) - (parseFloat(expenseStats?.total_amount) || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              RD$ {((dashboard?.revenue || 0) - (parseFloat(expenseStats?.total_amount) || 0)).toLocaleString()}
+            </p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-4 shadow-sm border flex items-center gap-4">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${openIncidents > 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+            {openIncidents > 0 ? <AlertTriangle size={20} /> : <Shield size={20} />}
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Incidentes Abiertos</p>
+            <p className={`text-xl font-bold ${openIncidents > 0 ? 'text-red-600' : 'text-green-600'}`}>
+              {openIncidents > 0 ? openIncidents : 'Todo en orden'}
+            </p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-4 shadow-sm border flex items-center gap-4">
+          <div className="w-10 h-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center">
+            <AlertTriangle size={20} />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Morosos</p>
+            <p className="text-xl font-bold text-red-600">{dashboard?.overdue_count || 0}</p>
+          </div>
+        </div>
       </div>
 
       {/* Occupancy Section */}
