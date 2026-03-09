@@ -513,6 +513,47 @@ export const auditAPI = {
   },
 };
 
+// Expenses (Gastos - feeds DGII 606)
+export const expensesAPI = {
+  list: async (params = {}) => {
+    const result = await rpc('list_expenses', {
+      p_token: getToken(),
+      p_from_date: params?.fromDate || null,
+      p_to_date: params?.toDate || null,
+      p_category: params?.category || null,
+      p_status: params?.status || 'active',
+      p_limit: params?.limit || 50,
+      p_offset: params?.offset || 0
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_expense', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  update: async (id, data) => {
+    const result = await rpc('update_expense', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  delete: async (id) => {
+    const result = await rpc('delete_expense', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  stats: async (params = {}) => {
+    const result = await rpc('expense_stats', {
+      p_token: getToken(),
+      p_from_date: params?.fromDate || null,
+      p_to_date: params?.toDate || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
 // REST helper for Express backend routes (not Supabase RPC)
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
