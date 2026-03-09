@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Users, Car, CreditCard, Layers,
   ShieldCheck, Receipt, BarChart3, Settings, LogOut, X,
-  Wallet, FileText, ShieldAlert, History, Radio, Shield
+  Wallet, FileText, ShieldAlert, History
 } from 'lucide-react';
 
 const navItems = [
@@ -19,8 +19,6 @@ const navItems = [
   { to: '/facturas', icon: FileText, label: 'Facturas', roles: ['operator','admin','super_admin'] },
   { to: '/reportes', icon: BarChart3, label: 'Reportes', roles: ['admin','super_admin'] },
   { to: '/auditoria', icon: ShieldAlert, label: 'Auditoría', roles: ['admin','super_admin'] },
-  { to: '/rfid', icon: Radio, label: 'Tarjetas RFID', roles: ['admin','super_admin'] },
-  { to: '/dispositivos', icon: Shield, label: 'Dispositivos ZKTeco', roles: ['admin','super_admin'] },
   { to: '/config', icon: Settings, label: 'Configuracion', roles: ['admin','super_admin'] },
 ];
 

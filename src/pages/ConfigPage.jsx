@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { getPrinters, addPrinter, removePrinter, setDefaultPrinter, getDefaultPrinter, generateEntryTicketHTML, generatePaymentReceiptHTML, generateCashReportHTML, generateDailySummaryHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
+import RFIDPage from './RFIDPage';
+import DispositivosPage from './DispositivosPage';
 
 const categoryConfig = {
   general: { label: 'General', icon: Building2, color: 'indigo', description: 'Datos del negocio y moneda' },
@@ -533,6 +535,34 @@ function SystemUsersSection() {
               <Plus size={16} /> Crear Usuario
             </button>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── COLLAPSIBLE SECTION WRAPPER (for embedding pages) ───
+function CollapsibleSection({ icon: Icon, iconColor, title, subtitle, children }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <button onClick={() => setExpanded(p => !p)}
+        className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${iconColor}`}>
+            <Icon size={20} />
+          </div>
+          <div className="text-left">
+            <h3 className="font-semibold text-gray-800">{title}</h3>
+            <p className="text-xs text-gray-400">{subtitle}</p>
+          </div>
+        </div>
+        {expanded ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
+      </button>
+      {expanded && (
+        <div className="border-t">
+          {children}
         </div>
       )}
     </div>
@@ -1368,6 +1398,26 @@ export default function ConfigPage() {
 
       {/* ─── SYSTEM USERS SECTION ─── */}
       <SystemUsersSection />
+
+      {/* ─── RFID CARDS SECTION ─── */}
+      <CollapsibleSection
+        icon={CreditCard}
+        iconColor="bg-violet-100 text-violet-600"
+        title="Tarjetas RFID"
+        subtitle="Gestion de tarjetas de proximidad, asignacion y estados"
+      >
+        <RFIDPage />
+      </CollapsibleSection>
+
+      {/* ─── ZKTECO DEVICES SECTION ─── */}
+      <CollapsibleSection
+        icon={Shield}
+        iconColor="bg-cyan-100 text-cyan-600"
+        title="Dispositivos ZKTeco"
+        subtitle="Barreras, camaras LPR, controladores y lectores"
+      >
+        <DispositivosPage />
+      </CollapsibleSection>
 
       {/* Print Preview Modal */}
       <PrintPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} html={previewHtml} title={previewTitle} />
