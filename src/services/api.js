@@ -319,6 +319,88 @@ export const reportsAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
+  executiveSummary: async () => apiFetch('/api/v1/reports/executive-summary'),
+  revenue: async (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.period) q.set('period', params.period);
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    if (params.groupBy) q.set('groupBy', params.groupBy);
+    const qs = q.toString();
+    return apiFetch(`/api/v1/reports/revenue${qs ? `?${qs}` : ''}`);
+  },
+  revenueByOperator: async (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.period) q.set('period', params.period);
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    const qs = q.toString();
+    return apiFetch(`/api/v1/reports/revenue-by-operator${qs ? `?${qs}` : ''}`);
+  },
+  cashReconciliation: async (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.period) q.set('period', params.period);
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    const qs = q.toString();
+    return apiFetch(`/api/v1/reports/cash-reconciliation${qs ? `?${qs}` : ''}`);
+  },
+  customers: async (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.period) q.set('period', params.period);
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    const qs = q.toString();
+    return apiFetch(`/api/v1/reports/customers${qs ? `?${qs}` : ''}`);
+  },
+  occupancy: async (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.period) q.set('period', params.period);
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    const qs = q.toString();
+    return apiFetch(`/api/v1/reports/occupancy${qs ? `?${qs}` : ''}`);
+  },
+  sessions: async (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.period) q.set('period', params.period);
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    const qs = q.toString();
+    return apiFetch(`/api/v1/reports/sessions${qs ? `?${qs}` : ''}`);
+  },
+  invoicesReport: async (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.period) q.set('period', params.period);
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    const qs = q.toString();
+    return apiFetch(`/api/v1/reports/invoices${qs ? `?${qs}` : ''}`);
+  },
+  incidents: async (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.period) q.set('period', params.period);
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    const qs = q.toString();
+    return apiFetch(`/api/v1/reports/incidents${qs ? `?${qs}` : ''}`);
+  },
+  exportCsv: async (type, params = {}) => {
+    const q = new URLSearchParams();
+    if (params.period) q.set('period', params.period);
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    const qs = q.toString();
+    const url = `${API_BASE}/api/v1/reports/export/${type}${qs ? `?${qs}` : ''}`;
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (!response.ok) throw new Error('Error al exportar');
+    const blob = await response.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${type}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  },
 };
 
 // Settings
