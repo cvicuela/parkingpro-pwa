@@ -816,12 +816,18 @@ export default function ReportesPage() {
 
   const tabProps = { period, customFrom, customTo };
 
-  const handleExport = async (type) => {
+  const [exportFormat, setExportFormat] = useState('csv');
+
+  const handleExport = async (type, format = exportFormat) => {
     setExporting(true);
     try {
-      await reportsAPI.exportCsv(type, { period, from: customFrom, to: customTo });
+      const params = { period, from: customFrom, to: customTo };
+      const titles = { payments: 'Reporte de Pagos', 'cash-registers': 'Cuadre de Caja', sessions: 'Sesiones de Parqueo', customers: 'Reporte de Clientes' };
+      if (format === 'xls') await reportsAPI.exportXls(type, params);
+      else if (format === 'pdf') await reportsAPI.exportPdf(type, params, titles[type] || 'Reporte');
+      else await reportsAPI.exportCsv(type, params);
     } catch {
-      // toast handled elsewhere
+      // error
     }
     setExporting(false);
   };
@@ -842,11 +848,19 @@ export default function ReportesPage() {
           <h2 className="text-2xl font-bold text-gray-800">Centro de Reportes</h2>
         </div>
         {exportOptions[activeTab] && (
-          <button onClick={() => handleExport(exportOptions[activeTab])} disabled={exporting}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm">
-            <Download size={16} />
-            {exporting ? 'Exportando...' : 'Exportar CSV'}
-          </button>
+          <div className="flex items-center gap-2">
+            <select value={exportFormat} onChange={e => setExportFormat(e.target.value)}
+              className="text-sm border rounded-lg px-2 py-2 bg-white text-gray-700">
+              <option value="csv">CSV</option>
+              <option value="xls">Excel (XLS)</option>
+              <option value="pdf">PDF</option>
+            </select>
+            <button onClick={() => handleExport(exportOptions[activeTab])} disabled={exporting}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm">
+              <Download size={16} />
+              {exporting ? 'Exportando...' : `Exportar ${exportFormat.toUpperCase()}`}
+            </button>
+          </div>
         )}
       </div>
 

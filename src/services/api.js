@@ -307,7 +307,7 @@ export const paymentsAPI = {
   },
 };
 
-// Reports
+// Reports (all via Supabase RPC)
 export const reportsAPI = {
   dashboard: async () => {
     const result = await rpc('get_dashboard_stats', { p_token: getToken() });
@@ -319,87 +319,160 @@ export const reportsAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  executiveSummary: async () => apiFetch('/api/v1/reports/executive-summary'),
+  executiveSummary: async () => {
+    const result = await rpc('report_executive_summary', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
   revenue: async (params = {}) => {
-    const q = new URLSearchParams();
-    if (params.period) q.set('period', params.period);
-    if (params.from) q.set('from', params.from);
-    if (params.to) q.set('to', params.to);
-    if (params.groupBy) q.set('groupBy', params.groupBy);
-    const qs = q.toString();
-    return apiFetch(`/api/v1/reports/revenue${qs ? `?${qs}` : ''}`);
+    const result = await rpc('report_revenue', {
+      p_token: getToken(),
+      p_period: params.period || 'month',
+      p_from: params.from || null,
+      p_to: params.to || null,
+      p_group_by: params.groupBy || 'day'
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   revenueByOperator: async (params = {}) => {
-    const q = new URLSearchParams();
-    if (params.period) q.set('period', params.period);
-    if (params.from) q.set('from', params.from);
-    if (params.to) q.set('to', params.to);
-    const qs = q.toString();
-    return apiFetch(`/api/v1/reports/revenue-by-operator${qs ? `?${qs}` : ''}`);
+    const result = await rpc('report_revenue_by_operator', {
+      p_token: getToken(),
+      p_period: params.period || 'month',
+      p_from: params.from || null,
+      p_to: params.to || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   cashReconciliation: async (params = {}) => {
-    const q = new URLSearchParams();
-    if (params.period) q.set('period', params.period);
-    if (params.from) q.set('from', params.from);
-    if (params.to) q.set('to', params.to);
-    const qs = q.toString();
-    return apiFetch(`/api/v1/reports/cash-reconciliation${qs ? `?${qs}` : ''}`);
+    const result = await rpc('report_cash_reconciliation', {
+      p_token: getToken(),
+      p_period: params.period || 'month',
+      p_from: params.from || null,
+      p_to: params.to || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   customers: async (params = {}) => {
-    const q = new URLSearchParams();
-    if (params.period) q.set('period', params.period);
-    if (params.from) q.set('from', params.from);
-    if (params.to) q.set('to', params.to);
-    const qs = q.toString();
-    return apiFetch(`/api/v1/reports/customers${qs ? `?${qs}` : ''}`);
+    const result = await rpc('report_customers', {
+      p_token: getToken(),
+      p_period: params.period || 'month',
+      p_from: params.from || null,
+      p_to: params.to || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   occupancy: async (params = {}) => {
-    const q = new URLSearchParams();
-    if (params.period) q.set('period', params.period);
-    if (params.from) q.set('from', params.from);
-    if (params.to) q.set('to', params.to);
-    const qs = q.toString();
-    return apiFetch(`/api/v1/reports/occupancy${qs ? `?${qs}` : ''}`);
+    const result = await rpc('report_occupancy', {
+      p_token: getToken(),
+      p_period: params.period || 'week',
+      p_from: params.from || null,
+      p_to: params.to || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   sessions: async (params = {}) => {
-    const q = new URLSearchParams();
-    if (params.period) q.set('period', params.period);
-    if (params.from) q.set('from', params.from);
-    if (params.to) q.set('to', params.to);
-    const qs = q.toString();
-    return apiFetch(`/api/v1/reports/sessions${qs ? `?${qs}` : ''}`);
+    const result = await rpc('report_sessions', {
+      p_token: getToken(),
+      p_period: params.period || 'month',
+      p_from: params.from || null,
+      p_to: params.to || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   invoicesReport: async (params = {}) => {
-    const q = new URLSearchParams();
-    if (params.period) q.set('period', params.period);
-    if (params.from) q.set('from', params.from);
-    if (params.to) q.set('to', params.to);
-    const qs = q.toString();
-    return apiFetch(`/api/v1/reports/invoices${qs ? `?${qs}` : ''}`);
+    const result = await rpc('report_invoices', {
+      p_token: getToken(),
+      p_period: params.period || 'month',
+      p_from: params.from || null,
+      p_to: params.to || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   incidents: async (params = {}) => {
-    const q = new URLSearchParams();
-    if (params.period) q.set('period', params.period);
-    if (params.from) q.set('from', params.from);
-    if (params.to) q.set('to', params.to);
-    const qs = q.toString();
-    return apiFetch(`/api/v1/reports/incidents${qs ? `?${qs}` : ''}`);
+    const result = await rpc('report_invoices', {
+      p_token: getToken(),
+      p_period: params.period || 'month',
+      p_from: params.from || null,
+      p_to: params.to || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  exportData: async (type, params = {}) => {
+    const result = await rpc('report_export_csv', {
+      p_token: getToken(),
+      p_type: type,
+      p_period: params.period || 'month',
+      p_from: params.from || null,
+      p_to: params.to || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return result.data;
   },
   exportCsv: async (type, params = {}) => {
-    const q = new URLSearchParams();
-    if (params.period) q.set('period', params.period);
-    if (params.from) q.set('from', params.from);
-    if (params.to) q.set('to', params.to);
-    const qs = q.toString();
-    const url = `${API_BASE}/api/v1/reports/export/${type}${qs ? `?${qs}` : ''}`;
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${getToken()}` } });
-    if (!response.ok) throw new Error('Error al exportar');
-    const blob = await response.blob();
+    const data = await reportsAPI.exportData(type, params);
+    const headers = data.headers;
+    const rows = data.rows || [];
+    const escapeCsv = (val) => {
+      if (val === null || val === undefined) return '';
+      const str = String(val);
+      return (str.includes(',') || str.includes('"') || str.includes('\n')) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+    const csvContent = [headers.join(','), ...rows.map(row => headers.map(h => escapeCsv(row[h])).join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `${type}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `${data.filename}_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
+  },
+  exportXls: async (type, params = {}) => {
+    const data = await reportsAPI.exportData(type, params);
+    const headers = data.headers;
+    const rows = data.rows || [];
+    // Generate HTML table for XLS compatibility
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Reporte</x:Name></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table border="1">';
+    html += '<tr>' + headers.map(h => `<th style="background:#4472C4;color:white;font-weight:bold;padding:8px">${h}</th>`).join('') + '</tr>';
+    rows.forEach(row => {
+      html += '<tr>' + headers.map(h => `<td style="padding:6px">${row[h] ?? ''}</td>`).join('') + '</tr>';
+    });
+    html += '</table></body></html>';
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${data.filename}_${new Date().toISOString().split('T')[0]}.xls`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  },
+  exportPdf: async (type, params = {}, title = 'Reporte') => {
+    const data = await reportsAPI.exportData(type, params);
+    const headers = data.headers;
+    const rows = data.rows || [];
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+    <style>
+      @media print { body { margin: 0; } @page { size: landscape; margin: 1cm; } }
+      body { font-family: Arial, sans-serif; font-size: 11px; }
+      h1 { text-align: center; color: #333; font-size: 18px; margin-bottom: 4px; }
+      .meta { text-align: center; color: #666; margin-bottom: 12px; font-size: 10px; }
+      table { width: 100%; border-collapse: collapse; }
+      th { background: #4472C4; color: white; padding: 6px 8px; text-align: left; font-size: 10px; }
+      td { padding: 5px 8px; border-bottom: 1px solid #ddd; font-size: 10px; }
+      tr:nth-child(even) { background: #f8f9fa; }
+    </style></head><body>
+    <h1>${title}</h1>
+    <div class="meta">Generado: ${new Date().toLocaleString('es-DO')} | Registros: ${rows.length}</div>
+    <table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(row => '<tr>' + headers.map(h => `<td>${row[h] ?? ''}</td>`).join('') + '</tr>').join('')}</tbody></table>
+    <script>window.onload=function(){window.print();}</script></body></html>`;
+    const win = window.open('', '_blank');
+    if (win) { win.document.write(html); win.document.close(); }
   },
 };
 
