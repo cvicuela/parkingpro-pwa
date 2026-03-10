@@ -129,10 +129,19 @@ export function generateCashReportHTML({ register, transactions, operatorName })
   const totalIn = transactions.filter(t => t.direction === 'in').reduce((s, t) => s + parseFloat(t.amount), 0);
   const totalOut = transactions.filter(t => t.direction === 'out').reduce((s, t) => s + parseFloat(t.amount), 0);
 
+  // Desglose por método de pago
+  const expectedCash = parseFloat(register.expected_cash || 0);
+  const totalCard = parseFloat(register.total_card || 0);
+  const totalTransfer = parseFloat(register.total_transfer || 0);
+  const hasOtherMethods = totalCard > 0 || totalTransfer > 0;
+
+  const methodLabel = (m) => ({ cash: 'EF', card: 'TJ', transfer: 'TR' }[m] || '');
+
   const txRows = transactions.map(t => {
     const time = new Date(t.created_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Santo_Domingo' });
     const sign = t.direction === 'in' ? '+' : '-';
-    return `<div class="row small"><span>${escapeHtml(time)} ${escapeHtml(t.description || t.type)}</span><span>${sign}RD$${parseFloat(t.amount).toFixed(2)}</span></div>`;
+    const badge = t.payment_method && t.payment_method !== 'cash' ? ` [${methodLabel(t.payment_method)}]` : '';
+    return `<div class="row small"><span>${escapeHtml(time)} ${escapeHtml(t.description || t.type)}${badge}</span><span>${sign}RD$${parseFloat(t.amount).toFixed(2)}</span></div>`;
   }).join('');
 
   const diff = parseFloat(register.difference || 0);
@@ -151,13 +160,21 @@ export function generateCashReportHTML({ register, transactions, operatorName })
     <div class="row"><span>Apertura:</span><span>${opened}</span></div>
     <div class="row"><span>Cierre:</span><span>${closed}</span></div>
     <div class="line"></div>
-    <div class="bold mt mb">RESUMEN</div>
+    <div class="bold mt mb">RESUMEN GENERAL</div>
     <div class="row"><span>Fondo inicial:</span><span>RD$ ${parseFloat(register.opening_balance).toFixed(2)}</span></div>
     <div class="row"><span>Cobros (${payments.length}):</span><span>RD$ ${totalIn.toFixed(2)}</span></div>
     <div class="row"><span>Reembolsos (${refunds.length}):</span><span>RD$ ${totalOut.toFixed(2)}</span></div>
+    ${hasOtherMethods ? `
     <div class="line"></div>
-    <div class="row bold"><span>Saldo esperado:</span><span>RD$ ${parseFloat(register.expected_balance || (totalIn - totalOut)).toFixed(2)}</span></div>
-    <div class="row bold"><span>Saldo contado:</span><span>RD$ ${parseFloat(register.counted_balance || 0).toFixed(2)}</span></div>
+    <div class="bold mt mb">DESGLOSE POR METODO</div>
+    <div class="row"><span>Efectivo:</span><span>RD$ ${expectedCash.toFixed(2)}</span></div>
+    <div class="row"><span>Tarjeta:</span><span>RD$ ${totalCard.toFixed(2)}</span></div>
+    <div class="row"><span>Transferencia:</span><span>RD$ ${totalTransfer.toFixed(2)}</span></div>
+    ` : ''}
+    <div class="line"></div>
+    <div class="bold mt mb">CUADRE DE EFECTIVO</div>
+    <div class="row bold"><span>Efectivo esperado:</span><span>RD$ ${(hasOtherMethods ? expectedCash : parseFloat(register.expected_balance || (totalIn - totalOut))).toFixed(2)}</span></div>
+    <div class="row bold"><span>Efectivo contado:</span><span>RD$ ${parseFloat(register.counted_balance || 0).toFixed(2)}</span></div>
     <div class="row bold"><span>Diferencia ${diffColor}:</span><span>RD$ ${Math.abs(diff).toFixed(2)}</span></div>
     ${Math.abs(diff) > 200 ? '<div class="center bold mt">** REQUIERE APROBACION **</div>' : ''}
     <div class="line"></div>

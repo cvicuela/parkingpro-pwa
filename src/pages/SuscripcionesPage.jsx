@@ -27,7 +27,7 @@ const billingLabel = {
   annual: 'Anual',
 };
 
-const fmtMoney = (v) => v != null ? `RD$ ${parseFloat(v).toLocaleString('es-DO', { minimumFractionDigits: 2 })}` : '-';
+const fmtMoney = (v) => v != null ? `RD$ ${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '-';
 
 /* ─── Customer Detail Popup ─── */

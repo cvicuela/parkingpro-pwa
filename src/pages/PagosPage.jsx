@@ -3,6 +3,8 @@ import { paymentsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import { Search, RotateCcw, DollarSign, CheckCircle, XCircle, Clock, FileText, RefreshCw, X } from 'lucide-react';
 
+const fmtMoney = (v) => `RD$ ${Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 const statusConfig = {
   paid: { icon: CheckCircle, label: 'Pagado', class: 'bg-green-100 text-green-700' },
   pending: { icon: Clock, label: 'Pendiente', class: 'bg-yellow-100 text-yellow-700' },
@@ -73,12 +75,12 @@ export default function PagosPage() {
           <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg">
             <DollarSign size={18} className="text-green-600" />
             <span className="text-sm text-green-600">Cobrado:</span>
-            <span className="font-bold text-green-700">RD${totalRevenue.toLocaleString()}</span>
+            <span className="font-bold text-green-700">{fmtMoney(totalRevenue)}</span>
           </div>
           {totalRefunded > 0 && (
             <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg">
               <RotateCcw size={14} className="text-gray-500" />
-              <span className="text-sm text-gray-500">Reembolsado: RD${totalRefunded.toLocaleString()}</span>
+              <span className="text-sm text-gray-500">Reembolsado: {fmtMoney(totalRefunded)}</span>
             </div>
           )}
           <button onClick={fetchPayments} className="p-2 border rounded-lg text-gray-500 hover:bg-gray-50">
@@ -138,7 +140,7 @@ export default function PagosPage() {
                         {new Date(p.created_at).toLocaleString('es-DO', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Santo_Domingo' })}
                       </td>
                       <td className="py-3 px-4 text-sm font-medium text-gray-800">{p.customer_name || 'Sin cliente'}</td>
-                      <td className="py-3 px-4 font-semibold">RD${parseFloat(p.total_amount || 0).toFixed(2)}</td>
+                      <td className="py-3 px-4 font-semibold">{fmtMoney(p.total_amount)}</td>
                       <td className="py-3 px-4 text-sm capitalize">{p.payment_method || '-'}</td>
                       <td className="py-3 px-4 text-xs font-mono text-gray-500">
                         {p.ncf ? (
