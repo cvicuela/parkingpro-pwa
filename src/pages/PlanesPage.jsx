@@ -17,6 +17,8 @@ function HourlyRatesEditor({ planId }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [additionalFlat, setAdditionalFlat] = useState(false);
+  const [additionalFlatRate, setAdditionalFlatRate] = useState(100);
 
   useEffect(() => {
     if (!planId) { setLoading(false); return; }
@@ -24,13 +26,25 @@ function HourlyRatesEditor({ planId }) {
       try {
         const { data } = await plansAPI.getHourlyRates(planId);
         const r = data.data || data || [];
-        setRates(r.length > 0 ? r.map(x => ({
-          hour_number: x.hour_number,
-          rate: parseFloat(x.rate),
-          description: x.description || '',
-        })) : [{ hour_number: 1, rate: 50, description: 'Primera hora' }]);
+        if (r.length > 0) {
+          const mapped = r.map(x => ({
+            hour_number: x.hour_number,
+            rate: parseFloat(x.rate),
+            description: x.description || '',
+            is_additional_flat: x.is_additional_flat || false,
+          }));
+          // Detect if last rate has is_additional_flat flag
+          const lastRate = mapped[mapped.length - 1];
+          if (lastRate.is_additional_flat) {
+            setAdditionalFlat(true);
+            setAdditionalFlatRate(lastRate.rate);
+          }
+          setRates(mapped);
+        } else {
+          setRates([{ hour_number: 1, rate: 50, description: 'Primera hora', is_additional_flat: false }]);
+        }
       } catch {
-        setRates([{ hour_number: 1, rate: 50, description: 'Primera hora' }]);
+        setRates([{ hour_number: 1, rate: 50, description: 'Primera hora', is_additional_flat: false }]);
       } finally { setLoading(false); }
     })();
   }, [planId]);
@@ -43,7 +57,7 @@ function HourlyRatesEditor({ planId }) {
   const addRate = () => {
     const nextHour = rates.length > 0 ? Math.max(...rates.map(r => r.hour_number)) + 1 : 1;
     const lastRate = rates.length > 0 ? rates[rates.length - 1].rate : 50;
-    setRates(prev => [...prev, { hour_number: nextHour, rate: lastRate, description: '' }]);
+    setRates(prev => [...prev, { hour_number: nextHour, rate: lastRate, description: '', is_additional_flat: false }]);
     setDirty(true);
   };
 
@@ -55,10 +69,36 @@ function HourlyRatesEditor({ planId }) {
 
   const handleSave = async () => {
     if (!planId) { toast.error('Guarde el plan primero antes de configurar tarifas'); return; }
+
+    // Validate no duplicate hour numbers
+    const hours = rates.map(r => r.hour_number);
+    if (new Set(hours).size !== hours.length) {
+      toast.error('No puede haber horas duplicadas');
+      return;
+    }
+
     setSaving(true);
     try {
-      await plansAPI.updateHourlyRates(planId, rates);
-      toast.success('Tarifas por hora actualizadas');
+      // Build final rates to send
+      let finalRates = rates.map(r => ({
+        hour_number: r.hour_number,
+        rate: r.rate,
+        description: r.description,
+        is_additional_flat: false,
+      }));
+
+      // If "additional flat" is enabled, mark the highest hour
+      if (additionalFlat) {
+        const maxHour = Math.max(...finalRates.map(r => r.hour_number));
+        finalRates = finalRates.map(r =>
+          r.hour_number === maxHour
+            ? { ...r, rate: additionalFlatRate, is_additional_flat: true, description: r.description || `Hora ${maxHour} en adelante` }
+            : r
+        );
+      }
+
+      await plansAPI.updateHourlyRates(planId, finalRates);
+      toast.success('Tarifas por hora guardadas correctamente');
       setDirty(false);
     } catch (err) {
       toast.error(err.message || 'Error al guardar tarifas');
@@ -102,7 +142,7 @@ function HourlyRatesEditor({ planId }) {
             <input type="text"
               value={rate.description}
               onChange={(e) => updateRate(idx, 'description', e.target.value)}
-              placeholder="Ej: Primera hora"
+              placeholder={idx === 0 ? 'Primera hora' : `Hora ${rate.hour_number}`}
               className="w-full px-2 py-1.5 border rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
             <button onClick={() => removeRate(idx)}
               className="p-1 text-gray-400 hover:text-red-500 transition-colors" title="Eliminar">
@@ -118,17 +158,42 @@ function HourlyRatesEditor({ planId }) {
           <Plus size={14} /> Agregar Tarifa
         </button>
         <div className="flex-1" />
-        <button type="button" onClick={handleSave} disabled={saving || !dirty}
+        <button type="button" onClick={handleSave} disabled={saving}
           className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium transition-colors">
           {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
           Guardar Tarifas
         </button>
       </div>
 
+      {/* Additional flat rate option */}
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={additionalFlat}
+            onChange={(e) => { setAdditionalFlat(e.target.checked); setDirty(true); }}
+            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+          <span className="text-sm font-medium text-amber-800">
+            Cobrar tarifa fija para horas adicionales
+          </span>
+        </label>
+        {additionalFlat && (
+          <div className="flex items-center gap-2 ml-6">
+            <span className="text-sm text-amber-700">A partir de la ultima hora configurada, cobrar:</span>
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-medium text-amber-800">RD$</span>
+              <input type="number" min="0" step="0.01" value={additionalFlatRate}
+                onChange={(e) => { setAdditionalFlatRate(parseFloat(e.target.value) || 0); setDirty(true); }}
+                className="w-24 px-2 py-1 border border-amber-300 rounded text-sm font-mono focus:ring-2 focus:ring-amber-500 outline-none" />
+              <span className="text-sm text-amber-700">por cada hora adicional</span>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
         <p className="text-xs text-blue-700">
           <strong>Nota:</strong> La hora con el numero mas alto aplica para esa hora y todas las siguientes.
           Ej: Si hora 3 = RD$100, las horas 3, 4, 5... se cobran a RD$100.
+          {additionalFlat && ' Con la opcion de tarifa fija activada, las horas adicionales se cobran al monto indicado.'}
         </p>
       </div>
     </div>
