@@ -3,6 +3,8 @@ import { reportsAPI, plansAPI, accessAPI, expensesAPI, incidentsAPI } from '../s
 import { connectSocket, disconnectSocket } from '../services/socket';
 import { DollarSign, Users, Car, AlertTriangle, TrendingUp, TrendingDown, Shield, Receipt, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
+const fmtRD = (n) => { const p = Number(n || 0).toFixed(0).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
+
 function StatCard({ icon: Icon, label, value, color, subtext }) {
   const colors = {
     indigo: 'bg-indigo-100 text-indigo-600',
@@ -168,16 +170,16 @@ export default function DashboardPage() {
         <StatCard
           icon={DollarSign}
           label="Ingresos del Mes"
-          value={`RD$ ${(dashboard?.revenue || 0).toLocaleString()}`}
+          value={fmtRD(dashboard?.revenue)}
           color="green"
           subtext={<span className="flex items-center gap-0.5 text-green-600"><ArrowUpRight size={10} />Ventas</span>}
         />
         <StatCard
           icon={TrendingDown}
           label="Gastos del Mes"
-          value={`RD$ ${(parseFloat(expenseStats?.total_amount) || 0).toLocaleString()}`}
+          value={fmtRD(parseFloat(expenseStats?.total_amount))}
           color="amber"
-          subtext={`ITBIS: RD$ ${(parseFloat(expenseStats?.total_itbis) || 0).toLocaleString()}`}
+          subtext={{`ITBIS: ${fmtRD(parseFloat(expenseStats?.total_itbis))}`}}
         />
         <StatCard
           icon={Car}
@@ -203,7 +205,7 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs text-gray-500">Utilidad Neta (Mes)</p>
             <p className={`text-xl font-bold ${(dashboard?.revenue || 0) - (parseFloat(expenseStats?.total_amount) || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              RD$ {((dashboard?.revenue || 0) - (parseFloat(expenseStats?.total_amount) || 0)).toLocaleString()}
+              {fmtRD((dashboard?.revenue || 0) - (parseFloat(expenseStats?.total_amount) || 0))}
             </p>
           </div>
         </div>

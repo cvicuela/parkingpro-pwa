@@ -120,7 +120,7 @@ const fmtDateTime = (iso) => {
   if (!iso) return '-';
   return new Date(iso).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
-const fmtMoney = (n) => n != null ? `RD$ ${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
+const fmtMoney = (n) => { if (n == null) return '-'; const p = Number(n).toFixed(2).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
 
 const statusLabel = (s) => {
   const map = { active: 'Activa', paid: 'Pagado', closed: 'Cerrada', abandoned: 'Abandonada', pending: 'Pendiente', cancelled: 'Cancelada', suspended: 'Suspendida', past_due: 'Vencida', refunded: 'Reembolsado' };
