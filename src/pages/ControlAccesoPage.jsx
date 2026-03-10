@@ -70,7 +70,7 @@ function CountdownBar({ seconds, total }) {
 /* ─── Helpers ─── */
 const fmtTime = (iso) => timeService.fmtTime(iso);
 const fmtDateTime = (iso) => timeService.fmtDateTime(iso);
-const fmtMoney = (n) => `RD$ ${parseFloat(n || 0).toFixed(2)}`;
+const fmtMoney = (n) => `RD$ ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const elapsed = (iso) => {
   const mins = Math.round((timeService.timestamp() - new Date(iso).getTime()) / 60000);
   return { mins, text: `${Math.floor(mins / 60)}h ${mins % 60}m` };
@@ -134,7 +134,9 @@ export default function ControlAccesoPage() {
   const fetchActiveRegister = useCallback(async () => {
     try {
       const { data } = await cashAPI.active();
-      const reg = data.data || data;
+      const regData = data.data || data;
+      // RPC returns { register: {...}, transactions: [...] } or direct register object
+      const reg = regData?.register || regData;
       setActiveRegister(reg && reg.id ? reg : null);
     } catch {
       setActiveRegister(null);

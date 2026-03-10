@@ -173,7 +173,7 @@ export default function CajaPage() {
       : 'Operador'
   });
 
-  const fmtMoney = (v) => `RD$${(v || 0).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtMoney = (v) => `RD$ ${Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fmtTime = (iso) => {
     if (!iso) return '—';
     return new Date(iso).toLocaleString('es-DO', {
