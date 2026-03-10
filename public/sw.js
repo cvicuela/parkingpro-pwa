@@ -1,4 +1,5 @@
-const CACHE_NAME = 'parkingpro-v1';
+const CACHE_VERSION = '20260310-v2';
+const CACHE_NAME = `parkingpro-${CACHE_VERSION}`;
 const STATIC_ASSETS = ['/', '/index.html', '/manifest.json', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -25,19 +26,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Network-first strategy: try network, fall back to cache
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const fetched = fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached);
-
-      return cached || fetched;
-    })
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request))
   );
 });
