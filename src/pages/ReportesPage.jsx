@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { reportsAPI, plansAPI } from '../services/api';
 import {
   BarChart3, DollarSign, Users, Car, TrendingUp, TrendingDown, AlertTriangle,
   Clock, RefreshCw, Download, Calendar, Wallet, FileText, PieChart,
-  ArrowUpRight, ArrowDownRight, Minus, CreditCard, ShieldAlert, Activity
+  ArrowUpRight, ArrowDownRight, Minus, CreditCard, ShieldAlert, Activity,
+  X, Printer, Eye
 } from 'lucide-react';
 
 // ==================== SHARED COMPONENTS ====================
@@ -777,6 +778,65 @@ function TabFacturacion({ period, customFrom, customTo }) {
   );
 }
 
+// ==================== REPORT PREVIEW MODAL ====================
+
+function ReportPreviewModal({ open, onClose, html, title, rowCount, generatedAt }) {
+  const iframeRef = useRef(null);
+
+  useEffect(() => {
+    if (open && iframeRef.current && html) {
+      const doc = iframeRef.current.contentDocument;
+      doc.open();
+      doc.write(html);
+      doc.close();
+    }
+  }, [open, html]);
+
+  if (!open) return null;
+
+  const handlePrint = () => {
+    if (iframeRef.current) {
+      iframeRef.current.contentWindow.print();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex flex-col" onClick={onClose}>
+      <div className="flex flex-col h-full" onClick={e => e.stopPropagation()}>
+        {/* Toolbar */}
+        <div className="bg-slate-800 text-white px-4 py-3 flex items-center justify-between shrink-0">
+          <div>
+            <div className="flex items-center gap-2">
+              <Eye size={18} className="text-indigo-400" />
+              <h3 className="font-semibold text-sm">Vista Previa: {title}</h3>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">{rowCount} registros | {generatedAt}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={onClose}
+              className="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 text-white text-xs font-medium rounded-lg transition-colors">
+              Cerrar
+            </button>
+            <button onClick={handlePrint}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition-colors">
+              <Printer size={14} /> Imprimir / Guardar PDF
+            </button>
+          </div>
+        </div>
+        {/* Preview iframe */}
+        <div className="flex-1 bg-gray-200 overflow-auto">
+          <iframe
+            ref={iframeRef}
+            title="report-preview"
+            className="w-full h-full bg-white border-0"
+            sandbox="allow-same-origin allow-modals"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ==================== SPINNER ====================
 
 function Spinner() {
@@ -805,10 +865,11 @@ export default function ReportesPage() {
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState(null);
 
   const tabProps = { period, customFrom, customTo };
 
-  const [exportFormat, setExportFormat] = useState('csv');
+  const [exportFormat, setExportFormat] = useState('pdf');
 
   const handleExport = async (type, format = exportFormat) => {
     setExporting(true);
@@ -816,7 +877,10 @@ export default function ReportesPage() {
       const params = { period, from: customFrom, to: customTo };
       const titles = { payments: 'Reporte de Pagos', 'cash-registers': 'Cuadre de Caja', sessions: 'Sesiones de Parqueo', customers: 'Reporte de Clientes' };
       if (format === 'xls') await reportsAPI.exportXls(type, params);
-      else if (format === 'pdf') await reportsAPI.exportPdf(type, params, titles[type] || 'Reporte');
+      else if (format === 'pdf') {
+        const result = await reportsAPI.exportPdf(type, params, titles[type] || 'Reporte');
+        setPdfPreview(result);
+      }
       else await reportsAPI.exportCsv(type, params);
     } catch {
       // error
@@ -843,9 +907,9 @@ export default function ReportesPage() {
           <div className="flex items-center gap-2">
             <select value={exportFormat} onChange={e => setExportFormat(e.target.value)}
               className="text-sm border rounded-lg px-2 py-2 bg-white text-gray-700">
+              <option value="pdf">PDF</option>
               <option value="csv">CSV</option>
               <option value="xls">Excel (XLS)</option>
-              <option value="pdf">PDF</option>
             </select>
             <button onClick={() => handleExport(exportOptions[activeTab])} disabled={exporting}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm">
@@ -895,6 +959,16 @@ export default function ReportesPage() {
           {activeTab === 'facturacion' && <TabFacturacion {...tabProps} />}
         </div>
       </div>
+
+      {/* PDF Preview Modal */}
+      <ReportPreviewModal
+        open={!!pdfPreview}
+        onClose={() => setPdfPreview(null)}
+        html={pdfPreview?.html}
+        title={pdfPreview?.title}
+        rowCount={pdfPreview?.rowCount}
+        generatedAt={pdfPreview?.generatedAt}
+      />
     </div>
   );
 }

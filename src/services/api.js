@@ -458,30 +458,8 @@ export const reportsAPI = {
     const generatedAt = new Date().toLocaleString('es-DO');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
     <style>
-      @media print {
-        body { margin: 0; }
-        @page { size: landscape; margin: 1cm; }
-        .toolbar { display: none !important; }
-      }
-      body { font-family: Arial, sans-serif; font-size: 11px; margin: 0; }
-      .toolbar {
-        position: sticky; top: 0; z-index: 10;
-        background: #1e293b; color: white; padding: 12px 20px;
-        display: flex; align-items: center; justify-content: space-between;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      }
-      .toolbar-title { font-size: 14px; font-weight: 600; }
-      .toolbar-info { font-size: 11px; color: #94a3b8; }
-      .toolbar-actions { display: flex; gap: 8px; }
-      .btn {
-        padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer;
-        font-size: 12px; font-weight: 600; transition: background 0.2s;
-      }
-      .btn-print { background: #4f46e5; color: white; }
-      .btn-print:hover { background: #4338ca; }
-      .btn-close { background: #475569; color: white; }
-      .btn-close:hover { background: #334155; }
-      .content { padding: 20px; }
+      @media print { body { margin: 0; } @page { size: landscape; margin: 1cm; } }
+      body { font-family: Arial, sans-serif; font-size: 11px; margin: 0; padding: 20px; }
       h1 { text-align: center; color: #333; font-size: 18px; margin-bottom: 4px; }
       .meta { text-align: center; color: #666; margin-bottom: 12px; font-size: 10px; }
       table { width: 100%; border-collapse: collapse; }
@@ -489,25 +467,12 @@ export const reportsAPI = {
       td { padding: 5px 8px; border-bottom: 1px solid #ddd; font-size: 10px; }
       tr:nth-child(even) { background: #f8f9fa; }
     </style></head><body>
-    <div class="toolbar">
-      <div>
-        <div class="toolbar-title">Vista Previa: ${title}</div>
-        <div class="toolbar-info">${rows.length} registros | ${generatedAt}</div>
-      </div>
-      <div class="toolbar-actions">
-        <button class="btn btn-close" onclick="window.close()">Cerrar</button>
-        <button class="btn btn-print" onclick="window.print()">Imprimir / Guardar PDF</button>
-      </div>
-    </div>
-    <div class="content">
-      <h1>${title}</h1>
-      <div class="meta">Generado: ${generatedAt} | Registros: ${rows.length}</div>
-      <table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map(row => '<tr>' + headers.map(h => `<td>${row[h] ?? ''}</td>`).join('') + '</tr>').join('')}</tbody></table>
-    </div>
+    <h1>${title}</h1>
+    <div class="meta">Generado: ${generatedAt} | Registros: ${rows.length}</div>
+    <table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(row => '<tr>' + headers.map(h => `<td>${row[h] ?? ''}</td>`).join('') + '</tr>').join('')}</tbody></table>
     </body></html>`;
-    const win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); }
+    return { html, title, rowCount: rows.length, generatedAt };
   },
 };
 
