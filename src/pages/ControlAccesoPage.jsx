@@ -70,7 +70,11 @@ function CountdownBar({ seconds, total }) {
 /* ─── Helpers ─── */
 const fmtTime = (iso) => timeService.fmtTime(iso);
 const fmtDateTime = (iso) => timeService.fmtDateTime(iso);
-const fmtMoney = (n) => `RD$ ${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtMoney = (n) => {
+  const parts = Number(n || 0).toFixed(2).split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `RD$ ${parts.join('.')}`;
+};
 const elapsed = (iso) => {
   const mins = Math.round((timeService.timestamp() - new Date(iso).getTime()) / 60000);
   return { mins, text: `${Math.floor(mins / 60)}h ${mins % 60}m` };

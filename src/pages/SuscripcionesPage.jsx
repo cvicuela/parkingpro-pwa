@@ -27,7 +27,7 @@ const billingLabel = {
   annual: 'Anual',
 };
 
-const fmtMoney = (v) => v != null ? `RD$ ${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
+const fmtMoney = (v) => { if (v == null) return '-'; const p = Number(v).toFixed(2).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '-';
 
 /* ─── Customer Detail Popup ─── */
