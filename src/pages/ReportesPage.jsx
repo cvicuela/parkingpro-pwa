@@ -143,25 +143,25 @@ function TabResumen({ period, customFrom, customTo }) {
       {/* Revenue KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard icon={DollarSign} label="Ingresos del Mes" value={fmtMoney(rev.currentMonth)} color="green"
-          subValue={`${rev.changePercent > 0 ? '+' : ''}${rev.changePercent}% vs mes anterior`}
-          trend={rev.changePercent >= 0 ? 'up' : 'down'} />
-        <KPICard icon={Users} label="Suscripciones Activas" value={subs.totalActive} color="indigo"
-          subValue={`${subs.newThisMonth} nuevas este mes`} trend={subs.newThisMonth > 0 ? 'up' : 'neutral'} />
+          subValue={`${(rev.changePercent || 0) > 0 ? '+' : ''}${rev.changePercent || 0}% vs mes anterior`}
+          trend={(rev.changePercent || 0) >= 0 ? 'up' : 'down'} />
+        <KPICard icon={Users} label="Suscripciones Activas" value={subs.totalActive || 0} color="indigo"
+          subValue={`${subs.newThisMonth || 0} nuevas este mes`} trend={(subs.newThisMonth || 0) > 0 ? 'up' : 'neutral'} />
         <KPICard icon={CreditCard} label="Tasa de Cobro" value={fmtPct(col.rate)} color="blue"
-          subValue={`${col.paidCount}/${col.totalCount} cobrados`} trend={col.rate >= 90 ? 'up' : 'down'} />
-        <KPICard icon={AlertTriangle} label="Cancelaciones" value={subs.cancelledThisMonth} color="red"
-          subValue="Este mes" trend={subs.cancelledThisMonth > 0 ? 'down' : 'up'} />
+          subValue={`${col.paidCount || 0}/${col.totalCount || 0} cobrados`} trend={(col.rate || 0) >= 90 ? 'up' : 'down'} />
+        <KPICard icon={AlertTriangle} label="Cancelaciones" value={subs.cancelledThisMonth || 0} color="red"
+          subValue="Este mes" trend={(subs.cancelledThisMonth || 0) > 0 ? 'down' : 'up'} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard icon={Car} label="Sesiones por Hora" value={sess.totalThisMonth} color="cyan"
-          subValue={`Duración prom: ${sess.avgDurationMinutes} min`} trend="neutral" />
+        <KPICard icon={Car} label="Sesiones por Hora" value={sess.totalThisMonth || 0} color="cyan"
+          subValue={`Duración prom: ${sess.avgDurationMinutes || 0} min`} trend="neutral" />
         <KPICard icon={DollarSign} label="Ingresos Parqueo/Hora" value={fmtMoney(sess.hourlyRevenue)} color="emerald" />
-        <KPICard icon={Wallet} label="Cuadres de Caja" value={cash.totalClosures} color="purple"
-          subValue={cash.requiringApproval > 0 ? `${cash.requiringApproval} requieren aprobación` : 'Todo al dia'}
-          trend={cash.requiringApproval > 0 ? 'down' : 'up'} />
+        <KPICard icon={Wallet} label="Cuadres de Caja" value={cash.totalClosures || 0} color="purple"
+          subValue={(cash.requiringApproval || 0) > 0 ? `${cash.requiringApproval} requieren aprobación` : 'Todo al dia'}
+          trend={(cash.requiringApproval || 0) > 0 ? 'down' : 'up'} />
         <KPICard icon={TrendingDown} label="Reembolsos" value={fmtMoney(ref.total)} color="amber"
-          subValue={`${ref.count} reembolsos`} trend={ref.count > 0 ? 'down' : 'up'} />
+          subValue={`${ref.count || 0} reembolsos`} trend={(ref.count || 0) > 0 ? 'down' : 'up'} />
       </div>
 
       {/* Financial Summary Table */}
@@ -183,8 +183,8 @@ function TabResumen({ period, customFrom, customTo }) {
             <div className="space-y-2">
               <div className="flex justify-between"><span className="text-gray-500">Mes anterior</span><span className="font-medium">{fmtMoney(rev.previousMonth)}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Variacion</span>
-                <span className={`font-medium ${rev.changePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {rev.changePercent > 0 ? '+' : ''}{rev.changePercent}%
+                <span className={`font-medium ${(rev.changePercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(rev.changePercent || 0) > 0 ? '+' : ''}{rev.changePercent || 0}%
                 </span>
               </div>
               <div className="flex justify-between"><span className="text-gray-500">Cobros exitosos</span><span className="font-medium">{fmtPct(col.rate)}</span></div>
