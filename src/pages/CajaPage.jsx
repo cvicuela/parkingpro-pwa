@@ -81,15 +81,15 @@ export default function CajaPage() {
   const openingBal = register ? parseFloat(register.opening_balance || 0) : 0;
   const currentBalance = openingBal + totalIn - totalOut;
 
-  // Desglose por método de pago (del register si disponible, si no calcular de transacciones)
-  const totalCard = register ? parseFloat(register.total_card || 0) : transactions
+  // Desglose por método de pago — siempre calcular de transacciones locales para consistencia
+  const totalCard = transactions
     .filter(t => t.direction === 'in' && t.payment_method === 'card')
     .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
-  const totalTransfer = register ? parseFloat(register.total_transfer || 0) : transactions
+  const totalTransfer = transactions
     .filter(t => t.direction === 'in' && t.payment_method === 'transfer')
     .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
-  const cashIn = register ? parseFloat(register.cash_in || 0) : transactions
-    .filter(t => t.direction === 'in' && (!t.payment_method || t.payment_method === 'cash'))
+  const cashIn = transactions
+    .filter(t => t.direction === 'in' && t.type !== 'opening_float' && (!t.payment_method || t.payment_method === 'cash'))
     .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
   const cashOut = transactions
     .filter(t => t.direction === 'out' && (!t.payment_method || t.payment_method === 'cash'))

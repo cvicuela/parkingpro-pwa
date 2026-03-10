@@ -187,7 +187,7 @@ export function generateCashReportHTML({ register, transactions, operatorName })
     ` : ''}
     <div class="line"></div>
     <div class="bold mt mb">CUADRE DE EFECTIVO</div>
-    <div class="row bold"><span>Efectivo esperado:</span><span>RD$ ${(hasOtherMethods ? expectedCash : parseFloat(register.expected_balance || (totalIn - totalOut))).toFixed(2)}</span></div>
+    <div class="row bold"><span>Efectivo esperado:</span><span>RD$ ${expectedCash.toFixed(2)}</span></div>
     <div class="row bold"><span>Efectivo contado:</span><span>RD$ ${parseFloat(register.counted_balance || 0).toFixed(2)}</span></div>
     <div class="row bold"><span>Diferencia ${diffColor}:</span><span>RD$ ${Math.abs(diff).toFixed(2)}</span></div>
     ${Math.abs(diff) > 200 ? '<div class="center bold mt">** REQUIERE APROBACIÓN **</div>' : ''}
