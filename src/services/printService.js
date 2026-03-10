@@ -6,10 +6,30 @@
 import QRCode from 'qrcode';
 import timeService from './timeService';
 
-const PARKING_NAME = 'ParkingPro';
-const PARKING_ADDRESS = 'Santo Domingo, Rep. Dominicana';
-const PARKING_RNC = 'RNC: 000-000000-0';
-const PARKING_PHONE = 'Tel: (809) 000-0000';
+// Load company info from settings stored in localStorage (populated by ConfigPage)
+function getCompanyInfo() {
+  try {
+    const settings = JSON.parse(localStorage.getItem('pp_settings') || '{}');
+    return {
+      name: settings.business_name || settings.parking_name || 'ParkingPro',
+      address: settings.business_address || 'Santo Domingo, Rep. Dominicana',
+      rnc: settings.business_rnc || '',
+      phone: settings.business_phone || '',
+    };
+  } catch {
+    return { name: 'ParkingPro', address: 'Santo Domingo, Rep. Dominicana', rnc: '', phone: '' };
+  }
+}
+
+// Formatted header lines
+function companyHeader() {
+  const c = getCompanyInfo();
+  let html = `<div class="bold big">${escapeHtml(c.name)}</div>`;
+  html += `<div class="small">${escapeHtml(c.address)}</div>`;
+  if (c.rnc) html += `<div class="small">RNC: ${escapeHtml(c.rnc)}</div>`;
+  if (c.phone) html += `<div class="small">Tel: ${escapeHtml(c.phone)}</div>`;
+  return html;
+}
 
 function escapeHtml(str) {
   if (!str) return '';
@@ -62,9 +82,7 @@ export async function generateEntryTicketHTML({ plate, entryTime, type, planName
 
   return `
     <div class="center mb">
-      <div class="bold big">${PARKING_NAME}</div>
-      <div class="small">${PARKING_ADDRESS}</div>
-      <div class="small">${PARKING_PHONE}</div>
+      ${companyHeader()}
     </div>
     <div class="line"></div>
     <div class="center bold mt">TICKET DE ENTRADA</div>
@@ -81,7 +99,7 @@ export async function generateEntryTicketHTML({ plate, entryTime, type, planName
     <div class="line"></div>
     <div class="center small mt">Conserve este ticket para la salida</div>
     <div class="center small">Tarifa por hora segun plan vigente</div>
-    <div class="center small mt mb">${PARKING_NAME} - Gracias por su visita</div>
+    <div class="center small mt mb">${escapeHtml(getCompanyInfo().name)} - Gracias por su visita</div>
   `;
 }
 
@@ -94,10 +112,7 @@ export async function generatePaymentReceiptHTML({ receipt, showQr = true }) {
 
   return `
     <div class="center mb">
-      <div class="bold big">${PARKING_NAME}</div>
-      <div class="small">${PARKING_ADDRESS}</div>
-      <div class="small">${PARKING_RNC}</div>
-      <div class="small">${PARKING_PHONE}</div>
+      ${companyHeader()}
     </div>
     <div class="line"></div>
     <div class="center bold">RECIBO DE PAGO</div>
@@ -149,8 +164,7 @@ export function generateCashReportHTML({ register, transactions, operatorName })
 
   return `
     <div class="center mb">
-      <div class="bold big">${PARKING_NAME}</div>
-      <div class="small">${PARKING_ADDRESS}</div>
+      ${companyHeader()}
     </div>
     <div class="line"></div>
     <div class="center bold">CIERRE DE CAJA</div>
@@ -191,7 +205,7 @@ export function generateDailySummaryHTML({ date, stats }) {
 
   return `
     <div class="center mb">
-      <div class="bold big">${PARKING_NAME}</div>
+      ${companyHeader()}
     </div>
     <div class="line"></div>
     <div class="center bold">REPORTE DIARIO</div>

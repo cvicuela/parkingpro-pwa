@@ -17,18 +17,34 @@ function getItems(inv) {
   return [];
 }
 
+function getCompanyInfo() {
+  try {
+    const s = JSON.parse(localStorage.getItem('pp_settings') || '{}');
+    return {
+      name: s.business_name || s.parking_name || 'ParkingPro',
+      address: s.business_address || '',
+      rnc: s.business_rnc || '',
+      phone: s.business_phone || '',
+    };
+  } catch { return { name: 'ParkingPro', address: '', rnc: '', phone: '' }; }
+}
+
 function buildInvoiceHtml(inv) {
   const items = getItems(inv);
+  const co = getCompanyInfo();
   return `
-    <div class="center bold big mb">ParkingPro</div>
-    <div class="center mb">FACTURA DE VENTA</div>
+    <div class="center bold big mb">${co.name}</div>
+    ${co.address ? `<div class="center small">${co.address}</div>` : ''}
+    ${co.rnc ? `<div class="center small">RNC: ${co.rnc}</div>` : ''}
+    ${co.phone ? `<div class="center small">Tel: ${co.phone}</div>` : ''}
+    <div class="center mb" style="margin-top:6px">FACTURA DE VENTA</div>
     <div class="line"></div>
     <div class="row"><span>No.:</span><span class="bold">#${inv.invoice_number}</span></div>
     <div class="row"><span>NCF:</span><span>${inv.ncf || '-'}</span></div>
     <div class="row"><span>Fecha:</span><span>${fmtDateTime(inv.created_at)}</span></div>
     <div class="line"></div>
     <div class="bold">Cliente: ${inv.customer_name || 'N/A'}</div>
-    ${inv.rnc ? `<div>RNC: ${inv.rnc}</div>` : ''}
+    ${inv.rnc ? `<div>RNC Cliente: ${inv.rnc}</div>` : ''}
     <div class="line"></div>
     <div class="bold small mb" style="text-decoration:underline">DETALLE</div>
     ${items.map(item => `

@@ -128,14 +128,14 @@ function TabResumen({ period, customFrom, customTo }) {
   }, [period, customFrom, customTo]);
 
   if (loading) return <Spinner />;
-  if (!data) return <p className="text-gray-400 text-center py-8">No se pudo cargar el resumen</p>;
 
-  const rev = data.revenue || {};
-  const subs = data.subscriptions || {};
-  const sess = data.sessions || {};
-  const cash = data.cashRegisters || {};
-  const col = data.collection || {};
-  const ref = data.refunds || {};
+  const d = data || {};
+  const rev = d.revenue || {};
+  const subs = d.subscriptions || {};
+  const sess = d.sessions || {};
+  const cash = d.cashRegisters || {};
+  const col = d.collection || {};
+  const ref = d.refunds || {};
 
   return (
     <div className="space-y-6">
@@ -218,12 +218,12 @@ function TabIngresos({ period, customFrom, customTo }) {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   if (loading) return <Spinner />;
-  if (!data) return <p className="text-gray-400 text-center py-8">Sin datos</p>;
 
-  const totals = data.totals || {};
-  const timeline = data.timeline || [];
-  const byMethod = data.byMethod || [];
-  const byPlan = data.byPlan || [];
+  const d = data || {};
+  const totals = d.totals || {};
+  const timeline = d.timeline || [];
+  const byMethod = d.byMethod || [];
+  const byPlan = d.byPlan || [];
   const operators = opData?.operators || [];
   const maxTimelineVal = Math.max(...timeline.map(t => t.total), 1);
 
@@ -322,11 +322,11 @@ function TabCuadreCaja({ period, customFrom, customTo }) {
   }, [period, customFrom, customTo]);
 
   if (loading) return <Spinner />;
-  if (!data) return <p className="text-gray-400 text-center py-8">Sin datos</p>;
 
-  const s = data.summary || {};
-  const closures = data.closures || [];
-  const byOp = data.byOperator || [];
+  const d = data || {};
+  const s = d.summary || {};
+  const closures = d.closures || [];
+  const byOp = d.byOperator || [];
 
   return (
     <div className="space-y-6">
@@ -405,13 +405,13 @@ function TabClientes({ period, customFrom, customTo }) {
   }, [period, customFrom, customTo]);
 
   if (loading) return <Spinner />;
-  if (!data) return <p className="text-gray-400 text-center py-8">Sin datos</p>;
 
-  const topCustomers = data.topCustomers || [];
-  const delinquent = data.delinquent || [];
-  const statusDist = data.statusDistribution || [];
-  const newTrend = data.newCustomersTrend || [];
-  const churnTrend = data.churnTrend || [];
+  const d = data || {};
+  const topCustomers = d.topCustomers || [];
+  const delinquent = d.delinquent || [];
+  const statusDist = d.statusDistribution || [];
+  const newTrend = d.newCustomersTrend || [];
+  const churnTrend = d.churnTrend || [];
 
   const statusColors = {
     active: 'bg-green-100 text-green-700',
@@ -429,7 +429,7 @@ function TabClientes({ period, customFrom, customTo }) {
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard icon={Users} label="Tasa de Retención" value={fmtPct(data.retentionRate)} color="green"
+        <KPICard icon={Users} label="Tasa de Retención" value={fmtPct(d.retentionRate)} color="green"
           subValue="Suscripciones activas/total" />
         <KPICard icon={TrendingUp} label="Nuevos (periodo)" value={newTrend.reduce((s, t) => s + t.count, 0)} color="blue" />
         <KPICard icon={TrendingDown} label="Cancelados (periodo)" value={churnTrend.reduce((s, t) => s + t.count, 0)} color="red" />
@@ -482,25 +482,23 @@ function TabClientes({ period, customFrom, customTo }) {
       </div>
 
       {/* Delinquent */}
-      {delinquent.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-            <AlertTriangle size={20} className="text-red-500" /> Cuentas Morosas / Suspendidas
-          </h3>
-          <MiniTable
-            headers={['Cliente', 'Plan', 'Estado', 'Monto', 'Próxima Factura', 'Dias Vencidos']}
-            rows={delinquent.map(d => [
-              <span className="font-medium">{d.customerName}</span>,
-              d.planName,
-              <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[d.status]}`}>
-                {statusLabels[d.status]}
-              </span>,
-              fmtMoney(d.pricePerPeriod),
-              fmtDate(d.nextBillingDate),
-              <span className="font-bold text-red-600">{d.daysOverdue}</span>
-            ])} />
-        </div>
-      )}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <AlertTriangle size={20} className="text-red-500" /> Cuentas Morosas / Suspendidas
+        </h3>
+        <MiniTable
+          headers={['Cliente', 'Plan', 'Estado', 'Monto', 'Próxima Factura', 'Dias Vencidos']}
+          rows={delinquent.map(dl => [
+            <span className="font-medium">{dl.customerName}</span>,
+            dl.planName,
+            <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[dl.status]}`}>
+              {statusLabels[dl.status]}
+            </span>,
+            fmtMoney(dl.pricePerPeriod),
+            fmtDate(dl.nextBillingDate),
+            <span className="font-bold text-red-600">{dl.daysOverdue}</span>
+          ])} />
+      </div>
     </div>
   );
 }
@@ -521,13 +519,13 @@ function TabOcupacion({ period, customFrom, customTo }) {
   }, [period, customFrom, customTo]);
 
   if (loading) return <Spinner />;
-  if (!data) return <p className="text-gray-400 text-center py-8">Sin datos</p>;
 
-  const peakHours = data.peakHours || [];
-  const peakDays = data.peakDays || [];
-  const dailyTrend = data.dailyTrend || [];
-  const avgDuration = data.avgDuration || [];
-  const accessMethods = data.accessMethods || [];
+  const d = data || {};
+  const peakHours = d.peakHours || [];
+  const peakDays = d.peakDays || [];
+  const dailyTrend = d.dailyTrend || [];
+  const avgDuration = d.avgDuration || [];
+  const accessMethods = d.accessMethods || [];
   const maxHourly = Math.max(...peakHours.map(h => h.entryCount), 1);
   const maxDaily = Math.max(...peakDays.map(d => d.entryCount), 1);
 
@@ -626,20 +624,18 @@ function TabOcupacion({ period, customFrom, customTo }) {
       </div>
 
       {/* Daily trend */}
-      {dailyTrend.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Tendencia Diaria (Entradas vs Salidas)</h3>
-          <MiniTable headers={['Fecha', 'Entradas', 'Salidas', 'Neto']}
-            rows={dailyTrend.map(d => [
-              fmtDate(d.date),
-              <span className="text-green-600 font-medium">{d.entries}</span>,
-              <span className="text-red-600">{d.exits}</span>,
-              <span className={`font-bold ${d.net > 0 ? 'text-green-600' : d.net < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                {d.net > 0 ? '+' : ''}{d.net}
-              </span>
-            ])} />
-        </div>
-      )}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">Tendencia Diaria (Entradas vs Salidas)</h3>
+        <MiniTable headers={['Fecha', 'Entradas', 'Salidas', 'Neto']}
+          rows={dailyTrend.map(t => [
+            fmtDate(t.date),
+            <span className="text-green-600 font-medium">{t.entries}</span>,
+            <span className="text-red-600">{t.exits}</span>,
+            <span className={`font-bold ${t.net > 0 ? 'text-green-600' : t.net < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+              {t.net > 0 ? '+' : ''}{t.net}
+            </span>
+          ])} />
+      </div>
     </div>
   );
 }
@@ -659,12 +655,12 @@ function TabSesiones({ period, customFrom, customTo }) {
   }, [period, customFrom, customTo]);
 
   if (loading) return <Spinner />;
-  if (!data) return <p className="text-gray-400 text-center py-8">Sin datos</p>;
 
-  const s = data.summary || {};
-  const timeline = data.timeline || [];
-  const byAccess = data.byAccessMethod || [];
-  const durDist = data.durationDistribution || [];
+  const d = data || {};
+  const s = d.summary || {};
+  const timeline = d.timeline || [];
+  const byAccess = d.byAccessMethod || [];
+  const durDist = d.durationDistribution || [];
   const maxDur = Math.max(...durDist.map(d => d.count), 1);
 
   return (
@@ -710,19 +706,17 @@ function TabSesiones({ period, customFrom, customTo }) {
       </div>
 
       {/* Timeline */}
-      {timeline.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Sesiones por Dia</h3>
-          <MiniTable headers={['Fecha', 'Total', 'Pagadas', 'Abandonadas', 'Ingresos']}
-            rows={timeline.map(t => [
-              fmtDate(t.date),
-              <span className="font-bold">{t.total}</span>,
-              <span className="text-green-600">{t.paid}</span>,
-              t.abandoned > 0 ? <span className="text-red-600">{t.abandoned}</span> : '0',
-              <span className="font-medium">{fmtMoney(t.revenue)}</span>
-            ])} />
-        </div>
-      )}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">Sesiones por Dia</h3>
+        <MiniTable headers={['Fecha', 'Total', 'Pagadas', 'Abandonadas', 'Ingresos']}
+          rows={timeline.map(t => [
+            fmtDate(t.date),
+            <span className="font-bold">{t.total}</span>,
+            <span className="text-green-600">{t.paid}</span>,
+            t.abandoned > 0 ? <span className="text-red-600">{t.abandoned}</span> : '0',
+            <span className="font-medium">{fmtMoney(t.revenue)}</span>
+          ])} />
+      </div>
     </div>
   );
 }
@@ -742,11 +736,11 @@ function TabFacturacion({ period, customFrom, customTo }) {
   }, [period, customFrom, customTo]);
 
   if (loading) return <Spinner />;
-  if (!data) return <p className="text-gray-400 text-center py-8">Sin datos</p>;
 
-  const s = data.summary || {};
-  const byNCF = data.byNCFType || [];
-  const timeline = data.timeline || [];
+  const d = data || {};
+  const s = d.summary || {};
+  const byNCF = d.byNCFType || [];
+  const timeline = d.timeline || [];
 
   return (
     <div className="space-y-6">
@@ -770,17 +764,15 @@ function TabFacturacion({ period, customFrom, customTo }) {
       </div>
 
       {/* Timeline */}
-      {timeline.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Facturación por Dia</h3>
-          <MiniTable headers={['Fecha', 'Facturas', 'Total']}
-            rows={timeline.map(t => [
-              fmtDate(t.date),
-              <span className="font-bold">{t.count}</span>,
-              <span className="font-medium">{fmtMoney(t.total)}</span>
-            ])} />
-        </div>
-      )}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">Facturación por Dia</h3>
+        <MiniTable headers={['Fecha', 'Facturas', 'Total']}
+          rows={timeline.map(t => [
+            fmtDate(t.date),
+            <span className="font-bold">{t.count}</span>,
+            <span className="font-medium">{fmtMoney(t.total)}</span>
+          ])} />
+      </div>
     </div>
   );
 }
