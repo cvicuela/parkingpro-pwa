@@ -51,12 +51,12 @@ const fieldConfig = {
   terminal_sequence_current: { label: 'Secuencia Terminal - Actual', type: 'number', hint: 'Proximo numero de comprobante a emitir (auto-incrementa)' },
   refund_limit_operator: { label: 'Limite reembolso por operador (RD$)', type: 'number', hint: 'Maximo que un operador puede reembolsar sin aprobación' },
   refund_daily_multiplier: { label: 'Multiplicador diario de reembolso', type: 'number', hint: 'Tope diario = limite x multiplicador' },
-  notification_email_1_enabled: { label: 'Email 1 - Activo', type: 'toggle', hint: 'Activar/desactivar envio al Email 1' },
-  notification_email_1: { label: 'Email 1 (Principal)', type: 'email', placeholder: 'admin@empresa.com', hint: 'Email principal para alertas de caja, reembolsos y alertas criticas' },
-  notification_email_2_enabled: { label: 'Email 2 - Activo', type: 'toggle', hint: 'Activar/desactivar envio al Email 2' },
-  notification_email_2: { label: 'Email 2 (Secundario)', type: 'email', placeholder: 'gerente@empresa.com', hint: 'Email secundario para recibir copias de notificaciones' },
-  notification_email_3_enabled: { label: 'Email 3 - Activo', type: 'toggle', hint: 'Activar/desactivar envio al Email 3' },
-  notification_email_3: { label: 'Email 3 (Adicional)', type: 'email', placeholder: 'supervisor@empresa.com', hint: 'Email adicional para notificaciones' },
+  notification_email_1_enabled: { hidden: true },
+  notification_email_1: { label: 'Email 1 (Principal)', type: 'email', placeholder: 'admin@empresa.com', hint: 'Email principal para alertas de caja, reembolsos y alertas criticas', toggleKey: 'notification_email_1_enabled' },
+  notification_email_2_enabled: { hidden: true },
+  notification_email_2: { label: 'Email 2 (Secundario)', type: 'email', placeholder: 'gerente@empresa.com', hint: 'Email secundario para recibir copias de notificaciones', toggleKey: 'notification_email_2_enabled' },
+  notification_email_3_enabled: { hidden: true },
+  notification_email_3: { label: 'Email 3 (Adicional)', type: 'email', placeholder: 'supervisor@empresa.com', hint: 'Email adicional para notificaciones', toggleKey: 'notification_email_3_enabled' },
   telegram_enabled: { label: 'Notificaciones por Telegram', type: 'toggle', hint: 'Activar envio de alertas a los numeros configurados' },
   telegram_phone_1: { label: 'Telegram - Numero 1 (Principal)', type: 'text', placeholder: '+1 809-000-0000', hint: 'Numero de WhatsApp/Telegram para alertas' },
   telegram_phone_2: { label: 'Telegram - Numero 2 (Opcional)', type: 'text', placeholder: '+1 809-000-0000' },
@@ -892,6 +892,62 @@ export default function ConfigPage() {
     const config = fieldConfig[key] || { label: key, type: 'text' };
     const value = editValues[key] ?? '';
     const changed = hasChanges[key];
+
+    // Skip hidden fields (rendered inline with their parent)
+    if (config.hidden) return null;
+
+    // Email field with inline blue toggle
+    if (config.toggleKey) {
+      const toggleVal = editValues[config.toggleKey] ?? 'false';
+      const isOn = toggleVal === 'true' || toggleVal === true;
+      const toggleChanged = hasChanges[config.toggleKey];
+      const anyChanged = changed || toggleChanged;
+      const anySaving = saving[key] || saving[config.toggleKey];
+
+      const handleSaveBoth = async () => {
+        if (changed) await handleSave(key);
+        if (toggleChanged) await handleSave(config.toggleKey);
+      };
+
+      return (
+        <div key={key} className="flex items-center justify-between py-4 px-5 hover:bg-gray-50 rounded-lg transition-colors">
+          <div className="flex-1 mr-4">
+            <p className="font-medium text-gray-800">{config.label}</p>
+            {(config.hint || setting.description) && (
+              <p className="text-xs text-gray-400 mt-0.5">{config.hint || setting.description}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="email"
+              value={value}
+              placeholder={config.placeholder || ''}
+              onChange={(e) => handleChange(key, e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && anyChanged) handleSaveBoth(); }}
+              className={`px-3 py-1.5 border rounded-lg text-sm w-52 focus:ring-2 focus:ring-blue-500 outline-none transition-colors ${changed ? 'border-blue-400 bg-blue-50' : 'border-gray-300'} ${!isOn ? 'opacity-50' : ''}`}
+            />
+            <button
+              onClick={() => {
+                const newVal = isOn ? 'false' : 'true';
+                handleChange(config.toggleKey, newVal);
+              }}
+              title={isOn ? 'Desactivar email' : 'Activar email'}
+              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${isOn ? 'bg-blue-600' : 'bg-gray-300'}`}
+            >
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${isOn ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+            {anySaving ? (
+              <RotateCw size={16} className="animate-spin text-blue-500" />
+            ) : anyChanged ? (
+              <button onClick={handleSaveBoth}
+                className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 flex items-center gap-1">
+                <Save size={12} /> Guardar
+              </button>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
 
     if (config.type === 'toggle') {
       const isOn = value === 'true' || value === true;
