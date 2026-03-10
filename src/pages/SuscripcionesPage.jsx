@@ -66,7 +66,7 @@ function CustomerDetailPopup({ subscription, onClose }) {
         {loading ? (
           <div className="flex justify-center p-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
         ) : !customer ? (
-          <p className="p-8 text-center text-gray-400">No se pudo cargar la informacion</p>
+          <p className="p-8 text-center text-gray-400">No se pudo cargar la información</p>
         ) : (
           <div className="overflow-y-auto flex-1">
             {/* Customer Info Card */}
@@ -108,7 +108,7 @@ function CustomerDetailPopup({ subscription, onClose }) {
 
             {/* Subscription Info */}
             <div className="p-4 border-b space-y-2">
-              <p className="text-sm font-semibold text-gray-700">Suscripcion Actual</p>
+              <p className="text-sm font-semibold text-gray-700">Suscripción Actual</p>
               <div className="bg-indigo-50 rounded-lg p-3 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-sm">{subscription.plan_name || '-'}</span>
@@ -126,7 +126,7 @@ function CustomerDetailPopup({ subscription, onClose }) {
                   <span className="text-gray-400">/ {billingLabel[subscription.billing_frequency] || subscription.billing_frequency || 'mes'}</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <Calendar size={13} /> Proxima factura: {fmtDate(subscription.next_billing_date)}
+                  <Calendar size={13} /> Próxima factura: {fmtDate(subscription.next_billing_date)}
                 </div>
               </div>
             </div>
@@ -222,10 +222,10 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
       const payload = { ...form, vehicle_id: (form.vehicle_id && form.vehicle_id !== 'na') ? form.vehicle_id : null };
       if (subscription?.id) {
         await subscriptionsAPI.update(subscription.id, payload);
-        toast.success('Suscripcion actualizada');
+        toast.success('Suscripción actualizada');
       } else {
         await subscriptionsAPI.create(payload);
-        toast.success('Suscripcion creada');
+        toast.success('Suscripción creada');
       }
       onSave();
     } catch (err) {
@@ -239,7 +239,7 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-lg font-semibold">{subscription ? 'Editar Suscripcion' : 'Nueva Suscripcion'}</h3>
+          <h3 className="text-lg font-semibold">{subscription ? 'Editar Suscripción' : 'Nueva Suscripción'}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
@@ -253,7 +253,7 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Vehiculo</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Vehículo</label>
             <select value={form.vehicle_id || ''} onChange={set('vehicle_id')}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
               <option value="">Seleccionar...</option>
@@ -263,7 +263,7 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
               ))}
             </select>
             {form.customer_id && filteredVehicles.length === 0 && (
-              <p className="text-xs text-amber-600 mt-1">Este cliente no tiene vehiculos registrados</p>
+              <p className="text-xs text-amber-600 mt-1">Este cliente no tiene vehículos registrados</p>
             )}
           </div>
 
@@ -336,7 +336,7 @@ export default function SuscripcionesPage() {
   const handleSuspend = async (id) => {
     try {
       await subscriptionsAPI.suspend(id);
-      toast.success('Suscripcion suspendida');
+      toast.success('Suscripción suspendida');
       fetchSubs();
     } catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   };
@@ -344,7 +344,7 @@ export default function SuscripcionesPage() {
   const handleReactivate = async (id) => {
     try {
       await subscriptionsAPI.reactivate(id);
-      toast.success('Suscripcion reactivada');
+      toast.success('Suscripción reactivada');
       fetchSubs();
     } catch (err) { toast.error(err.response?.data?.error || 'Error'); }
   };
@@ -357,12 +357,12 @@ export default function SuscripcionesPage() {
   const handleCancel = async () => {
     if (!cancelModal) return;
     if (!cancelReason.trim()) {
-      toast.warning('Debe ingresar un motivo para la cancelacion');
+      toast.warning('Debe ingresar un motivo para la cancelación');
       return;
     }
     try {
       await subscriptionsAPI.cancel(cancelModal.id, cancelReason.trim());
-      toast.success('Suscripcion cancelada');
+      toast.success('Suscripción cancelada');
       setCancelModal(null);
       setCancelReason('');
       fetchSubs();
@@ -375,7 +375,7 @@ export default function SuscripcionesPage() {
         <h2 className="text-2xl font-bold text-gray-800">Suscripciones</h2>
         <button onClick={() => { setEditing(null); setShowModal(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-          <Plus size={18} /> Nueva Suscripcion
+          <Plus size={18} /> Nueva Suscripción
         </button>
       </div>
 
@@ -401,7 +401,7 @@ export default function SuscripcionesPage() {
                   <th className="py-3 px-4">Placa</th>
                   <th className="py-3 px-4">Freq. Pago</th>
                   <th className="py-3 px-4">Estado</th>
-                  <th className="py-3 px-4">Proxima Factura</th>
+                  <th className="py-3 px-4">Próxima Factura</th>
                   <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -490,16 +490,16 @@ export default function SuscripcionesPage() {
           <div className="bg-white rounded-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <AlertTriangle size={20} className="text-red-500" /> Cancelar Suscripcion
+                <AlertTriangle size={20} className="text-red-500" /> Cancelar Suscripción
               </h3>
               <button onClick={() => setCancelModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
             <div className="p-4 space-y-3">
-              <p className="text-sm text-gray-500">Ingrese el motivo de la cancelacion. Este campo es obligatorio.</p>
+              <p className="text-sm text-gray-500">Ingrese el motivo de la cancelación. Este campo es obligatorio.</p>
               <textarea
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Ej: Cliente solicita cancelacion por cambio de plan..."
+                placeholder="Ej: Cliente solicita cancelación por cambio de plan..."
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
                 autoFocus
@@ -511,7 +511,7 @@ export default function SuscripcionesPage() {
                 </button>
                 <button onClick={handleCancel} disabled={!cancelReason.trim()}
                   className="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2">
-                  <Trash2 size={16} /> Confirmar Cancelacion
+                  <Trash2 size={16} /> Confirmar Cancelación
                 </button>
               </div>
             </div>

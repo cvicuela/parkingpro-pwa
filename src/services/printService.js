@@ -107,8 +107,8 @@ export async function generatePaymentReceiptHTML({ receipt, showQr = true }) {
     <div class="row"><span>Placa:</span><span class="bold">${escapeHtml(r.plateNumber)}</span></div>
     <div class="row"><span>Entrada:</span><span>${escapeHtml(entryTime)}</span></div>
     <div class="row"><span>Salida:</span><span>${escapeHtml(exitTime)}</span></div>
-    <div class="row"><span>Duracion:</span><span>${escapeHtml(String(r.hours))}h</span></div>
-    <div class="row"><span>Metodo:</span><span>${escapeHtml(method)}</span></div>
+    <div class="row"><span>Duración:</span><span>${escapeHtml(String(r.hours))}h</span></div>
+    <div class="row"><span>Método:</span><span>${escapeHtml(method)}</span></div>
     <div class="line"></div>
     <div class="row"><span>Subtotal:</span><span>RD$ ${parseFloat(r.subtotal).toFixed(2)}</span></div>
     <div class="row"><span>ITBIS (18%):</span><span>RD$ ${parseFloat(r.tax).toFixed(2)}</span></div>
@@ -166,7 +166,7 @@ export function generateCashReportHTML({ register, transactions, operatorName })
     <div class="row"><span>Reembolsos (${refunds.length}):</span><span>RD$ ${totalOut.toFixed(2)}</span></div>
     ${hasOtherMethods ? `
     <div class="line"></div>
-    <div class="bold mt mb">DESGLOSE POR METODO</div>
+    <div class="bold mt mb">DESGLOSE POR MÉTODO</div>
     <div class="row"><span>Efectivo:</span><span>RD$ ${expectedCash.toFixed(2)}</span></div>
     <div class="row"><span>Tarjeta:</span><span>RD$ ${totalCard.toFixed(2)}</span></div>
     <div class="row"><span>Transferencia:</span><span>RD$ ${totalTransfer.toFixed(2)}</span></div>
@@ -176,7 +176,7 @@ export function generateCashReportHTML({ register, transactions, operatorName })
     <div class="row bold"><span>Efectivo esperado:</span><span>RD$ ${(hasOtherMethods ? expectedCash : parseFloat(register.expected_balance || (totalIn - totalOut))).toFixed(2)}</span></div>
     <div class="row bold"><span>Efectivo contado:</span><span>RD$ ${parseFloat(register.counted_balance || 0).toFixed(2)}</span></div>
     <div class="row bold"><span>Diferencia ${diffColor}:</span><span>RD$ ${Math.abs(diff).toFixed(2)}</span></div>
-    ${Math.abs(diff) > 200 ? '<div class="center bold mt">** REQUIERE APROBACION **</div>' : ''}
+    ${Math.abs(diff) > 200 ? '<div class="center bold mt">** REQUIERE APROBACIÓN **</div>' : ''}
     <div class="line"></div>
     <div class="bold mt mb">DETALLE DE MOVIMIENTOS</div>
     ${txRows || '<div class="center small">Sin movimientos</div>'}
@@ -197,10 +197,10 @@ export function generateDailySummaryHTML({ date, stats }) {
     <div class="center bold">REPORTE DIARIO</div>
     <div class="center small">${d}</div>
     <div class="line"></div>
-    <div class="row"><span>Vehiculos atendidos:</span><span class="bold">${stats.totalVehicles || 0}</span></div>
+    <div class="row"><span>Vehículos atendidos:</span><span class="bold">${stats.totalVehicles || 0}</span></div>
     <div class="row"><span>Suscriptores:</span><span>${stats.subscribers || 0}</span></div>
     <div class="row"><span>Por hora:</span><span>${stats.hourly || 0}</span></div>
-    <div class="row"><span>Ocupacion actual:</span><span>${stats.occupancyRate || 0}%</span></div>
+    <div class="row"><span>Ocupación actual:</span><span>${stats.occupancyRate || 0}%</span></div>
     <div class="line"></div>
     <div class="row"><span>Ingresos efectivo:</span><span>RD$ ${(stats.cashRevenue || 0).toFixed(2)}</span></div>
     <div class="row"><span>Ingresos tarjeta:</span><span>RD$ ${(stats.cardRevenue || 0).toFixed(2)}</span></div>

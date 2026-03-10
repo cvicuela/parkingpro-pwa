@@ -188,7 +188,7 @@ function DeviceModal({ device, onClose, onSave }) {
           {/* IP + Port */}
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Direccion IP</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Dirección IP</label>
               <input value={form.ip_address} onChange={set('ip_address')}
                 placeholder="192.168.1.100"
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
@@ -203,14 +203,14 @@ function DeviceModal({ device, onClose, onSave }) {
           {/* Location + Direction */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ubicacion</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
               <select value={form.location} onChange={set('location')}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                 {LOCATIONS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Direccion</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
               <select value={form.direction} onChange={set('direction')}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                 <option value="entry">Entrada</option>

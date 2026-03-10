@@ -188,7 +188,7 @@ export default function RFIDPage() {
   };
 
   const handleAssignPermanent = async () => {
-    if (!assignSubId) { toast.error('Seleccione una suscripcion'); return; }
+    if (!assignSubId) { toast.error('Seleccione una suscripción'); return; }
     try { await rfidAPI.assignPermanent(selectedCard.id, assignSubId); toast.success('Tarjeta asignada'); setShowAssignPermanent(false); fetchData(); }
     catch (err) { toast.error(err.message || 'Error asignando'); }
   };
@@ -237,7 +237,7 @@ export default function RFIDPage() {
   };
 
   const handleLinkComplete = async () => {
-    if (!selectedSubForLink) { toast.error('Seleccione un plan/suscripcion'); return; }
+    if (!selectedSubForLink) { toast.error('Seleccione un plan/suscripción'); return; }
     try {
       await rfidAPI.assignPermanent(selectedCard.id, selectedSubForLink);
       toast.success('Tarjeta vinculada: Tarjeta -> Cliente -> Plan');
@@ -626,12 +626,12 @@ export default function RFIDPage() {
                   <button onClick={() => { setLinkStep(1); setSelectedCustomer(null); }}
                     className="ml-auto text-xs text-indigo-600 hover:underline">Cambiar</button>
                 </div>
-                <p className="text-sm text-gray-600">Seleccione el plan/suscripcion:</p>
+                <p className="text-sm text-gray-600">Seleccione el plan/suscripción:</p>
                 {customerSubs.length === 0 ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
                     <AlertTriangle size={20} className="text-amber-500 mx-auto mb-2" />
                     <p className="text-sm text-amber-700">Este cliente no tiene suscripciones activas.</p>
-                    <p className="text-xs text-amber-600 mt-1">Cree una suscripcion primero.</p>
+                    <p className="text-xs text-amber-600 mt-1">Cree una suscripción primero.</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -642,7 +642,7 @@ export default function RFIDPage() {
                           <div>
                             <p className="text-sm font-medium text-gray-800">{sub.plan_name || sub.plan?.name || 'Plan'}</p>
                             <p className="text-xs text-gray-500">
-                              {sub.vehicle_plate || sub.vehicle?.plate || 'Sin vehiculo'} &middot; {sub.billing_frequency === 'monthly' ? 'Mensual' : sub.billing_frequency === 'weekly' ? 'Semanal' : sub.billing_frequency}
+                              {sub.vehicle_plate || sub.vehicle?.plate || 'Sin vehículo'} &middot; {sub.billing_frequency === 'monthly' ? 'Mensual' : sub.billing_frequency === 'weekly' ? 'Semanal' : sub.billing_frequency}
                             </p>
                           </div>
                           <div className="text-right">
@@ -713,7 +713,7 @@ export default function RFIDPage() {
               <p className="text-gray-500">Tarjeta: <span className="font-mono font-medium text-gray-800">{selectedCard.card_uid}</span></p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Suscripcion Activa *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Suscripción Activa *</label>
               {subscriptions.length === 0 ? (
                 <p className="text-sm text-amber-600">No hay suscripciones activas.</p>
               ) : (
@@ -768,7 +768,7 @@ export default function RFIDPage() {
               <p className="text-gray-500">Tarjeta: <span className="font-mono font-medium text-gray-800">{selectedCard.card_uid}</span></p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Placa del Vehiculo *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Placa del Vehículo *</label>
               <input value={assignPlate} onChange={e => setAssignPlate(e.target.value.toUpperCase())}
                 placeholder="Ej: A123456"
                 className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />

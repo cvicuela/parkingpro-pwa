@@ -15,8 +15,8 @@ import DispositivosPage from './DispositivosPage';
 
 const categoryConfig = {
   general: { label: 'General', icon: Building2, color: 'indigo', description: 'Datos del negocio y moneda' },
-  caja: { label: 'Caja Registradora', icon: Wallet, color: 'green', description: 'Umbrales y configuracion de caja' },
-  facturacion: { label: 'Facturacion', icon: Receipt, color: 'blue', description: 'ITBIS, NCF y comprobantes fiscales' },
+  caja: { label: 'Caja Registradora', icon: Wallet, color: 'green', description: 'Umbrales y configuración de caja' },
+  facturacion: { label: 'Facturación', icon: Receipt, color: 'blue', description: 'ITBIS, NCF y comprobantes fiscales' },
   antifraude: { label: 'Antifraude', icon: Shield, color: 'red', description: 'Limites de reembolso y proteccion' },
   notificaciones: { label: 'Notificaciones', icon: Bell, color: 'amber', description: 'Email, Telegram y alertas' },
   parqueo: { label: 'Parqueo', icon: Globe, color: 'purple', description: 'Espacios, tolerancia y mora' },
@@ -25,13 +25,13 @@ const categoryConfig = {
 const fieldConfig = {
   business_name: { label: 'Nombre del Negocio', type: 'text', placeholder: 'ParkingPro' },
   business_rnc: { label: 'RNC', type: 'text', placeholder: '000-000000-0' },
-  business_address: { label: 'Direccion', type: 'text', placeholder: 'Av. Principal #123' },
-  business_phone: { label: 'Telefono', type: 'text', placeholder: '809-000-0000' },
+  business_address: { label: 'Dirección', type: 'text', placeholder: 'Av. Principal #123' },
+  business_phone: { label: 'Teléfono', type: 'text', placeholder: '809-000-0000' },
   currency: { label: 'Moneda', type: 'select', options: ['DOP', 'USD', 'EUR'] },
-  cash_diff_threshold: { label: 'Umbral diferencia de caja (RD$)', type: 'number', hint: 'Diferencias mayores requieren aprobacion del supervisor' },
+  cash_diff_threshold: { label: 'Umbral diferencia de caja (RD$)', type: 'number', hint: 'Diferencias mayores requieren aprobación del supervisor' },
   multi_register_enabled: { label: 'Multiples cajas simultaneas', type: 'toggle' },
   tax_rate: { label: 'Tasa ITBIS', type: 'number', hint: '0.18 = 18%' },
-  invoice_mode: { label: 'Modo de Facturacion', type: 'select', options: ['fiscal', 'interno'], hint: 'Fiscal = NCF/DGII | Interno = numeracion propia sin reporte fiscal' },
+  invoice_mode: { label: 'Modo de Facturación', type: 'select', options: ['fiscal', 'interno'], hint: 'Fiscal = NCF/DGII | Interno = numeración propia sin reporte fiscal' },
   ncf_series_consumer: { label: 'Serie NCF - Consumidor Final', type: 'text', hint: 'Solo modo fiscal. Ej: B01', ncfTable: true },
   ncf_series_fiscal: { label: 'Serie NCF - Credito Fiscal', type: 'text', hint: 'Solo modo fiscal. Ej: B14', ncfTable: true },
   ncf_series_credit: { label: 'Serie NCF - Nota de Credito', type: 'text', hint: 'Solo modo fiscal. Ej: B04', ncfTable: true },
@@ -49,7 +49,7 @@ const fieldConfig = {
   terminal_sequence_start: { label: 'Secuencia Terminal - Inicio', type: 'number', hint: 'Numero inicial del rango de comprobantes del terminal', placeholder: '1' },
   terminal_sequence_end: { label: 'Secuencia Terminal - Final', type: 'number', hint: 'Numero final del rango de comprobantes del terminal', placeholder: '999999' },
   terminal_sequence_current: { label: 'Secuencia Terminal - Actual', type: 'number', hint: 'Proximo numero de comprobante a emitir (auto-incrementa)' },
-  refund_limit_operator: { label: 'Limite reembolso por operador (RD$)', type: 'number', hint: 'Maximo que un operador puede reembolsar sin aprobacion' },
+  refund_limit_operator: { label: 'Limite reembolso por operador (RD$)', type: 'number', hint: 'Maximo que un operador puede reembolsar sin aprobación' },
   refund_daily_multiplier: { label: 'Multiplicador diario de reembolso', type: 'number', hint: 'Tope diario = limite x multiplicador' },
   notification_email_1_enabled: { label: 'Email 1 - Activo', type: 'toggle', hint: 'Activar/desactivar envio al Email 1' },
   notification_email_1: { label: 'Email 1 (Principal)', type: 'email', placeholder: 'admin@empresa.com', hint: 'Email principal para alertas de caja, reembolsos y alertas criticas' },
@@ -192,7 +192,7 @@ function RFIDReadersSection() {
           </div>
           <div className="text-left">
             <h3 className="font-semibold text-gray-800">Lectores RFID / NFC</h3>
-            <p className="text-xs text-gray-400">Configuracion de lectores de tarjetas de proximidad ({readers.length} configurados)</p>
+            <p className="text-xs text-gray-400">Configuración de lectores de tarjetas de proximidad ({readers.length} configurados)</p>
           </div>
         </div>
         {expanded ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
@@ -507,7 +507,7 @@ function SystemUsersSection() {
                 <input placeholder="Email" type="email" value={newUser.email}
                   onChange={e => setNewUser(p => ({ ...p, email: e.target.value }))}
                   className="col-span-2 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
-                <input placeholder="Telefono" value={newUser.phone}
+                <input placeholder="Teléfono" value={newUser.phone}
                   onChange={e => setNewUser(p => ({ ...p, phone: e.target.value }))}
                   className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
                 <select value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value }))}
@@ -983,7 +983,7 @@ export default function ConfigPage() {
         <div className="flex items-center gap-3">
           <Settings className="text-indigo-600" size={28} />
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Configuracion</h2>
+            <h2 className="text-2xl font-bold text-gray-800">Configuración</h2>
             <p className="text-sm text-gray-500">Administra los parametros del sistema</p>
           </div>
         </div>
@@ -1272,8 +1272,8 @@ export default function ConfigPage() {
           <div className="border-t p-5 space-y-4">
             {/* Info box */}
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-              <p className="text-sm text-emerald-800 font-medium mb-1">Configuracion de Perimetrales</p>
-              <p className="text-xs text-emerald-600">Registra los escaner QR fijos y dispositivos de barrera para automatizar la entrada y salida de vehiculos. Los dispositivos se conectan por red local (IP) o USB. Cuando estan instalados, el sistema valida automaticamente el QR del ticket o suscripcion.</p>
+              <p className="text-sm text-emerald-800 font-medium mb-1">Configuración de Perimetrales</p>
+              <p className="text-xs text-emerald-600">Registra los escaner QR fijos y dispositivos de barrera para automatizar la entrada y salida de vehículos. Los dispositivos se conectan por red local (IP) o USB. Cuando estan instalados, el sistema valida automaticamente el QR del ticket o suscripción.</p>
             </div>
 
             {/* Registered scanners */}

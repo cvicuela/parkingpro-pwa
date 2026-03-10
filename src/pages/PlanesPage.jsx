@@ -126,7 +126,7 @@ function HourlyRatesEditor({ planId }) {
         <div className="grid grid-cols-[60px_1fr_1fr_40px] gap-2 px-3 py-2 text-xs font-semibold text-gray-500 uppercase border-b">
           <span>Hora</span>
           <span>Tarifa (RD$)</span>
-          <span>Descripcion</span>
+          <span>Descripción</span>
           <span></span>
         </div>
         {rates.map((rate, idx) => (
@@ -286,7 +286,7 @@ function PlanModal({ plan, onClose, onSave }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
               <textarea value={form.description || ''} onChange={set('description')} rows={2}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
             </div>

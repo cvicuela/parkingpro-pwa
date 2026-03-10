@@ -15,9 +15,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      toast.success('Sesion iniciada correctamente');
+      toast.success('Sesión iniciada correctamente');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error al iniciar sesion');
+      toast.error(err.response?.data?.error || 'Error al iniciar sesión');
     } finally {
       setLoading(false);
     }
@@ -31,12 +31,12 @@ export default function LoginPage() {
             <span className="text-white text-3xl font-bold">P</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-800">ParkingPro</h1>
-          <p className="text-gray-500 mt-1">Sistema de Gestion de Parqueos</p>
+          <p className="text-gray-500 mt-1">Sistema de Gestión de Parqueos</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Correo electronico</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
@@ -51,7 +51,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contrasena</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
@@ -77,7 +77,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
           >
-            {loading ? 'Iniciando sesion...' : 'Iniciar Sesion'}
+            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
         </form>
       </div>

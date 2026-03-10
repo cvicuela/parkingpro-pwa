@@ -109,7 +109,15 @@ export default function DashboardPage() {
         incidentsAPI.list({ status: 'open', limit: 1 }),
       ]);
 
-      if (dashRes.status === 'fulfilled') setDashboard(dashRes.value.data.data || dashRes.value.data);
+      if (dashRes.status === 'fulfilled') {
+        const d = dashRes.value.data.data || dashRes.value.data;
+        setDashboard({
+          revenue: d.revenue ?? d.total_revenue ?? 0,
+          active_customers: d.activeCustomers ?? d.active_customers ?? 0,
+          total_subscriptions: d.totalSubscriptions ?? d.total_subscriptions ?? 0,
+          overdue_count: d.overdueCount ?? d.overdue_count ?? 0,
+        });
+      }
       if (plansRes.status === 'fulfilled') setPlans(plansRes.value.data.data || plansRes.value.data || []);
       if (sessionsRes.status === 'fulfilled') setSessions(sessionsRes.value.data.data || sessionsRes.value.data || []);
       if (expRes.status === 'fulfilled') {
@@ -173,7 +181,7 @@ export default function DashboardPage() {
         />
         <StatCard
           icon={Car}
-          label="Vehiculos Activos"
+          label="Vehículos Activos"
           value={sessions.length}
           color="blue"
           subtext="Sesiones activas ahora"
@@ -223,7 +231,7 @@ export default function DashboardPage() {
 
       {/* Occupancy Section */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-700 mb-3">Ocupacion por Plan</h3>
+        <h3 className="text-lg font-semibold text-gray-700 mb-3">Ocupación por Plan</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {plans.map((plan) => (
             <OccupancyBar key={plan.id} plan={plan} />
@@ -250,7 +258,7 @@ export default function DashboardPage() {
                 <tr>
                   <th className="py-2 px-4">Placa</th>
                   <th className="py-2 px-4">Entrada</th>
-                  <th className="py-2 px-4">Duracion</th>
+                  <th className="py-2 px-4">Duración</th>
                   <th className="py-2 px-4">Estado</th>
                   <th className="py-2 px-4">Monto Actual</th>
                 </tr>

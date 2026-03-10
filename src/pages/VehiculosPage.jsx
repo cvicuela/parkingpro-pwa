@@ -21,10 +21,10 @@ function VehicleModal({ vehicle, onClose, onSave }) {
       const payload = { ...form, year: form.year ? parseInt(form.year) : undefined };
       if (vehicle?.id) {
         await vehiclesAPI.update(vehicle.id, payload);
-        toast.success('Vehiculo actualizado');
+        toast.success('Vehículo actualizado');
       } else {
         await vehiclesAPI.create(payload);
-        toast.success('Vehiculo registrado');
+        toast.success('Vehículo registrado');
       }
       onSave();
     } catch (err) {
@@ -40,7 +40,7 @@ function VehicleModal({ vehicle, onClose, onSave }) {
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-lg font-semibold">{vehicle ? 'Editar Vehiculo' : 'Nuevo Vehiculo'}</h3>
+          <h3 className="text-lg font-semibold">{vehicle ? 'Editar Vehículo' : 'Nuevo Vehículo'}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
@@ -73,7 +73,7 @@ function VehicleModal({ vehicle, onClose, onSave }) {
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ano</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Año</label>
               <input type="number" value={form.year || ''} onChange={set('year')} placeholder="2024"
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
             </div>
@@ -116,10 +116,10 @@ export default function VehiculosPage() {
   useEffect(() => { fetchVehicles(); }, [search]);
 
   const handleDelete = async (id) => {
-    if (!confirm('Eliminar este vehiculo?')) return;
+    if (!confirm('Eliminar este vehículo?')) return;
     try {
       await vehiclesAPI.delete(id);
-      toast.success('Vehiculo eliminado');
+      toast.success('Vehículo eliminado');
       fetchVehicles();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al eliminar');
@@ -129,10 +129,10 @@ export default function VehiculosPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h2 className="text-2xl font-bold text-gray-800">Vehiculos</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Vehículos</h2>
         <button onClick={() => { setEditing(null); setShowModal(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-          <Plus size={18} /> Nuevo Vehiculo
+          <Plus size={18} /> Nuevo Vehículo
         </button>
       </div>
 
@@ -147,16 +147,16 @@ export default function VehiculosPage() {
         {loading ? (
           <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
         ) : vehicles.length === 0 ? (
-          <p className="p-8 text-center text-gray-400">No se encontraron vehiculos</p>
+          <p className="p-8 text-center text-gray-400">No se encontraron vehículos</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-sm text-gray-500">
                 <tr>
                   <th className="py-3 px-4">Placa</th>
-                  <th className="py-3 px-4">Vehiculo</th>
+                  <th className="py-3 px-4">Vehículo</th>
                   <th className="py-3 px-4">Color</th>
-                  <th className="py-3 px-4">Ano</th>
+                  <th className="py-3 px-4">Año</th>
                   <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
