@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import {
   Wallet, Lock, Unlock, CheckCircle, AlertTriangle, Plus, Minus,
-  List, Eye, X, DollarSign, Clock, TrendingUp, TrendingDown, ArrowUpDown
+  List, Eye, X, DollarSign, Clock, TrendingUp, TrendingDown, ArrowUpDown,
+  CreditCard, Banknote, ArrowRightLeft
 } from 'lucide-react';
 import { cashAPI, operatorsAPI } from '../services/api';
 import { generateCashReportHTML } from '../services/printService';
@@ -80,10 +81,27 @@ export default function CajaPage() {
   const openingBal = register ? parseFloat(register.opening_balance || 0) : 0;
   const currentBalance = openingBal + totalIn - totalOut;
 
+  // Desglose por método de pago (del register si disponible, si no calcular de transacciones)
+  const totalCard = register ? parseFloat(register.total_card || 0) : transactions
+    .filter(t => t.direction === 'in' && t.payment_method === 'card')
+    .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  const totalTransfer = register ? parseFloat(register.total_transfer || 0) : transactions
+    .filter(t => t.direction === 'in' && t.payment_method === 'transfer')
+    .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  const cashIn = register ? parseFloat(register.cash_in || 0) : transactions
+    .filter(t => t.direction === 'in' && (!t.payment_method || t.payment_method === 'cash'))
+    .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  const cashOut = transactions
+    .filter(t => t.direction === 'out' && (!t.payment_method || t.payment_method === 'cash'))
+    .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  // Solo efectivo esperado en caja física
+  const expectedCash = cashIn - cashOut;
+
   const countedBalance = DENOMINATIONS.reduce((acc, d) =>
     acc + (d * (parseInt(denomCounts[d]) || 0)), 0);
+  // La diferencia se calcula contra el efectivo esperado, no el total general
   const expectedBalance = currentBalance;
-  const difference = countedBalance - expectedBalance;
+  const difference = countedBalance - expectedCash;
   const threshold = limits.differenceThreshold || 200;
 
   /* ─── OPEN ─── */
@@ -144,6 +162,9 @@ export default function CajaPage() {
       closed_at: new Date().toISOString(),
       counted_balance: countedBalance,
       expected_balance: expectedBalance,
+      expected_cash: expectedCash,
+      total_card: totalCard,
+      total_transfer: totalTransfer,
       difference
     },
     transactions,
@@ -249,6 +270,33 @@ export default function CajaPage() {
         <StatCard icon={Wallet} label="Balance Actual" value={fmtMoney(currentBalance)} color="indigo" />
       </div>
 
+      {/* Desglose por método de pago */}
+      {(totalCard > 0 || totalTransfer > 0) && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-white border border-green-200 rounded-xl p-3 flex items-center gap-3">
+            <Banknote size={18} className="text-green-600" />
+            <div>
+              <p className="text-xs text-gray-500 uppercase">Efectivo</p>
+              <p className="text-lg font-bold text-green-700">{fmtMoney(expectedCash)}</p>
+            </div>
+          </div>
+          <div className="bg-white border border-purple-200 rounded-xl p-3 flex items-center gap-3">
+            <CreditCard size={18} className="text-purple-600" />
+            <div>
+              <p className="text-xs text-gray-500 uppercase">Tarjeta</p>
+              <p className="text-lg font-bold text-purple-700">{fmtMoney(totalCard)}</p>
+            </div>
+          </div>
+          <div className="bg-white border border-cyan-200 rounded-xl p-3 flex items-center gap-3">
+            <ArrowRightLeft size={18} className="text-cyan-600" />
+            <div>
+              <p className="text-xs text-gray-500 uppercase">Transferencia</p>
+              <p className="text-lg font-bold text-cyan-700">{fmtMoney(totalTransfer)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quick info bar */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-6 text-sm">
@@ -297,8 +345,15 @@ export default function CajaPage() {
                         : <Minus size={16} className="text-red-600" />}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-800">
+                      <p className="text-sm font-medium text-gray-800 flex items-center gap-1.5">
                         {t.description || (t.type === 'payment' ? 'Cobro' : t.type === 'refund' ? 'Reembolso' : t.type)}
+                        {t.payment_method && t.payment_method !== 'cash' && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                            t.payment_method === 'card' ? 'bg-purple-100 text-purple-700' : 'bg-cyan-100 text-cyan-700'
+                          }`}>
+                            {t.payment_method === 'card' ? 'Tarjeta' : 'Transfer.'}
+                          </span>
+                        )}
                       </p>
                       <p className="text-xs text-gray-400">{fmtTime(t.created_at)}</p>
                     </div>
@@ -363,11 +418,11 @@ export default function CajaPage() {
                   <span className="font-medium">{fmtMoney(openingBal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Saldo esperado:</span>
-                  <span className="font-semibold">{fmtMoney(expectedBalance)}</span>
+                  <span className="text-gray-500">Efectivo esperado en caja:</span>
+                  <span className="font-semibold">{fmtMoney(expectedCash)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Saldo contado:</span>
+                  <span className="text-gray-500">Efectivo contado:</span>
                   <span className="font-semibold text-indigo-600">{fmtMoney(countedBalance)}</span>
                 </div>
                 <hr className="border-gray-200" />
@@ -381,6 +436,28 @@ export default function CajaPage() {
                   <div className="flex items-center gap-2 text-orange-700 bg-orange-50 rounded-lg p-3 mt-2">
                     <AlertTriangle size={16} />
                     <span className="text-xs">Diferencia supera {fmtMoney(threshold)} — requiere aprobacion</span>
+                  </div>
+                )}
+                {/* Otros ingresos (no se cuentan en denominaciones) */}
+                {(totalCard > 0 || totalTransfer > 0) && (
+                  <div className="bg-blue-50 rounded-lg p-3 mt-2 space-y-1">
+                    <p className="text-xs font-medium text-blue-700">Otros ingresos (no se cuentan en efectivo):</p>
+                    {totalCard > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-blue-600">Tarjeta:</span>
+                        <span className="font-semibold text-blue-700">{fmtMoney(totalCard)}</span>
+                      </div>
+                    )}
+                    {totalTransfer > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-blue-600">Transferencia:</span>
+                        <span className="font-semibold text-blue-700">{fmtMoney(totalTransfer)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs pt-1 border-t border-blue-200">
+                      <span className="text-blue-600 font-medium">Total general del turno:</span>
+                      <span className="font-bold text-blue-700">{fmtMoney(expectedBalance)}</span>
+                    </div>
                   </div>
                 )}
               </div>
