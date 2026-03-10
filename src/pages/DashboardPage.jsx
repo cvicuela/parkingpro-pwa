@@ -179,7 +179,7 @@ export default function DashboardPage() {
           label="Gastos del Mes"
           value={fmtRD(parseFloat(expenseStats?.total_amount))}
           color="amber"
-          subtext={{`ITBIS: ${fmtRD(parseFloat(expenseStats?.total_itbis))}`}}
+          subtext={`ITBIS: ${fmtRD(parseFloat(expenseStats?.total_itbis))}`}
         />
         <StatCard
           icon={Car}
