@@ -139,7 +139,7 @@ export default function CajaPage() {
       });
       const data = res.data.data;
       if (data?.requires_approval) {
-        toast.warn('Cierre requiere aprobacion del supervisor (diferencia alta)', { autoClose: 8000 });
+        toast.warn('Cierre requiere aprobación del supervisor (diferencia alta)', { autoClose: 8000 });
       } else {
         toast.success('Caja cerrada correctamente');
       }
@@ -210,7 +210,7 @@ export default function CajaPage() {
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Caja cerrada</h2>
           <p className="text-gray-500 mb-8 max-w-md mx-auto">
-            Debes abrir una sesion de caja antes de registrar cobros o reembolsos.
+            Debes abrir una sesión de caja antes de registrar cobros o reembolsos.
             Todos los pagos se asocian a la caja activa.
           </p>
           <button
@@ -435,7 +435,7 @@ export default function CajaPage() {
                 {Math.abs(difference) > threshold && (
                   <div className="flex items-center gap-2 text-orange-700 bg-orange-50 rounded-lg p-3 mt-2">
                     <AlertTriangle size={16} />
-                    <span className="text-xs">Diferencia supera {fmtMoney(threshold)} — requiere aprobacion</span>
+                    <span className="text-xs">Diferencia supera {fmtMoney(threshold)} — requiere aprobación</span>
                   </div>
                 )}
                 {/* Otros ingresos (no se cuentan en denominaciones) */}
@@ -567,7 +567,7 @@ function OpenCajaModal({ form, setForm, onSubmit, onClose, saving }) {
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-800">Abrir Caja</h2>
-              <p className="text-sm text-gray-500">Inicia una sesion de caja</p>
+              <p className="text-sm text-gray-500">Inicia una sesión de caja</p>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -623,7 +623,7 @@ function OpenCajaModal({ form, setForm, onSubmit, onClose, saving }) {
                 onChange={e => setNewOp(p => ({ ...p, email: e.target.value }))}
                 className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
               <div className="grid grid-cols-2 gap-2">
-                <input placeholder="Telefono" value={newOp.phone}
+                <input placeholder="Teléfono" value={newOp.phone}
                   onChange={e => setNewOp(p => ({ ...p, phone: e.target.value }))}
                   className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
                 <input placeholder="Contrasena" value={newOp.password}

@@ -31,7 +31,7 @@ const DENOMINATIONS = [
 function OccupancyPanel({ plans }) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">
-      <h3 className="font-semibold text-gray-700 mb-3">Ocupacion en Tiempo Real</h3>
+      <h3 className="font-semibold text-gray-700 mb-3">Ocupación en Tiempo Real</h3>
       <div className="space-y-3">
         {plans.map((p) => {
           const occ = p.current_occupancy || 0;
@@ -327,7 +327,7 @@ export default function ControlAccesoPage() {
           step: 'no_session_alert',
           feeData: fee,
         } : null);
-        toast.warning(fee.message || 'Vehiculo sin sesion activa');
+        toast.warning(fee.message || 'Vehículo sin sesión activa');
         return;
       }
 
@@ -366,7 +366,7 @@ export default function ControlAccesoPage() {
 
     // Check active register for cash payments
     if (!activeRegister) {
-      toast.error('Debe abrir una sesion de caja antes de cobrar');
+      toast.error('Debe abrir una sesión de caja antes de cobrar');
       setShowOpenRegister(true);
       return;
     }
@@ -486,9 +486,9 @@ export default function ControlAccesoPage() {
             const { data } = await accessAPI.sessionByPlate(p);
             const sess = data.data;
             if (sess) openExitPopup(sess);
-            else toast.warning('No hay sesion activa para esta placa');
+            else toast.warning('No hay sesión activa para esta placa');
           } catch {
-            toast.warning('No se encontro sesion activa');
+            toast.warning('No se encontró sesión activa');
           }
         }
       }
@@ -574,7 +574,7 @@ export default function ControlAccesoPage() {
                     <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())}
                       onKeyDown={(e) => e.key === 'Enter' && (accessType === 'entry' ? handleEntry() : handleExitSearch())}
-                      placeholder={accessType === 'entry' ? 'Placa del vehiculo (opcional)...' : 'Placa, ID de sesion o escanear QR...'}
+                      placeholder={accessType === 'entry' ? 'Placa del vehículo (opcional)...' : 'Placa, ID de sesión o escanear QR...'}
                       autoFocus
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-lg font-mono uppercase" />
                   </>
@@ -594,7 +594,7 @@ export default function ControlAccesoPage() {
             </div>
             {accessType === 'exit' && (
               <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                <QrCode size={12} /> Tambien puedes hacer click en un vehiculo de la tabla para abrir el cobro
+                <QrCode size={12} /> También puedes hacer click en un vehículo de la tabla para abrir el cobro
               </p>
             )}
           </div>
@@ -602,11 +602,11 @@ export default function ControlAccesoPage() {
           {/* ── Sessions table ── */}
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <div className="p-4 border-b flex justify-between items-center">
-              <h3 className="font-semibold text-gray-700">Vehiculos en Parqueo ({sessions.length})</h3>
+              <h3 className="font-semibold text-gray-700">Vehículos en Parqueo ({sessions.length})</h3>
               <button onClick={fetchOccupancy} className="text-gray-400 hover:text-gray-600"><RefreshCw size={16} /></button>
             </div>
             {sessions.length === 0 ? (
-              <p className="p-6 text-center text-gray-400">No hay vehiculos en el parqueo</p>
+              <p className="p-6 text-center text-gray-400">No hay vehículos en el parqueo</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
@@ -689,7 +689,7 @@ export default function ControlAccesoPage() {
               <div className="flex items-center gap-3 text-white">
                 <LogOut size={24} />
                 <div>
-                  <h3 className="font-bold text-lg">Salida de Vehiculo</h3>
+                  <h3 className="font-bold text-lg">Salida de Vehículo</h3>
                   <p className="text-amber-100 text-sm font-mono">{exitPopup.session.vehicle_plate}</p>
                 </div>
               </div>
@@ -744,12 +744,12 @@ export default function ControlAccesoPage() {
                   <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto">
                     <AlertTriangle className="text-amber-600" size={40} />
                   </div>
-                  <p className="text-xl font-bold text-amber-700">Sin Sesion Activa</p>
-                  <p className="text-gray-500">{exitPopup.feeData?.message || 'Este vehiculo no tiene una sesion de estacionamiento activa. No se puede abrir la barrera.'}</p>
+                  <p className="text-xl font-bold text-amber-700">Sin Sesión Activa</p>
+                  <p className="text-gray-500">{exitPopup.feeData?.message || 'Este vehículo no tiene una sesión de estacionamiento activa. No se puede abrir la barrera.'}</p>
                   <p className="text-3xl font-mono font-bold text-indigo-700">{exitPopup.session.vehicle_plate}</p>
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
                     <p className="font-medium">Accion requerida:</p>
-                    <p>Verifique el vehiculo y registre una entrada antes de permitir la salida, o contacte al administrador.</p>
+                    <p>Verifique el vehículo y registre una entrada antes de permitir la salida, o contacte al administrador.</p>
                   </div>
                   <button onClick={closeExitPopup}
                     className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2.5 text-gray-700 hover:bg-gray-50 font-medium">
@@ -778,7 +778,7 @@ export default function ControlAccesoPage() {
                     <LogOut className="text-blue-600" size={40} />
                   </div>
                   <p className="text-xl font-bold text-blue-700">Salida Manual</p>
-                  <p className="text-gray-500">Sesion cerrada sin cobro</p>
+                  <p className="text-gray-500">Sesión cerrada sin cobro</p>
                   <p className="text-3xl font-mono font-bold text-indigo-700">{exitPopup.session.vehicle_plate}</p>
                 </div>
               )}
@@ -796,7 +796,7 @@ export default function ControlAccesoPage() {
                       </div>
                       {fee.brand && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-500">Vehiculo</span>
+                          <span className="text-gray-500">Vehículo</span>
                           <span>{fee.brand} {fee.model} {fee.color}</span>
                         </div>
                       )}
@@ -836,7 +836,7 @@ export default function ControlAccesoPage() {
                         <AlertTriangle size={16} className="text-red-500 shrink-0" />
                         <div className="flex-1">
                           <p className="text-sm font-medium text-red-700">Caja no abierta</p>
-                          <p className="text-xs text-red-500">Debe abrir una sesion de caja para procesar pagos</p>
+                          <p className="text-xs text-red-500">Debe abrir una sesión de caja para procesar pagos</p>
                         </div>
                         <button onClick={() => setShowOpenRegister(true)}
                           className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 font-medium whitespace-nowrap">
@@ -854,7 +854,7 @@ export default function ControlAccesoPage() {
 
                     {/* Payment method */}
                     <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">Metodo de Pago</p>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Método de Pago</p>
                       <div className="grid grid-cols-3 gap-2">
                         {[
                           { id: 'cash', label: 'Efectivo', icon: Banknote },
@@ -923,14 +923,14 @@ export default function ControlAccesoPage() {
                         <CheckCircle className="text-green-600" size={32} />
                       </div>
                       <h3 className="text-xl font-bold text-green-700">Pago Completado</h3>
-                      <p className="text-gray-500 text-sm">El vehiculo puede salir</p>
+                      <p className="text-gray-500 text-sm">El vehículo puede salir</p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
                       <div className="flex justify-between"><span className="text-gray-500">Placa</span><span className="font-bold text-lg text-indigo-700">{r.plateNumber}</span></div>
                       {r.invoiceNumber && <div className="flex justify-between"><span className="text-gray-500">Factura</span><span>{r.invoiceNumber}</span></div>}
                       {r.ncf && <div className="flex justify-between"><span className="text-gray-500">NCF</span><span>{r.ncf}</span></div>}
                       <div className="flex justify-between"><span className="text-gray-500">Total</span><span className="font-bold text-green-700 text-lg">{fmtMoney(r.total)}</span></div>
-                      <div className="flex justify-between"><span className="text-gray-500">Metodo</span><span>{{ cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' }[r.paymentMethod]}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">Método</span><span>{{ cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' }[r.paymentMethod]}</span></div>
                       {r.cardType && <div className="flex justify-between"><span className="text-gray-500">Tarjeta</span><span className="capitalize">{r.cardType}</span></div>}
                       {r.transferReference && <div className="flex justify-between"><span className="text-gray-500">Referencia</span><span className="text-xs">{r.transferReference}</span></div>}
                       {r.cashReceived > 0 && (
@@ -1152,7 +1152,7 @@ export default function ControlAccesoPage() {
               <div className="flex items-center gap-2 text-white">
                 <Wallet size={22} />
                 <div>
-                  <h3 className="font-bold">Abrir Sesion de Caja</h3>
+                  <h3 className="font-bold">Abrir Sesión de Caja</h3>
                   <p className="text-blue-100 text-sm">Registre el efectivo inicial</p>
                 </div>
               </div>

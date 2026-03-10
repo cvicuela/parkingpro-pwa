@@ -51,7 +51,7 @@ function PeriodSelector({ period, setPeriod, customFrom, setCustomFrom, customTo
     { value: 'week', label: 'Semana' },
     { value: 'month', label: 'Mes' },
     { value: 'quarter', label: 'Trimestre' },
-    { value: 'year', label: 'Ano' },
+    { value: 'year', label: 'Año' },
     { value: 'custom', label: 'Personalizado' },
   ];
 
@@ -154,10 +154,10 @@ function TabResumen({ period, customFrom, customTo }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard icon={Car} label="Sesiones por Hora" value={sess.totalThisMonth} color="cyan"
-          subValue={`Duracion prom: ${sess.avgDurationMinutes} min`} trend="neutral" />
+          subValue={`Duración prom: ${sess.avgDurationMinutes} min`} trend="neutral" />
         <KPICard icon={DollarSign} label="Ingresos Parqueo/Hora" value={fmtMoney(sess.hourlyRevenue)} color="emerald" />
         <KPICard icon={Wallet} label="Cuadres de Caja" value={cash.totalClosures} color="purple"
-          subValue={cash.requiringApproval > 0 ? `${cash.requiringApproval} requieren aprobacion` : 'Todo al dia'}
+          subValue={cash.requiringApproval > 0 ? `${cash.requiringApproval} requieren aprobación` : 'Todo al dia'}
           trend={cash.requiringApproval > 0 ? 'down' : 'up'} />
         <KPICard icon={TrendingDown} label="Reembolsos" value={fmtMoney(ref.total)} color="amber"
           subValue={`${ref.count} reembolsos`} trend={ref.count > 0 ? 'down' : 'up'} />
@@ -235,7 +235,7 @@ function TabIngresos({ period, customFrom, customTo }) {
         {['day', 'week', 'month', 'year'].map(g => (
           <button key={g} onClick={() => setGroupBy(g)}
             className={`px-2.5 py-1 text-xs rounded-lg ${groupBy === g ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-            {g === 'day' ? 'Dia' : g === 'week' ? 'Semana' : g === 'month' ? 'Mes' : 'Ano'}
+            {g === 'day' ? 'Dia' : g === 'week' ? 'Semana' : g === 'month' ? 'Mes' : 'Año'}
           </button>
         ))}
       </div>
@@ -269,8 +269,8 @@ function TabIngresos({ period, customFrom, customTo }) {
       {/* By Method & By Plan */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Por Metodo de Pago</h3>
-          <MiniTable headers={['Metodo', 'Transacciones', 'Total']}
+          <h3 className="text-lg font-semibold text-gray-700 mb-4">Por Método de Pago</h3>
+          <MiniTable headers={['Método', 'Transacciones', 'Total']}
             rows={byMethod.map(m => [
               <span className="capitalize font-medium">{m.method === 'cash' ? 'Efectivo' : m.method === 'cardnet' ? 'CardNet' : m.method === 'stripe' ? 'Tarjeta' : m.method}</span>,
               m.count,
@@ -344,7 +344,7 @@ function TabCuadreCaja({ period, customFrom, customTo }) {
           subValue={s.totalClosures > 0 ? fmtPct(s.exactCount / s.totalClosures * 100) : '0%'} />
         <KPICard icon={ArrowUpRight} label="Sobrantes" value={s.surplusCount} color="amber" />
         <KPICard icon={ArrowDownRight} label="Faltantes" value={s.shortageCount} color="red" />
-        <KPICard icon={ShieldAlert} label="Requirieron Aprobacion" value={s.flaggedCount} color="purple"
+        <KPICard icon={ShieldAlert} label="Requirieron Aprobación" value={s.flaggedCount} color="purple"
           subValue={`${s.approvedCount} aprobados`} />
       </div>
 
@@ -429,7 +429,7 @@ function TabClientes({ period, customFrom, customTo }) {
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard icon={Users} label="Tasa de Retencion" value={fmtPct(data.retentionRate)} color="green"
+        <KPICard icon={Users} label="Tasa de Retención" value={fmtPct(data.retentionRate)} color="green"
           subValue="Suscripciones activas/total" />
         <KPICard icon={TrendingUp} label="Nuevos (periodo)" value={newTrend.reduce((s, t) => s + t.count, 0)} color="blue" />
         <KPICard icon={TrendingDown} label="Cancelados (periodo)" value={churnTrend.reduce((s, t) => s + t.count, 0)} color="red" />
@@ -438,7 +438,7 @@ function TabClientes({ period, customFrom, customTo }) {
 
       {/* Subscription status distribution */}
       <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">Distribucion de Suscripciones</h3>
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">Distribución de Suscripciones</h3>
         <div className="flex flex-wrap gap-4">
           {statusDist.map((s, i) => (
             <div key={i} className={`px-4 py-3 rounded-xl ${statusColors[s.status] || 'bg-gray-100 text-gray-700'}`}>
@@ -488,7 +488,7 @@ function TabClientes({ period, customFrom, customTo }) {
             <AlertTriangle size={20} className="text-red-500" /> Cuentas Morosas / Suspendidas
           </h3>
           <MiniTable
-            headers={['Cliente', 'Plan', 'Estado', 'Monto', 'Proxima Factura', 'Dias Vencidos']}
+            headers={['Cliente', 'Plan', 'Estado', 'Monto', 'Próxima Factura', 'Dias Vencidos']}
             rows={delinquent.map(d => [
               <span className="font-medium">{d.customerName}</span>,
               d.planName,
@@ -538,7 +538,7 @@ function TabOcupacion({ period, customFrom, customTo }) {
     <div className="space-y-6">
       {/* Current occupancy */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard icon={Car} label="Ocupacion Actual" value={`${totalOccupancy}/${totalCapacity}`} color="blue"
+        <KPICard icon={Car} label="Ocupación Actual" value={`${totalOccupancy}/${totalCapacity}`} color="blue"
           subValue={fmtPct(totalCapacity > 0 ? totalOccupancy / totalCapacity * 100 : 0)} />
         <KPICard icon={Activity} label="Espacios Disponibles" value={totalCapacity - totalOccupancy} color="green" />
         <KPICard icon={Clock} label="Entradas (periodo)" value={dailyTrend.reduce((s, d) => s + d.entries, 0)} color="indigo" />
@@ -547,7 +547,7 @@ function TabOcupacion({ period, customFrom, customTo }) {
 
       {/* Occupancy by plan */}
       <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">Ocupacion por Plan (Actual)</h3>
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">Ocupación por Plan (Actual)</h3>
         <div className="space-y-4">
           {plans.map(plan => {
             const pct = plan.max_capacity > 0 ? Math.round((plan.current_occupancy / plan.max_capacity) * 100) : 0;
@@ -602,8 +602,8 @@ function TabOcupacion({ period, customFrom, customTo }) {
       {/* Access methods */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Metodo de Acceso</h3>
-          <MiniTable headers={['Metodo', 'Total', 'Entradas', 'Salidas']}
+          <h3 className="text-lg font-semibold text-gray-700 mb-4">Método de Acceso</h3>
+          <MiniTable headers={['Método', 'Total', 'Entradas', 'Salidas']}
             rows={accessMethods.map(m => [
               <span className="capitalize font-medium">{m.method === 'rfid' ? 'RFID' : m.method === 'qr' ? 'QR' : m.method === 'manual' ? 'Manual' : m.method}</span>,
               <span className="font-bold">{m.count}</span>,
@@ -613,7 +613,7 @@ function TabOcupacion({ period, customFrom, customTo }) {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Duracion Promedio por Plan</h3>
+          <h3 className="text-lg font-semibold text-gray-700 mb-4">Duración Promedio por Plan</h3>
           <MiniTable headers={['Plan', 'Sesiones', 'Prom.', 'Min', 'Max']}
             rows={avgDuration.map(d => [
               <span className="font-medium">{d.planName}</span>,
@@ -673,7 +673,7 @@ function TabSesiones({ period, customFrom, customTo }) {
         <KPICard icon={Car} label="Total Sesiones" value={s.total} color="indigo" />
         <KPICard icon={Activity} label="Activas" value={s.active} color="green" />
         <KPICard icon={DollarSign} label="Ingresos Sesiones" value={fmtMoney(s.totalRevenue)} color="emerald" />
-        <KPICard icon={Clock} label="Duracion Promedio" value={`${s.avgDuration} min`} color="blue" />
+        <KPICard icon={Clock} label="Duración Promedio" value={`${s.avgDuration} min`} color="blue" />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -685,7 +685,7 @@ function TabSesiones({ period, customFrom, customTo }) {
 
       {/* Duration distribution */}
       <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">Distribucion por Duracion</h3>
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">Distribución por Duración</h3>
         <div className="space-y-3">
           {durDist.map((d, i) => (
             <div key={i} className="flex items-center gap-3">
@@ -700,8 +700,8 @@ function TabSesiones({ period, customFrom, customTo }) {
 
       {/* By access method */}
       <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">Por Metodo de Acceso</h3>
-        <MiniTable headers={['Metodo', 'Sesiones', 'Ingresos']}
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">Por Método de Acceso</h3>
+        <MiniTable headers={['Método', 'Sesiones', 'Ingresos']}
           rows={byAccess.map(a => [
             <span className="capitalize font-medium">{a.method === 'rfid' ? 'RFID' : a.method === 'qr' ? 'QR' : a.method === 'manual' ? 'Manual' : a.method}</span>,
             <span className="font-bold">{a.count}</span>,
@@ -772,7 +772,7 @@ function TabFacturacion({ period, customFrom, customTo }) {
       {/* Timeline */}
       {timeline.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">Facturacion por Dia</h3>
+          <h3 className="text-lg font-semibold text-gray-700 mb-4">Facturación por Dia</h3>
           <MiniTable headers={['Fecha', 'Facturas', 'Total']}
             rows={timeline.map(t => [
               fmtDate(t.date),
@@ -802,9 +802,9 @@ const TABS = [
   { id: 'ingresos', label: 'Ingresos / Ventas', icon: DollarSign },
   { id: 'caja', label: 'Cuadre de Caja', icon: Wallet },
   { id: 'clientes', label: 'Clientes', icon: Users },
-  { id: 'ocupacion', label: 'Ocupacion', icon: Car },
+  { id: 'ocupacion', label: 'Ocupación', icon: Car },
   { id: 'sesiones', label: 'Sesiones Parqueo', icon: Clock },
-  { id: 'facturacion', label: 'Facturacion', icon: FileText },
+  { id: 'facturacion', label: 'Facturación', icon: FileText },
 ];
 
 export default function ReportesPage() {
