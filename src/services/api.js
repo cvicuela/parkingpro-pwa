@@ -434,22 +434,19 @@ export const reportsAPI = {
     URL.revokeObjectURL(link.href);
   },
   exportXls: async (type, params = {}) => {
+    const XLSX = await import('xlsx');
     const data = await reportsAPI.exportData(type, params);
     const headers = data.headers;
     const rows = data.rows || [];
-    // Generate HTML table for XLS compatibility
-    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Reporte</x:Name></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table border="1">';
-    html += '<tr>' + headers.map(h => `<th style="background:#4472C4;color:white;font-weight:bold;padding:8px">${h}</th>`).join('') + '</tr>';
-    rows.forEach(row => {
-      html += '<tr>' + headers.map(h => `<td style="padding:6px">${row[h] ?? ''}</td>`).join('') + '</tr>';
+    const aoa = [headers, ...rows.map(row => headers.map(h => row[h] ?? ''))];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = headers.map((h, i) => {
+      const maxLen = Math.max(h.length, ...rows.map(r => String(r[headers[i]] ?? '').length));
+      return { wch: Math.min(maxLen + 2, 40) };
     });
-    html += '</table></body></html>';
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${data.filename}_${new Date().toISOString().split('T')[0]}.xls`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
+    XLSX.writeFile(wb, `${data.filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
   },
   exportPdf: async (type, params = {}, title = 'Reporte') => {
     const data = await reportsAPI.exportData(type, params);

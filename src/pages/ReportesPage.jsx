@@ -910,7 +910,7 @@ export default function ReportesPage() {
               className="text-sm border rounded-lg px-2 py-2 bg-white text-gray-700">
               <option value="pdf">PDF</option>
               <option value="csv">CSV</option>
-              <option value="xls">Excel (XLS)</option>
+              <option value="xls">Excel (.xlsx)</option>
             </select>
             <button onClick={() => handleExport(exportOptions[activeTab])} disabled={exporting}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm">
