@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { toast } from 'react-toastify';
 import { reportsAPI, plansAPI } from '../services/api';
 import {
   BarChart3, DollarSign, Users, Car, TrendingUp, TrendingDown, AlertTriangle,
@@ -829,7 +830,7 @@ function ReportPreviewModal({ open, onClose, html, title, rowCount, generatedAt 
             ref={iframeRef}
             title="report-preview"
             className="w-full h-full bg-white border-0"
-            sandbox="allow-same-origin allow-modals"
+            sandbox="allow-same-origin allow-modals allow-scripts"
           />
         </div>
       </div>
@@ -882,8 +883,8 @@ export default function ReportesPage() {
         setPdfPreview(result);
       }
       else await reportsAPI.exportCsv(type, params);
-    } catch {
-      // error
+    } catch (err) {
+      toast.error('Error al exportar: ' + (err.message || 'Intente de nuevo'));
     }
     setExporting(false);
   };
