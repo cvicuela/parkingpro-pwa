@@ -492,6 +492,20 @@ export const settingsAPI = {
   },
 };
 
+// System Reset
+export const systemAPI = {
+  resetPreview: async () => {
+    const result = await rpc('reset_data_preview', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return result.data;
+  },
+  resetData: async (confirmationCode) => {
+    const result = await rpc('reset_operational_data', { p_token: getToken(), p_confirmation_code: confirmationCode });
+    if (!result.success) throw new Error(result.error);
+    return result;
+  },
+};
+
 // Cash Registers
 export const cashAPI = {
   open: async (data) => {
