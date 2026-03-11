@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { settingsAPI, usersAPI } from '../services/api';
+import { settingsAPI, usersAPI, systemAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import timeService from '../services/timeService';
 import {
   Settings, Save, RotateCw, Building2, Receipt, Shield,
   Bell, Wallet, Globe, ChevronDown, ChevronRight, Plus, Trash2,
   Printer, Star, Eye, QrCode, Wifi, Radio, MapPin, Edit2, Clock, RefreshCw,
-  Users, Lock, Unlock, Key, AlertTriangle, CreditCard, X, Check, Calendar
+  Users, Lock, Unlock, Key, AlertTriangle, CreditCard, X, Check, Calendar,
+  Database, ShieldAlert, Loader2
 } from 'lucide-react';
 import { getPrinters, addPrinter, removePrinter, setDefaultPrinter, getDefaultPrinter, generateEntryTicketHTML, generatePaymentReceiptHTML, generateCashReportHTML, generateDailySummaryHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
@@ -772,6 +773,12 @@ export default function ConfigPage() {
   const [previewTitle, setPreviewTitle] = useState('');
   // Double verification state
   const [confirmModal, setConfirmModal] = useState({ open: false, key: null, label: '', value: '' });
+  // Reset data state
+  const [resetStep, setResetStep] = useState(0); // 0=closed, 1=preview, 2=type code, 3=final confirm
+  const [resetPreview, setResetPreview] = useState(null);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetCode, setResetCode] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
 
   const loadPrinters = () => {
     setPrinters(getPrinters());
@@ -1549,6 +1556,261 @@ export default function ConfigPage() {
             )}
           </div>
         )
+      )}
+
+      {/* ═══════════ ZONA DE PELIGRO: RESET DE DATOS ═══════════ */}
+      <div className="bg-white rounded-xl shadow-sm border-2 border-red-200 overflow-hidden mt-8">
+        <div className="bg-red-50 p-5 border-b border-red-200">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+              <Database size={20} className="text-red-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-red-800 text-lg">Zona de Peligro</h3>
+              <p className="text-xs text-red-500">Operaciones destructivas e irreversibles</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+            <ShieldAlert size={24} className="text-red-500 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <h4 className="font-semibold text-gray-800">Resetear Datos Operacionales</h4>
+              <p className="text-sm text-gray-500 mt-1">
+                Elimina todas las sesiones de parqueo, pagos, facturas, cuadres de caja, incidentes,
+                notificaciones y registros de auditoria. <strong>Se preservan:</strong> usuarios, clientes,
+                vehiculos, planes, suscripciones, configuracion general, NCF (rangos), RNC, nombre de empresa y gastos.
+              </p>
+              <button
+                onClick={async () => {
+                  setResetStep(1);
+                  setResetLoading(true);
+                  setResetCode('');
+                  setResetPassword('');
+                  try {
+                    const preview = await systemAPI.resetPreview();
+                    setResetPreview(preview);
+                  } catch (err) {
+                    toast.error(err.message || 'Error obteniendo preview');
+                    setResetStep(0);
+                  } finally {
+                    setResetLoading(false);
+                  }
+                }}
+                className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+              >
+                Iniciar Reset de Datos
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════ MODAL: TRIPLE VERIFICACION RESET ═══════════ */}
+      {resetStep > 0 && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => { setResetStep(0); setResetCode(''); setResetPassword(''); }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="bg-red-600 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ShieldAlert size={24} className="text-white" />
+                <div>
+                  <h3 className="font-bold text-white text-lg">Reset de Datos</h3>
+                  <p className="text-red-200 text-xs">Verificacion {resetStep} de 3</p>
+                </div>
+              </div>
+              <button onClick={() => { setResetStep(0); setResetCode(''); setResetPassword(''); }} className="text-red-200 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Progress bar */}
+            <div className="flex gap-1 px-6 pt-4">
+              {[1, 2, 3].map(s => (
+                <div key={s} className={`h-1.5 flex-1 rounded-full transition-colors ${s <= resetStep ? 'bg-red-500' : 'bg-gray-200'}`} />
+              ))}
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* STEP 1: Preview */}
+              {resetStep === 1 && (
+                <>
+                  <div className="text-center">
+                    <AlertTriangle size={48} className="text-amber-500 mx-auto mb-3" />
+                    <h4 className="font-bold text-gray-800 text-lg">Datos que se eliminaran</h4>
+                    <p className="text-sm text-gray-500 mt-1">Revisa cuidadosamente antes de continuar</p>
+                  </div>
+
+                  {resetLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 size={32} className="animate-spin text-red-500" />
+                    </div>
+                  ) : resetPreview && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-2">
+                      {[
+                        { key: 'parking_sessions', label: 'Sesiones de Parqueo', icon: '🅿️' },
+                        { key: 'payments', label: 'Pagos', icon: '💳' },
+                        { key: 'invoices', label: 'Facturas', icon: '🧾' },
+                        { key: 'cash_registers', label: 'Cuadres de Caja', icon: '💰' },
+                        { key: 'cash_register_transactions', label: 'Transacciones de Caja', icon: '📊' },
+                        { key: 'access_events', label: 'Eventos de Acceso', icon: '🚧' },
+                        { key: 'incidents', label: 'Incidentes', icon: '⚠️' },
+                        { key: 'notifications', label: 'Notificaciones', icon: '🔔' },
+                        { key: 'audit_logs', label: 'Registros de Auditoria', icon: '📋' },
+                      ].map(({ key, label, icon }) => (
+                        <div key={key} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-700">{icon} {label}</span>
+                          <span className="font-bold text-red-700">{(resetPreview[key] || 0).toLocaleString()} registros</span>
+                        </div>
+                      ))}
+                      <div className="border-t border-red-300 pt-2 mt-2 flex items-center justify-between font-bold text-red-800">
+                        <span>Total a eliminar</span>
+                        <span>{Object.values(resetPreview).reduce((a, b) => a + (Number(b) || 0), 0).toLocaleString()} registros</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-green-800 mb-1">Se preservaran:</p>
+                    <p className="text-xs text-green-700">Usuarios, Clientes, Vehiculos, Planes, Suscripciones, Configuracion General, NCF (rangos), RNC, Nombre Empresa, Gastos/Suplidores</p>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button onClick={() => { setResetStep(0); setResetCode(''); }} className="flex-1 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                      Cancelar
+                    </button>
+                    <button onClick={() => setResetStep(2)} disabled={resetLoading} className="flex-1 bg-red-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-red-700 disabled:opacity-50">
+                      Continuar
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* STEP 2: Type confirmation code */}
+              {resetStep === 2 && (
+                <>
+                  <div className="text-center">
+                    <Lock size={48} className="text-red-500 mx-auto mb-3" />
+                    <h4 className="font-bold text-gray-800 text-lg">Codigo de Confirmacion</h4>
+                    <p className="text-sm text-gray-500 mt-1">Escribe el codigo exacto para continuar</p>
+                  </div>
+
+                  <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                    <p className="text-xs text-gray-500 mb-1">Escribe este codigo exactamente:</p>
+                    <p className="font-mono font-bold text-lg text-red-700 tracking-wider select-all">RESETEAR-DATOS-OPERACIONALES</p>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={resetCode}
+                    onChange={e => setResetCode(e.target.value.toUpperCase())}
+                    placeholder="Escribe el codigo aqui..."
+                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-center font-mono text-sm focus:border-red-500 focus:ring-red-500 focus:outline-none"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+
+                  {resetCode && resetCode !== 'RESETEAR-DATOS-OPERACIONALES' && (
+                    <p className="text-xs text-red-500 text-center">El codigo no coincide</p>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <button onClick={() => { setResetStep(1); setResetCode(''); }} className="flex-1 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                      Atras
+                    </button>
+                    <button
+                      onClick={() => setResetStep(3)}
+                      disabled={resetCode !== 'RESETEAR-DATOS-OPERACIONALES'}
+                      className="flex-1 bg-red-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Continuar
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* STEP 3: Final password confirmation & execute */}
+              {resetStep === 3 && (
+                <>
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3 animate-pulse">
+                      <AlertTriangle size={32} className="text-red-600" />
+                    </div>
+                    <h4 className="font-bold text-red-800 text-xl">ULTIMA ADVERTENCIA</h4>
+                    <p className="text-sm text-gray-500 mt-1">Esta accion es <strong>IRREVERSIBLE</strong></p>
+                  </div>
+
+                  <div className="bg-red-100 border border-red-300 rounded-lg p-4 space-y-2">
+                    <p className="text-sm font-bold text-red-800">Al confirmar se eliminaran permanentemente:</p>
+                    <ul className="text-xs text-red-700 space-y-1 ml-4 list-disc">
+                      <li>Todas las sesiones de parqueo y eventos de acceso</li>
+                      <li>Todos los pagos y facturas generadas</li>
+                      <li>Todos los cuadres de caja y transacciones</li>
+                      <li>Todos los incidentes y notificaciones</li>
+                      <li>Todos los registros de auditoria</li>
+                    </ul>
+                    <p className="text-xs text-red-800 font-bold pt-1">Los contadores NCF se reiniciaran a cero.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ingresa tu contraseña para confirmar:</label>
+                    <input
+                      type="password"
+                      value={resetPassword}
+                      onChange={e => setResetPassword(e.target.value)}
+                      placeholder="Tu contraseña de super admin..."
+                      className="w-full border-2 border-red-300 rounded-lg px-4 py-3 text-sm focus:border-red-500 focus:ring-red-500 focus:outline-none"
+                      autoComplete="current-password"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button onClick={() => { setResetStep(2); setResetPassword(''); }} className="flex-1 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                      Atras
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!resetPassword || resetPassword.length < 4) {
+                          toast.error('Ingresa tu contraseña');
+                          return;
+                        }
+                        setResetLoading(true);
+                        try {
+                          // Verify password by re-authenticating
+                          const userStr = localStorage.getItem('pp_user');
+                          const user = userStr ? JSON.parse(userStr) : null;
+                          if (!user?.email) throw new Error('No se encontro el usuario actual');
+                          const { authAPI } = await import('../services/api');
+                          await authAPI.login({ email: user.email, password: resetPassword });
+                          // Password verified, proceed with reset
+                          const result = await systemAPI.resetData('RESETEAR-DATOS-OPERACIONALES');
+                          toast.success(result.message || 'Datos reseteados exitosamente');
+                          setResetStep(0);
+                          setResetCode('');
+                          setResetPassword('');
+                          // Reload settings to reflect changes
+                          fetchSettings();
+                        } catch (err) {
+                          if (err.message?.includes('credenciales') || err.message?.includes('Invalid') || err.message?.includes('password') || err.message?.includes('autenticacion')) {
+                            toast.error('Contraseña incorrecta');
+                          } else {
+                            toast.error(err.message || 'Error al resetear datos');
+                          }
+                        } finally {
+                          setResetLoading(false);
+                        }
+                      }}
+                      disabled={!resetPassword || resetPassword.length < 4 || resetLoading}
+                      className="flex-1 bg-red-700 text-white rounded-lg py-2.5 text-sm font-bold hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {resetLoading ? <><Loader2 size={16} className="animate-spin" /> Procesando...</> : 'ELIMINAR TODOS LOS DATOS'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
