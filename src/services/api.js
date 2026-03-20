@@ -405,6 +405,26 @@ export const reportsAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
+  occupancyByHour: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.fromDate) query.set('fromDate', params.fromDate);
+    if (params.toDate) query.set('toDate', params.toDate);
+    const qs = query.toString();
+    return apiFetch(`/api/v1/reports/occupancy-by-hour${qs ? `?${qs}` : ''}`);
+  },
+  revenueByMethod: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.fromDate) query.set('fromDate', params.fromDate);
+    if (params.toDate) query.set('toDate', params.toDate);
+    const qs = query.toString();
+    return apiFetch(`/api/v1/reports/revenue-by-method${qs ? `?${qs}` : ''}`);
+  },
+  topCustomers: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.limit) query.set('limit', params.limit);
+    const qs = query.toString();
+    return apiFetch(`/api/v1/reports/top-customers${qs ? `?${qs}` : ''}`);
+  },
   revenueDaily: async (params = {}) => {
     const result = await apiFetch('/api/v1/reports/revenue-daily?' + new URLSearchParams({ days: params.days || 7 }));
     return wrap(result);
