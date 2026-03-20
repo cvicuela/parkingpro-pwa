@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { accessAPI, plansAPI, rfidAPI, cashAPI } from '../services/api';
+import { connectSocket, disconnectSocket } from '../services/socket';
 import { printEntryTicket, printPaymentReceipt, generateEntryTicketHTML, generatePaymentReceiptHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
 import CardPaymentForm from '../components/CardPaymentForm';
@@ -190,7 +191,32 @@ export default function ControlAccesoPage() {
   useEffect(() => {
     fetchOccupancy();
     const interval = setInterval(fetchOccupancy, 5000);
-    return () => clearInterval(interval);
+
+    const socket = connectSocket();
+    socket.on('occupancy_update', (data) => {
+      if (data.plans) setPlans(data.plans);
+    });
+    socket.on('vehicle_entry', (data) => {
+      toast.info(`Entrada: ${data.plate}`, { autoClose: 3000 });
+      fetchOccupancy();
+    });
+    socket.on('vehicle_exit', (data) => {
+      toast.info(`Salida: ${data.plate}`, { autoClose: 3000 });
+      fetchOccupancy();
+    });
+    socket.on('stale_sessions_closed', (data) => {
+      toast.info(`${data.count || ''} sesiones inactivas cerradas`, { autoClose: 4000 });
+      fetchOccupancy();
+    });
+
+    return () => {
+      clearInterval(interval);
+      socket.off('occupancy_update');
+      socket.off('vehicle_entry');
+      socket.off('vehicle_exit');
+      socket.off('stale_sessions_closed');
+      disconnectSocket();
+    };
   }, [fetchOccupancy]);
 
   // ── Cleanup all timers ──
