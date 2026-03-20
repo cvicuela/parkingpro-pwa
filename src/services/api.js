@@ -690,6 +690,38 @@ export const fiscalAPI = {
   },
 };
 
+// DGII RNC Registry (Base de datos de contribuyentes)
+export const dgiiAPI = {
+  validateRnc: async (rnc) => {
+    const result = await rpc('dgii_validate_rnc', { p_token: getToken(), p_rnc: rnc });
+    return result;
+  },
+  searchRnc: async (query, limit = 20) => {
+    const result = await rpc('dgii_search_rnc', { p_token: getToken(), p_query: query, p_limit: limit });
+    return result;
+  },
+  stats: async () => {
+    const result = await rpc('dgii_rnc_stats', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  importBatch: async (records) => {
+    const result = await rpc('dgii_import_rnc_batch', { p_token: getToken(), p_records: records });
+    return result;
+  },
+  logImport: async (data) => {
+    const result = await rpc('dgii_log_import', {
+      p_token: getToken(),
+      p_records_imported: data.recordsImported,
+      p_records_updated: data.recordsUpdated || 0,
+      p_records_total: data.recordsTotal,
+      p_source: data.source || 'dgii_file',
+      p_duration_ms: data.durationMs || 0,
+    });
+    return result;
+  },
+};
+
 // NCF (Comprobantes Fiscales) Management
 export const ncfAPI = {
   listSequences: async () => {

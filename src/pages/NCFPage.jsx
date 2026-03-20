@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import {
   Hash, AlertTriangle, CheckCircle, XCircle, Edit3,
-  Save, X, RefreshCw, Shield, Calendar, BarChart3
+  Save, X, RefreshCw, Shield, Calendar, BarChart3,
+  Database, Upload, Search, Building2, Loader2
 } from 'lucide-react';
-import { ncfAPI } from '../services/api';
+import { ncfAPI, dgiiAPI } from '../services/api';
 
 const NCF_TYPE_LABELS = {
   '01': { name: 'Crédito Fiscal', desc: 'B2B con ITBIS deducible', color: 'blue' },
@@ -260,7 +261,7 @@ export default function NCFPage() {
             <p className="font-medium">Sobre los comprobantes fiscales</p>
             <ul className="list-disc list-inside space-y-0.5 text-blue-700">
               <li><strong>B02</strong> (Consumo): Se usa para la mayoría de ventas a clientes del parqueo</li>
-              <li><strong>B01</strong> (Crédito Fiscal): Para empresas que necesitan deducir ITBIS</li>
+              <li><strong>B01</strong> (Crédito Fiscal): Para empresas que necesitan deducir ITBIS &mdash; requiere RNC válido en DGII</li>
               <li><strong>B11</strong> (Compras): Para compras a proveedores informales sin NCF</li>
               <li><strong>B13</strong> (Gastos Menores): Para gastos pequeños del negocio</li>
               <li>Las secuencias son autorizadas por la DGII y tienen un rango limitado</li>
@@ -269,6 +270,288 @@ export default function NCFPage() {
           </div>
         </div>
       </div>
+
+      {/* ─── DGII RNC REGISTRY SECTION ─── */}
+      <DGIIRNCSection />
     </div>
+  );
+}
+
+// ─── DGII RNC Database Management Component ───────────────────────────
+function DGIIRNCSection() {
+  const [stats, setStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const loadStats = useCallback(async () => {
+    try {
+      setLoadingStats(true);
+      const res = await dgiiAPI.stats();
+      setStats(res.data?.data || null);
+    } catch (err) {
+      // Table might not exist yet - that's OK
+      setStats(null);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, []);
+
+  useEffect(() => { loadStats(); }, [loadStats]);
+
+  const handleSearch = async () => {
+    if (searchQuery.trim().length < 3) {
+      toast.warning('Mínimo 3 caracteres para buscar');
+      return;
+    }
+    try {
+      setSearching(true);
+      const result = await dgiiAPI.searchRnc(searchQuery.trim());
+      setSearchResults(result.success ? (result.data || []) : []);
+      if (result.success && (!result.data || result.data.length === 0)) {
+        toast.info('No se encontraron resultados');
+      }
+    } catch (err) {
+      toast.error('Error en búsqueda: ' + err.message);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Parse DGII pipe-delimited TXT file
+  const parseDGIIFile = (text) => {
+    const lines = text.split('\n').filter(l => l.trim());
+    const records = [];
+    // Skip header line if present
+    const start = lines[0]?.includes('RNC') || lines[0]?.includes('CEDULA') ? 1 : 0;
+
+    for (let i = start; i < lines.length; i++) {
+      const cols = lines[i].split('|').map(c => c.trim());
+      if (cols.length < 2) continue;
+      const rnc = cols[0]?.replace(/[-\s]/g, '');
+      if (!rnc || !/^\d{9,11}$/.test(rnc)) continue;
+
+      records.push({
+        rnc,
+        business_name: cols[1] || '',
+        trade_name: cols[2] || null,
+        economic_activity: cols[3] || null,
+        status: (cols[5] || 'ACTIVO').toUpperCase() === 'ACTIVO' ? 'active' : 'inactive',
+        payment_regime: cols[6] || null,
+      });
+    }
+    return records;
+  };
+
+  const handleFileImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setImporting(true);
+      setImportProgress({ stage: 'Leyendo archivo...', pct: 5 });
+
+      const text = await file.text();
+      setImportProgress({ stage: 'Parseando registros...', pct: 15 });
+
+      const records = parseDGIIFile(text);
+      if (records.length === 0) {
+        toast.error('No se encontraron registros válidos en el archivo');
+        return;
+      }
+
+      setImportProgress({ stage: `Importando ${records.length.toLocaleString()} registros...`, pct: 25 });
+
+      // Send in batches of 3000
+      const BATCH_SIZE = 3000;
+      let totalImported = 0;
+      const startTime = Date.now();
+
+      for (let i = 0; i < records.length; i += BATCH_SIZE) {
+        const batch = records.slice(i, i + BATCH_SIZE);
+        const pct = Math.round(25 + (i / records.length) * 70);
+        setImportProgress({
+          stage: `Lote ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(records.length / BATCH_SIZE)} (${totalImported.toLocaleString()} importados)...`,
+          pct
+        });
+
+        const result = await dgiiAPI.importBatch(batch);
+        totalImported += result?.imported || batch.length;
+      }
+
+      const duration = Date.now() - startTime;
+      setImportProgress({ stage: 'Registrando importación...', pct: 97 });
+
+      await dgiiAPI.logImport({
+        recordsImported: totalImported,
+        recordsTotal: records.length,
+        source: 'dgii_file',
+        durationMs: duration,
+      });
+
+      setImportProgress(null);
+      toast.success(`Importados ${totalImported.toLocaleString()} registros en ${(duration / 1000).toFixed(1)}s`);
+      loadStats();
+    } catch (err) {
+      toast.error('Error importando: ' + err.message);
+    } finally {
+      setImporting(false);
+      setImportProgress(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <>
+      {/* DGII Header */}
+      <div className="border-t pt-6 mt-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <Database size={22} className="text-emerald-600" />
+              Registro RNC (DGII)
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Base de datos local de contribuyentes para validar RNC en facturas B01
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={loadStats} disabled={loadingStats}
+              className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
+              <RefreshCw size={16} className={loadingStats ? 'animate-spin' : ''} />
+            </button>
+            <input ref={fileInputRef} type="file" accept=".txt,.csv" onChange={handleFileImport}
+              className="hidden" />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+              {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+              {importing ? 'Importando...' : 'Actualizar Base DGII'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Import Progress */}
+      {importProgress && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+          <p className="text-sm font-medium text-emerald-800 mb-2">{importProgress.stage}</p>
+          <div className="w-full bg-emerald-200 rounded-full h-2">
+            <div className="bg-emerald-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${importProgress.pct}%` }} />
+          </div>
+        </div>
+      )}
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border p-4">
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+            <Building2 size={14} /> Total Registros
+          </div>
+          <p className="text-2xl font-bold">{stats?.total_records?.toLocaleString() || '0'}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border p-4">
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+            <CheckCircle size={14} className="text-green-500" /> Activos
+          </div>
+          <p className="text-2xl font-bold text-green-600">{stats?.active_records?.toLocaleString() || '0'}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border p-4">
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+            <XCircle size={14} className="text-gray-400" /> Inactivos
+          </div>
+          <p className="text-2xl font-bold text-gray-400">{stats?.inactive_records?.toLocaleString() || '0'}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border p-4">
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+            <Calendar size={14} /> Última Actualización
+          </div>
+          <p className="text-sm font-medium mt-1">
+            {stats?.last_import?.date
+              ? new Date(stats.last_import.date).toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' })
+              : 'Nunca'}
+          </p>
+          {stats?.last_import?.records_total > 0 && (
+            <p className="text-xs text-gray-400">{stats.last_import.records_total.toLocaleString()} registros</p>
+          )}
+        </div>
+      </div>
+
+      {/* RNC Search */}
+      <div className="bg-white rounded-xl shadow-sm border p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+              placeholder="Buscar por RNC o nombre de empresa..."
+              className="w-full pl-10 pr-4 py-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+            />
+          </div>
+          <button onClick={handleSearch} disabled={searching}
+            className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
+            {searching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+            Buscar
+          </button>
+        </div>
+
+        {/* Search Results */}
+        {searchResults && searchResults.length > 0 && (
+          <div className="mt-4 border rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b">
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">RNC</th>
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">Razón Social</th>
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">Nombre Comercial</th>
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {searchResults.map((r, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 font-mono font-medium">{r.rnc}</td>
+                    <td className="px-4 py-2">{r.business_name}</td>
+                    <td className="px-4 py-2 text-gray-500">{r.trade_name || '-'}</td>
+                    <td className="px-4 py-2">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        r.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {r.status === 'active' ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* DGII Info */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <Database className="text-emerald-600 shrink-0 mt-0.5" size={18} />
+          <div className="text-sm text-emerald-800 space-y-1">
+            <p className="font-medium">Base de datos DGII de contribuyentes</p>
+            <ul className="list-disc list-inside space-y-0.5 text-emerald-700">
+              <li>Al emitir facturas <strong>B01</strong> (Crédito Fiscal), el sistema valida que el RNC esté registrado y activo en DGII</li>
+              <li>Descargue el archivo actualizado desde el portal de la DGII y cárguelo con el botón &ldquo;Actualizar Base DGII&rdquo;</li>
+              <li>El archivo es tipo TXT delimitado por pipes (|) publicado por la DGII</li>
+              <li>Se recomienda actualizar periódicamente para mantener los datos al día</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
