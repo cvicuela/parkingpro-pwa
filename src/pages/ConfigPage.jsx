@@ -33,23 +33,8 @@ const fieldConfig = {
   multi_register_enabled: { label: 'Multiples cajas simultaneas', type: 'toggle' },
   tax_rate: { label: 'Tasa ITBIS', type: 'number', hint: '0.18 = 18%' },
   invoice_mode: { label: 'Modo de Facturación', type: 'select', options: ['fiscal', 'interno'], hint: 'Fiscal = NCF/DGII | Interno = numeración propia sin reporte fiscal' },
-  ncf_series_consumer: { label: 'Serie NCF - Consumidor Final', type: 'text', hint: 'Solo modo fiscal. Ej: B01', ncfTable: true },
-  ncf_series_fiscal: { label: 'Serie NCF - Credito Fiscal', type: 'text', hint: 'Solo modo fiscal. Ej: B14', ncfTable: true },
-  ncf_series_credit: { label: 'Serie NCF - Nota de Credito', type: 'text', hint: 'Solo modo fiscal. Ej: B04', ncfTable: true },
-  ncf_seq_from_consumer: { label: 'Desde - Consumidor Final', type: 'number', ncfTable: true },
-  ncf_seq_from_fiscal: { label: 'Desde - Credito Fiscal', type: 'number', ncfTable: true },
-  ncf_seq_from_credit: { label: 'Desde - Nota de Credito', type: 'number', ncfTable: true },
-  ncf_seq_to_consumer: { label: 'Hasta - Consumidor Final', type: 'number', ncfTable: true },
-  ncf_seq_to_fiscal: { label: 'Hasta - Credito Fiscal', type: 'number', ncfTable: true },
-  ncf_seq_to_credit: { label: 'Hasta - Nota de Credito', type: 'number', ncfTable: true },
-  ncf_expiry_consumer: { label: 'Vencimiento - Consumidor Final', type: 'date', ncfTable: true },
-  ncf_expiry_fiscal: { label: 'Vencimiento - Credito Fiscal', type: 'date', ncfTable: true },
-  ncf_expiry_credit: { label: 'Vencimiento - Nota de Credito', type: 'date', ncfTable: true },
   internal_invoice_prefix: { label: 'Prefijo factura interna', type: 'text', hint: 'Solo modo interno. Ej: FAC, INV', placeholder: 'FAC' },
   internal_invoice_next: { label: 'Proximo numero factura interna', type: 'number', hint: 'Numero secuencial siguiente para facturas internas' },
-  terminal_sequence_start: { label: 'Secuencia Terminal - Inicio', type: 'number', hint: 'Numero inicial del rango de comprobantes del terminal', placeholder: '1' },
-  terminal_sequence_end: { label: 'Secuencia Terminal - Final', type: 'number', hint: 'Numero final del rango de comprobantes del terminal', placeholder: '999999' },
-  terminal_sequence_current: { label: 'Secuencia Terminal - Actual', type: 'number', hint: 'Proximo numero de comprobante a emitir (auto-incrementa)' },
   refund_limit_operator: { label: 'Limite reembolso por operador (RD$)', type: 'number', hint: 'Maximo que un operador puede reembolsar sin aprobación' },
   refund_daily_multiplier: { label: 'Multiplicador diario de reembolso', type: 'number', hint: 'Tope diario = limite x multiplicador' },
   notification_email_1_enabled: { hidden: true },
@@ -574,178 +559,6 @@ function CollapsibleSection({ icon: Icon, iconColor, title, subtitle, children }
   );
 }
 
-const NCF_ROWS = [
-  { type: 'Credito Fiscal', seriesKey: 'ncf_series_fiscal', fromKey: 'ncf_seq_from_fiscal', toKey: 'ncf_seq_to_fiscal', expiryKey: 'ncf_expiry_fiscal' },
-  { type: 'Consumidores Finales', seriesKey: 'ncf_series_consumer', fromKey: 'ncf_seq_from_consumer', toKey: 'ncf_seq_to_consumer', expiryKey: 'ncf_expiry_consumer' },
-  { type: 'Nota de Credito', seriesKey: 'ncf_series_credit', fromKey: 'ncf_seq_from_credit', toKey: 'ncf_seq_to_credit', expiryKey: 'ncf_expiry_credit' },
-];
-
-function NcfSequencesTable({ editValues, handleChange, doSave, saving, hasChanges }) {
-  const [confirmRow, setConfirmRow] = useState(null); // index of row being confirmed
-
-  const isRowChanged = (row) =>
-    hasChanges[row.seriesKey] || hasChanges[row.fromKey] || hasChanges[row.toKey] || hasChanges[row.expiryKey];
-
-  const isRowSaving = (row) =>
-    saving[row.seriesKey] || saving[row.fromKey] || saving[row.toKey] || saving[row.expiryKey];
-
-  const handleRowSave = (idx) => {
-    setConfirmRow(idx);
-  };
-
-  const confirmRowSave = async () => {
-    if (confirmRow !== null) {
-      const row = NCF_ROWS[confirmRow];
-      for (const k of [row.seriesKey, row.fromKey, row.toKey, row.expiryKey]) {
-        if (hasChanges[k]) await doSave(k);
-      }
-    }
-    setConfirmRow(null);
-  };
-
-  return (
-    <div className="px-5 py-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Receipt size={18} className="text-blue-600" />
-        <h4 className="font-semibold text-gray-800">Secuencias NCF</h4>
-        <span className="text-xs text-gray-400">Comprobantes fiscales DGII</span>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-          <thead>
-            <tr className="bg-blue-50 text-blue-800">
-              <th className="text-left py-2.5 px-3 font-semibold">Tipo</th>
-              <th className="text-center py-2.5 px-3 font-semibold">Prefijo</th>
-              <th className="text-center py-2.5 px-3 font-semibold">Desde</th>
-              <th className="text-center py-2.5 px-3 font-semibold">Hasta</th>
-              <th className="text-center py-2.5 px-3 font-semibold">Vencimiento</th>
-              <th className="text-center py-2.5 px-3 font-semibold"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {NCF_ROWS.map((row, idx) => {
-              const changed = isRowChanged(row);
-              const rowSaving = isRowSaving(row);
-              return (
-                <tr key={row.type} className={`hover:bg-gray-50 ${changed ? 'bg-amber-50/40' : ''}`}>
-                  <td className="py-2.5 px-3 font-medium text-gray-700 whitespace-nowrap">{row.type}</td>
-                  <td className="py-2.5 px-3 text-center">
-                    <input
-                      type="text"
-                      value={editValues[row.seriesKey] ?? ''}
-                      onChange={(e) => handleChange(row.seriesKey, e.target.value)}
-                      className={`w-16 text-center px-2 py-1 border rounded-md text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none ${hasChanges[row.seriesKey] ? 'border-blue-400 bg-blue-50' : 'border-gray-300'}`}
-                      placeholder="B01"
-                    />
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <input
-                      type="number"
-                      value={editValues[row.fromKey] ?? ''}
-                      onChange={(e) => handleChange(row.fromKey, e.target.value)}
-                      className={`w-20 text-center px-2 py-1 border rounded-md text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none ${hasChanges[row.fromKey] ? 'border-blue-400 bg-blue-50' : 'border-gray-300'}`}
-                      placeholder="1"
-                      min="1"
-                    />
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <input
-                      type="number"
-                      value={editValues[row.toKey] ?? ''}
-                      onChange={(e) => handleChange(row.toKey, e.target.value)}
-                      className={`w-24 text-center px-2 py-1 border rounded-md text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none ${hasChanges[row.toKey] ? 'border-blue-400 bg-blue-50' : 'border-gray-300'}`}
-                      placeholder="999999"
-                      min="1"
-                    />
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <div className="relative inline-flex items-center">
-                      <input
-                        type="date"
-                        value={editValues[row.expiryKey] ?? ''}
-                        onChange={(e) => handleChange(row.expiryKey, e.target.value)}
-                        className={`w-36 text-center px-2 py-1 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 outline-none ${hasChanges[row.expiryKey] ? 'border-blue-400 bg-blue-50' : 'border-gray-300'}`}
-                      />
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    <button
-                      onClick={() => handleRowSave(idx)}
-                      disabled={!changed || rowSaving}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 mx-auto transition-colors ${
-                        changed
-                          ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
-                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      {rowSaving ? <RotateCw size={12} className="animate-spin" /> : <Save size={12} />}
-                      GUARDAR
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-        <AlertTriangle size={12} className="text-amber-500" />
-        Los cambios en secuencias NCF requieren doble verificacion antes de guardarse.
-      </p>
-
-      {/* Row-level double verification modal */}
-      {confirmRow !== null && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
-                <AlertTriangle size={24} className="text-amber-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-800 text-lg">Confirmar Cambio NCF</h3>
-                <p className="text-sm text-gray-500">Esta accion requiere doble verificacion</p>
-              </div>
-            </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
-              <p className="text-sm font-semibold text-gray-800">{NCF_ROWS[confirmRow].type}</p>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-gray-500">Prefijo:</span>{' '}
-                  <span className="font-mono font-bold text-indigo-700">{editValues[NCF_ROWS[confirmRow].seriesKey] || '—'}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Desde:</span>{' '}
-                  <span className="font-mono font-bold text-indigo-700">{editValues[NCF_ROWS[confirmRow].fromKey] || '—'}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Hasta:</span>{' '}
-                  <span className="font-mono font-bold text-indigo-700">{editValues[NCF_ROWS[confirmRow].toKey] || '—'}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Vencimiento:</span>{' '}
-                  <span className="font-mono font-bold text-indigo-700">{editValues[NCF_ROWS[confirmRow].expiryKey] || '—'}</span>
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500">Modificar secuencias NCF afecta la numeracion fiscal y el cumplimiento con la DGII. Verifica que todos los valores son correctos.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmRow(null)}
-                className="flex-1 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-2">
-                <X size={16} /> Cancelar
-              </button>
-              <button onClick={confirmRowSave}
-                className="flex-1 bg-amber-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-amber-700 flex items-center justify-center gap-2">
-                <Check size={16} /> Confirmar Cambio
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function ConfigPage() {
   const [settings, setSettings] = useState([]);
@@ -818,7 +631,7 @@ export default function ConfigPage() {
   useEffect(() => { fetchSettings(); }, []);
 
   // Critical fields that require double verification
-  const criticalFields = ['tax_rate', 'ncf_series_consumer', 'ncf_series_fiscal', 'ncf_series_credit', 'ncf_seq_from_consumer', 'ncf_seq_from_fiscal', 'ncf_seq_from_credit', 'ncf_seq_to_consumer', 'ncf_seq_to_fiscal', 'ncf_seq_to_credit', 'ncf_expiry_consumer', 'ncf_expiry_fiscal', 'ncf_expiry_credit', 'invoice_mode', 'terminal_sequence_start', 'terminal_sequence_end', 'terminal_sequence_current', 'refund_limit_operator', 'refund_daily_multiplier', 'currency'];
+  const criticalFields = ['tax_rate', 'invoice_mode', 'refund_limit_operator', 'refund_daily_multiplier', 'currency'];
 
   const doSave = async (key) => {
     setSaving(prev => ({ ...prev, [key]: true }));
@@ -1129,8 +942,22 @@ export default function ConfigPage() {
 
               {expanded && (
                 <div className="border-t divide-y divide-gray-50">
-                  {catSettings.filter(s => !fieldConfig[s.key]?.ncfTable).map(setting => renderField(setting))}
-                  {cat === 'facturacion' && <NcfSequencesTable editValues={editValues} handleChange={handleChange} doSave={doSave} saving={saving} hasChanges={hasChanges} />}
+                  {catSettings.map(setting => renderField(setting))}
+                  {cat === 'facturacion' && (
+                    <div className="px-5 py-4 bg-blue-50/50 border-t">
+                      <div className="flex items-center gap-3">
+                        <Receipt size={18} className="text-blue-600" />
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-800 text-sm">Secuencias NCF (Comprobantes Fiscales)</p>
+                          <p className="text-xs text-gray-500">Las secuencias de comprobantes fiscales se gestionan desde la página de NCF, cumpliendo con los requisitos de la DGII.</p>
+                        </div>
+                        <a href="/ncf"
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 whitespace-nowrap">
+                          <Receipt size={14} /> Gestionar NCF
+                        </a>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
