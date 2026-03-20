@@ -414,6 +414,12 @@ export default function DashboardPage() {
   }, [todayStats]);
 
   useEffect(() => {
+    // Load cached dashboard data immediately so the UI is populated even before
+    // the first network response arrives (or when offline).
+    offlineQueue.getCachedData('dashboard', 5 * 60 * 1000).then((cached) => {
+      if (cached) setDashboard(cached);
+    }).catch(() => {});
+
     fetchData();
     fetchChartData();
     fetchSessionStats();
