@@ -6,6 +6,7 @@ import {
   Plus, X
 } from 'lucide-react';
 import { notificationsAPI } from '../services/api';
+import PushNotificationToggle from '../components/PushNotificationToggle';
 
 const CHANNEL_CONFIG = {
   whatsapp: { icon: MessageCircle, label: 'WhatsApp', color: 'green' },
@@ -91,6 +92,9 @@ export default function NotificacionesPage() {
           <Plus size={16} /> Nueva Notificación
         </button>
       </div>
+
+      {/* Push Notification Toggle */}
+      <PushNotificationToggle />
 
       {/* Stats */}
       {stats && (

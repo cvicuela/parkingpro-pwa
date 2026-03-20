@@ -4,6 +4,7 @@ import { reportsAPI, plansAPI, accessAPI, expensesAPI, incidentsAPI } from '../s
 import { connectSocket, disconnectSocket } from '../services/socket';
 import { offlineQueue } from '../services/offlineQueue';
 import { DollarSign, Users, Car, AlertTriangle, TrendingUp, TrendingDown, Shield, Receipt, ArrowUpRight, ArrowDownRight, LogIn, LogOut, Wallet, CheckCircle } from 'lucide-react';
+import PushNotificationToggle from '../components/PushNotificationToggle';
 
 const fmtRD = (n) => { const p = Number(n || 0).toFixed(0).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
 
@@ -452,6 +453,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
+        <PushNotificationToggle compact />
       </div>
 
       {/* Quick Actions Row */}
