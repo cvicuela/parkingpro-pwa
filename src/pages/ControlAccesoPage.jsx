@@ -723,7 +723,7 @@ export default function ControlAccesoPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {exitPopup.step !== 'receipt' && (
+                {(exitPopup.step !== 'manual_done' && exitPopup.step !== 'auto_exit' && exitPopup.step !== 'no_session_alert') && (
                   <span className="text-amber-100 text-xs flex items-center gap-1">
                     <Timer size={12} /> {exitCountdown}s
                   </span>
@@ -733,7 +733,7 @@ export default function ControlAccesoPage() {
             </div>
 
             {/* Countdown bar */}
-            {exitPopup.step !== 'receipt' && exitPopup.step !== 'manual_done' && exitPopup.step !== 'auto_exit' && exitPopup.step !== 'no_session_alert' && (
+            {exitPopup.step !== 'manual_done' && exitPopup.step !== 'auto_exit' && exitPopup.step !== 'no_session_alert' && (
               <CountdownBar seconds={exitCountdown} total={POPUP_TIMEOUT} />
             )}
 
@@ -759,10 +759,12 @@ export default function ControlAccesoPage() {
                       className="flex-1 border border-gray-300 rounded-lg py-2 text-gray-600 hover:bg-gray-50">
                       Cerrar
                     </button>
-                    <button onClick={handlePopupManualExit}
-                      className="flex-1 bg-red-600 text-white rounded-lg py-2 hover:bg-red-700 flex items-center justify-center gap-1">
-                      <LogOut size={16} /> Salida Manual
-                    </button>
+                    {isAdmin && (
+                      <button onClick={handlePopupManualExit}
+                        className="flex-1 bg-red-600 text-white rounded-lg py-2 hover:bg-red-700 flex items-center justify-center gap-1">
+                        <LogOut size={16} /> Salida Manual
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
