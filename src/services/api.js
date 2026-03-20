@@ -887,5 +887,15 @@ export const devicesAPI = {
   },
 };
 
+// Terminals
+export const terminalsAPI = {
+  list: async () => apiFetch('/api/v1/terminals'),
+  create: async (data) => apiFetch('/api/v1/terminals', { method: 'POST', body: JSON.stringify(data) }),
+  update: async (id, data) => apiFetch(`/api/v1/terminals/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: async (id) => apiFetch(`/api/v1/terminals/${id}`, { method: 'DELETE' }),
+  heartbeat: async (code) => apiFetch(`/api/v1/terminals/${code}/heartbeat`, { method: 'POST' }),
+  stats: async () => apiFetch('/api/v1/terminals/stats'),
+};
+
 // Default export for backward compatibility
 export default { interceptors: { request: { use: () => {} }, response: { use: () => {} } } };

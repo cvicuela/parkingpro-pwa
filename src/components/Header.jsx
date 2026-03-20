@@ -2,6 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { Menu, Bell, Wifi, WifiOff } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { offlineQueue } from '../services/offlineQueue';
+import TerminalSelector from './TerminalSelector';
 
 export default function Header({ onMenuClick }) {
   const { user } = useAuth();
@@ -45,6 +46,8 @@ export default function Header({ onMenuClick }) {
             Sincronizando... ({pendingSync})
           </span>
         )}
+
+        <TerminalSelector compact={true} />
 
         <button className="relative text-slate-400 hover:text-white">
           <Bell size={20} />

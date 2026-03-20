@@ -3,8 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { TerminalProvider, useTerminal } from './context/TerminalContext';
 import { startTimeService, stopTimeService } from './services/timeService';
 import Layout from './components/Layout';
+import TerminalSelector from './components/TerminalSelector';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ClientesPage from './pages/ClientesPage';
@@ -29,9 +31,17 @@ import IncidentesPage from './pages/IncidentesPage';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
+  const { terminal, loading: terminalLoading } = useTerminal();
+
   if (loading) return <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
+
+  // Show terminal selector if user is authenticated but no terminal is selected yet
+  if (!terminalLoading && terminal === null) {
+    return <TerminalSelector />;
+  }
+
   return children;
 }
 
@@ -76,8 +86,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
-        <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} theme="colored" />
+        <TerminalProvider>
+          <AppRoutes />
+          <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} theme="colored" />
+        </TerminalProvider>
       </AuthProvider>
     </BrowserRouter>
   );
