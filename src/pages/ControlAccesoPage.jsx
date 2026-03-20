@@ -5,6 +5,7 @@ import PrintPreviewModal from '../components/PrintPreviewModal';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
 import timeService from '../services/timeService';
+import { useAuth } from '../context/AuthContext';
 import {
   LogIn, LogOut, Car, DollarSign, CheckCircle,
   RefreshCw, QrCode, Printer, X, Eye, Clock,
@@ -92,6 +93,9 @@ const sessionStatusColor = (s) => {
 };
 
 export default function ControlAccesoPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+
   // ── Core state ──
   const [plate, setPlate] = useState('');
   const [accessType, setAccessType] = useState('entry');
@@ -100,10 +104,11 @@ export default function ControlAccesoPage() {
   const [loading, setLoading] = useState(false);
 
   // ── Exit popup state (unified for click, QR scan, manual ID) ──
-  const [exitPopup, setExitPopup] = useState(null);       // { session, feeData, payMethod, step: 'loading'|'fee'|'paying'|'receipt', receiptData }
+  const [exitPopup, setExitPopup] = useState(null);       // { session, feeData, payMethod, step: 'loading'|'fee'|'paying'|'receipt', receiptData, paymentPending }
   const [exitCountdown, setExitCountdown] = useState(POPUP_TIMEOUT);
   const exitTimerRef = useRef(null);
   const exitCountdownRef = useRef(null);
+  const [manualExitConfirm, setManualExitConfirm] = useState(false);
 
   // ── Entry popup state ──
   const [entryTicket, setEntryTicket] = useState(null);
@@ -221,6 +226,7 @@ export default function ControlAccesoPage() {
 
   const closeExitPopup = useCallback(() => {
     setExitPopup(null);
+    setManualExitConfirm(false);
     stopExitCountdown();
   }, [stopExitCountdown]);
 
@@ -335,8 +341,10 @@ export default function ControlAccesoPage() {
         return;
       }
 
-      // Subscriber or grace period = auto-exit
-      if (fee.type === 'subscriber' || fee.type === 'grace_period') {
+      // barrier_allowed === true OR subscriber/grace period = auto-exit (free exit)
+      const barrierAllowed = fee.barrier_allowed === true;
+      const isFreeExit = fee.type === 'subscriber' || fee.type === 'grace_period' || barrierAllowed;
+      if (isFreeExit) {
         try {
           await accessAPI.exit({ sessionId: session.id });
         } catch {}
@@ -353,10 +361,14 @@ export default function ControlAccesoPage() {
         return;
       }
 
+      // barrier_allowed === false + payment_status === 'pending' → show payment UI, do NOT exit yet
+      const paymentPending = fee.barrier_allowed === false && fee.payment_status === 'pending';
+
       setExitPopup(prev => prev ? {
         ...prev,
         step: 'fee',
         feeData: fee,
+        paymentPending,
       } : null);
     } catch (err) {
       toast.error(err.message || 'Error al calcular tarifa');
@@ -412,6 +424,13 @@ export default function ControlAccesoPage() {
       if (exitPopup.payMethod === 'card') receipt.cardType = cardType;
       if (exitPopup.payMethod === 'transfer') receipt.transferReference = transferRef;
 
+      // If payment was gated (barrier_allowed: false), now register the exit with paid=true
+      if (exitPopup.paymentPending) {
+        try {
+          await accessAPI.exit({ sessionId: fee.sessionId, payment: { paid: true } });
+        } catch {}
+      }
+
       setExitPopup(prev => prev ? { ...prev, step: 'receipt', receiptData: receipt } : null);
       setCashPopup(null);
       setCardType('visa');
@@ -419,21 +438,27 @@ export default function ControlAccesoPage() {
       toast.success('Pago procesado');
       fetchOccupancy();
       fetchActiveRegister(); // refresh register balance
-      // Stop auto-close on receipt (user may want to print)
-      stopExitCountdown();
+      // Restart countdown for receipt auto-dismiss
+      startExitCountdown();
     } catch (err) {
       toast.error(err.message || 'Error al procesar pago');
       setExitPopup(prev => prev ? { ...prev, step: 'fee' } : null);
     }
   };
 
-  // Manual exit (no payment)
+  // Manual exit (no payment) — admin only, requires confirmation
   const handlePopupManualExit = async () => {
     if (!exitPopup?.session) return;
     resetCountdown();
     try {
-      await accessAPI.endSession(exitPopup.session.id);
-      toast.success('Salida manual registrada');
+      await accessAPI.endSession(exitPopup.session.id, {
+        manual_override: true,
+        override_reason: 'admin_no_payment',
+        override_by: user?.id,
+        amount_waived: exitPopup.feeData?.total || 0,
+      });
+      toast.success('Salida manual registrada (sin cobro)');
+      setManualExitConfirm(false);
       setExitPopup(prev => prev ? { ...prev, step: 'manual_done' } : null);
       fetchOccupancy();
       if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
@@ -698,7 +723,7 @@ export default function ControlAccesoPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {exitPopup.step !== 'receipt' && (
+                {(exitPopup.step !== 'manual_done' && exitPopup.step !== 'auto_exit' && exitPopup.step !== 'no_session_alert') && (
                   <span className="text-amber-100 text-xs flex items-center gap-1">
                     <Timer size={12} /> {exitCountdown}s
                   </span>
@@ -708,7 +733,7 @@ export default function ControlAccesoPage() {
             </div>
 
             {/* Countdown bar */}
-            {exitPopup.step !== 'receipt' && exitPopup.step !== 'manual_done' && exitPopup.step !== 'auto_exit' && exitPopup.step !== 'no_session_alert' && (
+            {exitPopup.step !== 'manual_done' && exitPopup.step !== 'auto_exit' && exitPopup.step !== 'no_session_alert' && (
               <CountdownBar seconds={exitCountdown} total={POPUP_TIMEOUT} />
             )}
 
@@ -734,10 +759,12 @@ export default function ControlAccesoPage() {
                       className="flex-1 border border-gray-300 rounded-lg py-2 text-gray-600 hover:bg-gray-50">
                       Cerrar
                     </button>
-                    <button onClick={handlePopupManualExit}
-                      className="flex-1 bg-red-600 text-white rounded-lg py-2 hover:bg-red-700 flex items-center justify-center gap-1">
-                      <LogOut size={16} /> Salida Manual
-                    </button>
+                    {isAdmin && (
+                      <button onClick={handlePopupManualExit}
+                        className="flex-1 bg-red-600 text-white rounded-lg py-2 hover:bg-red-700 flex items-center justify-center gap-1">
+                        <LogOut size={16} /> Salida Manual
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -790,8 +817,30 @@ export default function ControlAccesoPage() {
               {/* ── FEE DISPLAY + PAYMENT ── */}
               {(exitPopup.step === 'fee' || exitPopup.step === 'paying') && exitPopup.feeData && (() => {
                 const fee = exitPopup.feeData;
+                const parkedTime = fee.entryTime || exitPopup.session.entry_time
+                  ? (() => { const m = fee.minutes || elapsed(fee.entryTime || exitPopup.session.entry_time).mins; return `${Math.floor(m / 60)}h ${m % 60}m`; })()
+                  : null;
                 return (
                   <div className="space-y-4">
+                    {/* ── Payment-pending banner ── */}
+                    {exitPopup.paymentPending && (
+                      <div className="bg-amber-50 border-2 border-amber-400 rounded-xl p-3 flex items-center gap-3">
+                        <div className="text-2xl">⏳</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-amber-800 text-sm">Pago pendiente</p>
+                          <p className="text-amber-700 text-xl font-bold">{fmtMoney(fee.total)}</p>
+                          {parkedTime && (
+                            <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
+                              <Clock size={10} /> Estacionado {parkedTime}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-amber-600 font-medium">Barrera bloqueada</p>
+                          <p className="text-xs text-amber-500">Cobrar para salir</p>
+                        </div>
+                      </div>
+                    )}
                     {/* Session info */}
                     <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                       <div className="flex justify-between items-center">
@@ -858,19 +907,32 @@ export default function ControlAccesoPage() {
 
                     {/* Payment method */}
                     <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">Método de Pago</p>
+                      <p className={`text-sm font-medium mb-2 ${exitPopup.paymentPending ? 'text-amber-700 font-semibold' : 'text-gray-700'}`}>
+                        {exitPopup.paymentPending ? 'Seleccionar forma de cobro' : 'Método de Pago'}
+                      </p>
                       <div className="grid grid-cols-3 gap-2">
                         {[
                           { id: 'cash', label: 'Efectivo', icon: Banknote },
                           { id: 'card', label: 'Tarjeta', icon: CreditCard },
                           { id: 'transfer', label: 'Transfer.', icon: Send },
-                        ].map(({ id, label, icon: Icon }) => (
-                          <button key={id}
-                            onClick={() => setExitPopup(prev => prev ? { ...prev, payMethod: id } : null)}
-                            className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border-2 transition-colors ${exitPopup.payMethod === id ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                            <Icon size={20} /><span className="text-xs font-medium">{label}</span>
-                          </button>
-                        ))}
+                        ].map(({ id, label, icon: Icon }) => {
+                          const isSelected = exitPopup.payMethod === id;
+                          const pendingClass = exitPopup.paymentPending
+                            ? isSelected
+                              ? 'border-amber-500 bg-amber-50 text-amber-700 shadow-md scale-105'
+                              : 'border-amber-200 text-amber-600 hover:border-amber-400 hover:bg-amber-50'
+                            : isSelected
+                              ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                              : 'border-gray-200 text-gray-500 hover:border-gray-300';
+                          return (
+                            <button key={id}
+                              onClick={() => setExitPopup(prev => prev ? { ...prev, payMethod: id } : null)}
+                              className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border-2 transition-all ${pendingClass}`}>
+                              <Icon size={exitPopup.paymentPending ? 24 : 20} />
+                              <span className={`font-medium ${exitPopup.paymentPending ? 'text-sm' : 'text-xs'}`}>{label}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -899,12 +961,36 @@ export default function ControlAccesoPage() {
                       </div>
                     )}
 
+                    {/* Admin manual-exit confirmation */}
+                    {manualExitConfirm && (
+                      <div className="bg-red-50 border-2 border-red-400 rounded-xl p-3 space-y-2">
+                        <p className="text-sm font-bold text-red-700 flex items-center gap-2">
+                          <AlertTriangle size={16} /> ¿Estás seguro?
+                        </p>
+                        <p className="text-xs text-red-600">
+                          El vehículo saldrá sin pagar {fmtMoney(fee.total)}. Esta acción queda registrada.
+                        </p>
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={() => setManualExitConfirm(false)}
+                            className="flex-1 border border-gray-300 rounded-lg py-2 text-gray-600 hover:bg-gray-50 text-sm font-medium">
+                            Cancelar
+                          </button>
+                          <button onClick={handlePopupManualExit}
+                            className="flex-1 bg-red-600 text-white rounded-lg py-2 hover:bg-red-700 text-sm font-bold flex items-center justify-center gap-1">
+                            <LogOut size={14} /> Confirmar salida sin pago
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Actions */}
                     <div className="flex gap-2 pt-1">
-                      <button onClick={handlePopupManualExit}
-                        className="px-3 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium flex items-center gap-1">
-                        <LogOut size={14} /> Sin cobro
-                      </button>
+                      {isAdmin && !manualExitConfirm && (
+                        <button onClick={() => setManualExitConfirm(true)}
+                          className="px-3 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium flex items-center gap-1">
+                          <LogOut size={14} /> Sin cobro
+                        </button>
+                      )}
                       <button onClick={handlePopupPayment} disabled={exitPopup.step === 'paying'}
                         className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white rounded-lg py-2.5 hover:bg-green-700 disabled:opacity-50 font-bold text-lg">
                         {exitPopup.step === 'paying'
