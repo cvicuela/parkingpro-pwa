@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { reportsAPI, plansAPI, accessAPI, expensesAPI, incidentsAPI } from '../services/api';
 import { connectSocket, disconnectSocket } from '../services/socket';
+import { offlineQueue } from '../services/offlineQueue';
 import { DollarSign, Users, Car, AlertTriangle, TrendingUp, TrendingDown, Shield, Receipt, ArrowUpRight, ArrowDownRight, LogIn, LogOut, Wallet, CheckCircle } from 'lucide-react';
 
 const fmtRD = (n) => { const p = Number(n || 0).toFixed(0).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
@@ -292,12 +293,14 @@ export default function DashboardPage() {
 
       if (dashRes.status === 'fulfilled') {
         const d = dashRes.value.data.data || dashRes.value.data;
-        setDashboard({
+        const dashboardData = {
           revenue: d.revenue ?? d.total_revenue ?? 0,
           active_customers: d.activeCustomers ?? d.active_customers ?? 0,
           total_subscriptions: d.totalSubscriptions ?? d.total_subscriptions ?? 0,
           overdue_count: d.overdueCount ?? d.overdue_count ?? 0,
-        });
+        };
+        setDashboard(dashboardData);
+        offlineQueue.cacheData('dashboard', dashboardData);
         // Derive today stats and collection rate from dashboard data if available
         const todayEntries = d.todayEntries ?? d.today_entries ?? null;
         const todayExits = d.todayExits ?? d.today_exits ?? null;
