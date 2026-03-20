@@ -4,11 +4,13 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { TerminalProvider, useTerminal } from './context/TerminalContext';
+import { SetupProvider, useSetup } from './context/SetupContext';
 import { startTimeService, stopTimeService } from './services/timeService';
 import Layout from './components/Layout';
 import TerminalSelector from './components/TerminalSelector';
 import OfflineIndicator from './components/OfflineIndicator';
 import LoginPage from './pages/LoginPage';
+import SetupWizardPage from './pages/SetupWizardPage';
 
 // Lazy load all page components for smaller initial bundle
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -35,9 +37,16 @@ const IncidentesPage = lazy(() => import('./pages/IncidentesPage'));
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
   const { terminal, loading: terminalLoading } = useTerminal();
+  const { needsSetup, loading: setupLoading } = useSetup();
 
-  if (loading) return <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
+  if (loading || setupLoading) return <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
   if (!user) return <Navigate to="/login" replace />;
+
+  // Redirect admin/super_admin to setup wizard if first-time setup is needed
+  if (needsSetup && ['admin', 'super_admin'].includes(user.role)) {
+    return <Navigate to="/setup" replace />;
+  }
+
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
 
   // Show terminal selector if user is authenticated but no terminal is selected yet
@@ -54,6 +63,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/setup" element={user ? <SetupWizardPage /> : <Navigate to="/login" replace />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<DashboardPage />} />
         <Route path="clientes" element={<ClientesPage />} />
@@ -89,11 +99,13 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <TerminalProvider>
-          <AppRoutes />
-          <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} theme="colored" />
-          <OfflineIndicator />
-        </TerminalProvider>
+        <SetupProvider>
+          <TerminalProvider>
+            <AppRoutes />
+            <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} theme="colored" />
+            <OfflineIndicator />
+          </TerminalProvider>
+        </SetupProvider>
       </AuthProvider>
     </BrowserRouter>
   );
