@@ -1,195 +1,534 @@
-const QUEUE_KEY = 'pp_offline_queue';
-const MAX_QUEUE_SIZE = 100;
-const COMPLETED_TTL = 86400000; // 24 hours in ms
+// ─────────────────────────────────────────────────────────────────────────────
+// ParkingPro Offline Queue — IndexedDB-backed with full sync engine
+// ─────────────────────────────────────────────────────────────────────────────
 
-// Priority levels: lower number = higher priority
+const DB_NAME = 'parkingpro-offline';
+const DB_VERSION = 1;
+const STORE_QUEUE = 'queue';
+const STORE_CACHE = 'cache';
+
+const MAX_RETRIES = 5;
+const COMPLETED_TTL_MS = 24 * 60 * 60 * 1000;   // 24 hours
+const FAILED_TTL_MS   =  7 * 24 * 60 * 60 * 1000; // 7 days
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;        // 1 hour
+const PERIODIC_SYNC_MS    = 30 * 1000;             // 30 seconds
+
+// ─── Priority levels ──────────────────────────────────────────────────────────
 const PRIORITY = {
-  entry: 1,
-  exit: 1,
-  payment: 2,
-  default: 3,
+  CRITICAL: 1, // entry / exit operations
+  HIGH:     2, // payment operations
+  NORMAL:   3, // everything else
 };
 
-const getPriority = (item) => {
-  const url = item.url || '';
-  if (url.includes('/entry') || url.includes('/exit') || url.includes('register_entry') || url.includes('register_exit')) return PRIORITY.entry;
-  if (url.includes('/payment') || url.includes('payment')) return PRIORITY.payment;
-  return PRIORITY.default;
-};
+// ─── Minimal promise-based IndexedDB wrapper ─────────────────────────────────
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+
+      // ── 'queue' object store ──────────────────────────────────────────────
+      if (!db.objectStoreNames.contains(STORE_QUEUE)) {
+        const queueStore = db.createObjectStore(STORE_QUEUE, { keyPath: 'id' });
+        queueStore.createIndex('status',    'status',    { unique: false });
+        queueStore.createIndex('priority',  'priority',  { unique: false });
+        queueStore.createIndex('createdAt', 'createdAt', { unique: false });
+      }
+
+      // ── 'cache' object store ──────────────────────────────────────────────
+      if (!db.objectStoreNames.contains(STORE_CACHE)) {
+        const cacheStore = db.createObjectStore(STORE_CACHE, { keyPath: 'key' });
+        cacheStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+      }
+    };
+
+    request.onsuccess  = (e) => resolve(e.target.result);
+    request.onerror    = (e) => reject(e.target.error);
+    request.onblocked  = ()  => reject(new Error('IndexedDB open blocked'));
+  });
+}
+
+// Returns a transaction's object store.
+// mode: 'readonly' | 'readwrite'
+function getStore(db, storeName, mode = 'readonly') {
+  return db.transaction(storeName, mode).objectStore(storeName);
+}
+
+// Wrap an IDBRequest in a Promise.
+function idbRequest(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror   = (e) => reject(e.target.error);
+  });
+}
+
+// Collect all records from a cursor request into an array.
+function idbCursorAll(req) {
+  return new Promise((resolve, reject) => {
+    const results = [];
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        results.push(cursor.value);
+        cursor.continue();
+      } else {
+        resolve(results);
+      }
+    };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+// ─── Priority detection ───────────────────────────────────────────────────────
+
+function detectPriority(url = '') {
+  if (
+    url.includes('/entry') ||
+    url.includes('/exit')  ||
+    url.includes('register_entry') ||
+    url.includes('register_exit')
+  ) {
+    return PRIORITY.CRITICAL;
+  }
+  if (url.includes('/payment') || url.includes('payment')) {
+    return PRIORITY.HIGH;
+  }
+  return PRIORITY.NORMAL;
+}
+
+// ─── Event helpers ────────────────────────────────────────────────────────────
+
+function emit(name, detail = {}) {
+  try {
+    window.dispatchEvent(new CustomEvent(name, { detail, bubbles: true }));
+  } catch (_) {
+    // Non-browser environment — ignore
+  }
+}
+
+// ─── OfflineQueue class ───────────────────────────────────────────────────────
 
 class OfflineQueue {
   constructor() {
-    this._syncing = false;
-    this._retryTimeouts = {};
-    window.addEventListener('online', () => this.sync());
-    // Clean completed items on startup
-    this._cleanCompleted();
+    /** @type {IDBDatabase|null} */
+    this._db          = null;
+    this._dbReady     = this._initDB();
+    this._syncing     = false;
+    this._syncRetryId = null;
+    this._periodicId  = null;
+    this._cleanupId   = null;
+
+    this._attachListeners();
   }
 
-  getQueue() {
-    try {
-      return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
-    } catch {
-      return [];
-    }
+  // ── Initialisation ──────────────────────────────────────────────────────────
+
+  async _initDB() {
+    this._db = await openDB();
+    await this._cleanup();
+    this._schedulePeriodicSync();
+    this._scheduleCleanup();
+    return this._db;
   }
 
-  _saveQueue(queue) {
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+  async _ready() {
+    if (this._db) return this._db;
+    return this._dbReady;
   }
 
-  add(request) {
-    const queue = this.getQueue();
+  // ── Event listeners ─────────────────────────────────────────────────────────
 
-    // Enforce max queue size — drop lowest priority oldest items first
-    if (queue.length >= MAX_QUEUE_SIZE) {
-      const sorted = [...queue].sort((a, b) => {
-        const pa = getPriority(a);
-        const pb = getPriority(b);
-        if (pa !== pb) return pa - pb; // keep higher priority (lower number)
-        return a.timestamp - b.timestamp; // keep newer items
+  _attachListeners() {
+    if (typeof window === 'undefined') return;
+
+    window.addEventListener('online', () => {
+      emit('offlinequeue:status', { online: true });
+      this.startSync();
+    });
+
+    // Service-worker background sync
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'BACKGROUND_SYNC') {
+          this.startSync();
+        }
       });
-      // Remove the last (lowest priority, oldest)
-      sorted.pop();
-      queue.length = 0;
-      queue.push(...sorted);
     }
+  }
 
+  _schedulePeriodicSync() {
+    if (this._periodicId) clearInterval(this._periodicId);
+    this._periodicId = setInterval(() => {
+      if (navigator.onLine) this.startSync();
+    }, PERIODIC_SYNC_MS);
+  }
+
+  _scheduleCleanup() {
+    if (this._cleanupId) clearInterval(this._cleanupId);
+    this._cleanupId = setInterval(() => this._cleanup(), CLEANUP_INTERVAL_MS);
+  }
+
+  // ── Queue operations ────────────────────────────────────────────────────────
+
+  /**
+   * Add a request to the queue.
+   * @param {{ url: string, method?: string, data?: any, headers?: object }} request
+   * @returns {Promise<string>} The generated item id.
+   */
+  async enqueue(request) {
+    const db = await this._ready();
     const item = {
-      ...request,
-      id: crypto.randomUUID(),
-      timestamp: Date.now(),
-      status: 'pending',
-      attempts: 0,
-      priority: getPriority(request),
+      id:        crypto.randomUUID(),
+      url:       request.url || '',
+      method:    request.method || 'POST',
+      data:      request.data   || null,
+      headers:   request.headers || {},
+      status:    'pending',
+      priority:  detectPriority(request.url),
+      retries:   0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      completedAt: null,
+      lastError:   null,
     };
 
-    queue.push(item);
-    this._saveQueue(queue);
+    const store = getStore(db, STORE_QUEUE, 'readwrite');
+    await idbRequest(store.add(item));
+
+    emit('offlinequeue:enqueued', { item });
     return item.id;
   }
 
-  updateStatus(id, status, error = null) {
-    const queue = this.getQueue();
-    const idx = queue.findIndex(i => i.id === id);
-    if (idx === -1) return;
-    queue[idx].status = status;
-    if (status === 'completed') queue[idx].completedAt = Date.now();
-    if (error) queue[idx].lastError = String(error);
-    this._saveQueue(queue);
+  /**
+   * Get (and return) the next pending item ordered by priority then createdAt.
+   * Does NOT remove the item — use remove(id) explicitly if needed.
+   * @returns {Promise<object|null>}
+   */
+  async dequeue() {
+    const items = await this.getAll('pending');
+    if (!items.length) return null;
+    items.sort((a, b) => a.priority - b.priority || a.createdAt - b.createdAt);
+    return items[0];
   }
 
-  _cleanCompleted() {
-    const queue = this.getQueue();
-    const now = Date.now();
-    const filtered = queue.filter(item => {
-      if (item.status === 'completed' && item.completedAt) {
-        return (now - item.completedAt) < COMPLETED_TTL;
+  /**
+   * View the next pending item without removing it.
+   * @returns {Promise<object|null>}
+   */
+  async peek() {
+    return this.dequeue();
+  }
+
+  /**
+   * Update the status (and optionally error) of a queue item.
+   * @param {string} id
+   * @param {string} status
+   * @param {string|Error|null} [error]
+   */
+  async updateStatus(id, status, error = null) {
+    const db = await this._ready();
+    const tx    = db.transaction(STORE_QUEUE, 'readwrite');
+    const store = tx.objectStore(STORE_QUEUE);
+    const item  = await idbRequest(store.get(id));
+    if (!item) return;
+
+    item.status    = status;
+    item.updatedAt = Date.now();
+    if (status === 'completed') item.completedAt = Date.now();
+    if (error !== null) item.lastError = String(error);
+
+    await idbRequest(store.put(item));
+  }
+
+  /**
+   * Get all items, optionally filtered by status.
+   * @param {string} [status]
+   * @returns {Promise<object[]>}
+   */
+  async getAll(status) {
+    const db    = await this._ready();
+    const store = getStore(db, STORE_QUEUE, 'readonly');
+
+    if (status) {
+      const index = store.index('status');
+      return idbCursorAll(index.openCursor(IDBKeyRange.only(status)));
+    }
+    return idbRequest(store.getAll());
+  }
+
+  /**
+   * Remove a specific item by id.
+   * @param {string} id
+   */
+  async remove(id) {
+    const db    = await this._ready();
+    const store = getStore(db, STORE_QUEUE, 'readwrite');
+    await idbRequest(store.delete(id));
+  }
+
+  /**
+   * Remove all items from the queue.
+   */
+  async clear() {
+    const db    = await this._ready();
+    const store = getStore(db, STORE_QUEUE, 'readwrite');
+    await idbRequest(store.clear());
+  }
+
+  /**
+   * Count items, optionally filtered by status.
+   * @param {string} [status]
+   * @returns {Promise<number>}
+   */
+  async count(status) {
+    const db    = await this._ready();
+    const store = getStore(db, STORE_QUEUE, 'readonly');
+
+    if (status) {
+      const index = store.index('status');
+      return idbRequest(index.count(IDBKeyRange.only(status)));
+    }
+    return idbRequest(store.count());
+  }
+
+  /**
+   * Return aggregated statistics.
+   * @returns {Promise<{ pending: number, syncing: number, failed: number, completed: number, total: number }>}
+   */
+  async getStats() {
+    const [pending, syncing, failed, completed, total] = await Promise.all([
+      this.count('pending'),
+      this.count('syncing'),
+      this.count('failed'),
+      this.count('completed'),
+      this.count(),
+    ]);
+    return { pending, syncing, failed, completed, total };
+  }
+
+  // ── Sync engine ─────────────────────────────────────────────────────────────
+
+  /**
+   * Process all pending/failed items in priority order.
+   */
+  async startSync() {
+    if (this._syncing || !navigator.onLine) return;
+    this._syncing = true;
+
+    // Cancel any pending retry since we're starting now
+    if (this._syncRetryId !== null) {
+      clearTimeout(this._syncRetryId);
+      this._syncRetryId = null;
+    }
+
+    try {
+      // Re-mark any items stuck as 'syncing' (from a previous aborted run) back
+      // to 'pending' so they are retried.
+      const stuckItems = await this.getAll('syncing');
+      for (const item of stuckItems) {
+        await this.updateStatus(item.id, 'pending');
       }
-      return true;
-    });
-    if (filtered.length !== queue.length) {
-      this._saveQueue(filtered);
+
+      const allPending = [
+        ...(await this.getAll('pending')),
+        ...(await this.getAll('failed')),
+      ];
+
+      if (!allPending.length) return;
+
+      // Sort: highest priority (1) first, then oldest first (FIFO)
+      allPending.sort((a, b) => a.priority - b.priority || a.createdAt - b.createdAt);
+
+      for (const item of allPending) {
+        // Re-read the item in case its state changed during a previous iteration
+        const db    = await this._ready();
+        const store = getStore(db, STORE_QUEUE, 'readonly');
+        const fresh = await idbRequest(store.get(item.id));
+        if (!fresh || (fresh.status !== 'pending' && fresh.status !== 'failed')) continue;
+
+        await this._syncItem(fresh);
+
+        // If we went offline during this loop, stop and schedule a retry
+        if (!navigator.onLine) {
+          this._scheduleSyncRetry(5000);
+          break;
+        }
+      }
+    } finally {
+      this._syncing = false;
+      const stats = await this.getStats();
+      emit('offlinequeue:status', { stats });
     }
   }
 
-  clear() {
-    localStorage.removeItem(QUEUE_KEY);
+  /** Convenience alias */
+  sync() {
+    return this.startSync();
   }
 
-  clearCompleted() {
-    const queue = this.getQueue().filter(i => i.status !== 'completed');
-    this._saveQueue(queue);
-  }
+  /**
+   * Attempt to sync a single queue item with exponential back-off.
+   * @param {object} item
+   */
+  async _syncItem(item) {
+    await this.updateStatus(item.id, 'syncing');
 
-  async sync() {
-    if (this._syncing || !navigator.onLine) return;
-    this._syncing = true;
-    this._cleanCompleted();
+    const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL)
+      ? import.meta.env.VITE_API_URL
+      : 'http://localhost:3000';
 
-    const queue = this.getQueue();
-    const pending = queue
-      .filter(i => i.status === 'pending' || i.status === 'failed')
-      .sort((a, b) => (a.priority || 3) - (b.priority || 3) || a.timestamp - b.timestamp);
+    const getToken = () => {
+      try { return localStorage.getItem('pp_token') || ''; } catch { return ''; }
+    };
 
-    if (pending.length === 0) {
-      this._syncing = false;
+    let lastError = null;
+
+    try {
+      const response = await fetch(`${API_BASE}${item.url}`, {
+        method: item.method || 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+          ...(item.headers || {}),
+        },
+        body: item.data ? JSON.stringify(item.data) : undefined,
+      });
+
+      // Auth failures — no point retrying
+      if (response.status === 401 || response.status === 403) {
+        await this.updateStatus(item.id, 'auth_failed', `HTTP ${response.status}`);
+        emit('offlinequeue:failed', { item, reason: 'auth', status: response.status });
+        return;
+      }
+
+      if (!response.ok) {
+        const json = await response.json().catch(() => ({}));
+        throw new Error(json.error || json.message || response.statusText);
+      }
+
+      // Success
+      await this.updateStatus(item.id, 'completed');
+      emit('offlinequeue:synced', { item });
+      return;
+
+    } catch (err) {
+      if (!navigator.onLine) {
+        // Network went down — restore to pending and bail out of sync loop
+        await this.updateStatus(item.id, 'pending');
+        this._scheduleSyncRetry(5000);
+        return;
+      }
+      lastError = err;
+    }
+
+    // Handle retry logic
+    const retries = (item.retries || 0) + 1;
+    if (retries > MAX_RETRIES) {
+      await this._markFailed(item.id, retries, lastError);
+      emit('offlinequeue:failed', { item, reason: 'max_retries', error: String(lastError) });
       return;
     }
 
-    const API_BASE = import.meta.env?.VITE_API_URL || 'http://localhost:3000';
-    const getToken = () => localStorage.getItem('pp_token') || '';
-
-    for (const item of pending) {
-      this.updateStatus(item.id, 'syncing');
-
-      let success = false;
-      let lastError = null;
-      const maxAttempts = 3;
-      let delay = 500;
-
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-          const response = await fetch(`${API_BASE}${item.url}`, {
-            method: item.method || 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${getToken()}`,
-              ...(item.headers || {}),
-            },
-            body: item.data ? JSON.stringify(item.data) : undefined,
-          });
-
-          if (!response.ok) {
-            const json = await response.json().catch(() => ({}));
-            throw new Error(json.error || json.message || response.statusText);
-          }
-
-          success = true;
-          break;
-        } catch (err) {
-          lastError = err;
-          const msg = err?.message || '';
-          // Don't retry auth/permission errors
-          if (msg.includes('Token') || msg.includes('Acceso') || msg.includes('sesión')) break;
-          if (attempt < maxAttempts - 1) {
-            await new Promise(r => setTimeout(r, delay));
-            delay *= 2; // exponential backoff
-          }
-        }
-      }
-
-      if (success) {
-        this.updateStatus(item.id, 'completed');
-      } else {
-        const currentQueue = this.getQueue();
-        const idx = currentQueue.findIndex(i => i.id === item.id);
-        if (idx !== -1) {
-          currentQueue[idx].status = 'failed';
-          currentQueue[idx].attempts = (currentQueue[idx].attempts || 0) + 1;
-          currentQueue[idx].lastError = String(lastError);
-          this._saveQueue(currentQueue);
-        }
-      }
-    }
-
-    this._syncing = false;
+    const backoffMs = Math.min(Math.pow(2, retries - 1) * 1000, 32000);
+    await this._markFailed(item.id, retries, lastError);
+    this._scheduleSyncRetry(backoffMs);
   }
 
-  get pendingCount() {
-    return this.getQueue().filter(i => i.status === 'pending' || i.status === 'failed').length;
+  async _markFailed(id, retries, error) {
+    const db    = await this._ready();
+    const tx    = db.transaction(STORE_QUEUE, 'readwrite');
+    const store = tx.objectStore(STORE_QUEUE);
+    const item  = await idbRequest(store.get(id));
+    if (!item) return;
+    item.status    = 'failed';
+    item.retries   = retries;
+    item.lastError = error ? String(error) : null;
+    item.updatedAt = Date.now();
+    await idbRequest(store.put(item));
   }
 
-  get statusSummary() {
-    const queue = this.getQueue();
-    return {
-      pending: queue.filter(i => i.status === 'pending').length,
-      syncing: queue.filter(i => i.status === 'syncing').length,
-      failed: queue.filter(i => i.status === 'failed').length,
-      completed: queue.filter(i => i.status === 'completed').length,
-      total: queue.length,
-    };
+  /**
+   * Schedule a sync retry after a delay.
+   * @param {number} delayMs
+   */
+  scheduleSyncRetry(delayMs) {
+    this._scheduleSyncRetry(delayMs);
+  }
+
+  _scheduleSyncRetry(delayMs) {
+    if (this._syncRetryId !== null) return; // already scheduled
+    this._syncRetryId = setTimeout(() => {
+      this._syncRetryId = null;
+      this.startSync();
+    }, delayMs);
+  }
+
+  // ── Offline data cache ──────────────────────────────────────────────────────
+
+  /**
+   * Store arbitrary data in the cache object store.
+   * @param {string} key
+   * @param {any} data
+   */
+  async cacheData(key, data) {
+    const db    = await this._ready();
+    const store = getStore(db, STORE_CACHE, 'readwrite');
+    await idbRequest(store.put({ key, data, updatedAt: Date.now() }));
+  }
+
+  /**
+   * Retrieve cached data for a key.
+   * @param {string} key
+   * @param {number} [maxAgeMs] - If provided, returns null when data is older than maxAgeMs.
+   * @returns {Promise<any|null>}
+   */
+  async getCachedData(key, maxAgeMs) {
+    const db    = await this._ready();
+    const store = getStore(db, STORE_CACHE, 'readonly');
+    const record = await idbRequest(store.get(key));
+    if (!record) return null;
+    if (maxAgeMs !== undefined && Date.now() - record.updatedAt > maxAgeMs) return null;
+    return record.data;
+  }
+
+  /**
+   * Remove all entries from the cache object store.
+   */
+  async clearCache() {
+    const db    = await this._ready();
+    const store = getStore(db, STORE_CACHE, 'readwrite');
+    await idbRequest(store.clear());
+  }
+
+  // ── Cleanup ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Purge stale completed and failed items.
+   */
+  async _cleanup() {
+    const db    = await this._ready();
+    const now   = Date.now();
+
+    const tx    = db.transaction(STORE_QUEUE, 'readwrite');
+    const store = tx.objectStore(STORE_QUEUE);
+    const all   = await idbRequest(store.getAll());
+
+    const toDelete = all.filter((item) => {
+      if (item.status === 'completed' && item.completedAt) {
+        return now - item.completedAt > COMPLETED_TTL_MS;
+      }
+      if (item.status === 'failed' && item.updatedAt) {
+        return now - item.updatedAt > FAILED_TTL_MS;
+      }
+      return false;
+    });
+
+    await Promise.all(toDelete.map((item) => idbRequest(store.delete(item.id))));
   }
 }
+
+// ─── Singleton export ─────────────────────────────────────────────────────────
 
 export const offlineQueue = new OfflineQueue();

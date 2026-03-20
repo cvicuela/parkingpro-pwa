@@ -7,6 +7,7 @@ import { TerminalProvider, useTerminal } from './context/TerminalContext';
 import { startTimeService, stopTimeService } from './services/timeService';
 import Layout from './components/Layout';
 import TerminalSelector from './components/TerminalSelector';
+import OfflineIndicator from './components/OfflineIndicator';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ClientesPage from './pages/ClientesPage';
@@ -89,6 +90,7 @@ export default function App() {
         <TerminalProvider>
           <AppRoutes />
           <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} theme="colored" />
+          <OfflineIndicator />
         </TerminalProvider>
       </AuthProvider>
     </BrowserRouter>

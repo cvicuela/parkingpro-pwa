@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { accessAPI, plansAPI, rfidAPI, cashAPI } from '../services/api';
 import { printEntryTicket, printPaymentReceipt, generateEntryTicketHTML, generatePaymentReceiptHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
+import CardPaymentForm from '../components/CardPaymentForm';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
 import timeService from '../services/timeService';
@@ -137,6 +138,11 @@ export default function ControlAccesoPage() {
   // ── Card type state ──
   const [cardType, setCardType] = useState('visa');
 
+  // ── Card payment form state ──
+  const [showCardForm, setShowCardForm] = useState(false);
+  const [cardPaymentError, setCardPaymentError] = useState(null);
+  const [cardDetails, setCardDetails] = useState(null);
+
   // ── Transfer reference state ──
   const [transferRef, setTransferRef] = useState('');
 
@@ -227,6 +233,9 @@ export default function ControlAccesoPage() {
   const closeExitPopup = useCallback(() => {
     setExitPopup(null);
     setManualExitConfirm(false);
+    setShowCardForm(false);
+    setCardPaymentError(null);
+    setCardDetails(null);
     stopExitCountdown();
   }, [stopExitCountdown]);
 
@@ -376,8 +385,8 @@ export default function ControlAccesoPage() {
     }
   }, [exitPopup, startExitCountdown, stopExitCountdown, closeExitPopup, fetchOccupancy]);
 
-  // Process payment inside popup
-  const handlePopupPayment = async () => {
+  // Process payment inside popup (optionally with card details)
+  const handlePopupPayment = async (cardData = null) => {
     if (!exitPopup?.feeData) return;
 
     // Check active register for cash payments
@@ -390,6 +399,13 @@ export default function ControlAccesoPage() {
     // For cash: open cash breakdown popup first
     if (exitPopup.payMethod === 'cash' && !cashPopup) {
       setCashPopup({ total: parseFloat(exitPopup.feeData.total), denominations: {}, received: 0 });
+      return;
+    }
+
+    // For card: show CardPaymentForm first if not yet submitted
+    if (exitPopup.payMethod === 'card' && !cardData) {
+      setShowCardForm(true);
+      setCardPaymentError(null);
       return;
     }
 
@@ -407,8 +423,13 @@ export default function ControlAccesoPage() {
         paymentData.cashChange = cashPopup.received - cashPopup.total;
         paymentData.cashDenominations = cashPopup.denominations;
       }
-      if (exitPopup.payMethod === 'card') {
-        paymentData.cardType = cardType;
+      if (exitPopup.payMethod === 'card' && cardData) {
+        paymentData.cardNumber = cardData.cardNumber;
+        paymentData.cardExpMonth = cardData.cardExpMonth;
+        paymentData.cardExpYear = cardData.cardExpYear;
+        paymentData.cardCvv = cardData.cardCvv;
+        paymentData.cardHolderName = cardData.cardHolderName;
+        paymentData.metadata = { card: cardData };
       }
       if (exitPopup.payMethod === 'transfer') {
         paymentData.transferReference = transferRef;
@@ -421,7 +442,10 @@ export default function ControlAccesoPage() {
         receipt.cashReceived = cashPopup.received;
         receipt.cashChange = cashPopup.received - cashPopup.total;
       }
-      if (exitPopup.payMethod === 'card') receipt.cardType = cardType;
+      if (exitPopup.payMethod === 'card' && cardData) {
+        receipt.cardHolderName = cardData.cardHolderName;
+        receipt.cardLastFour = cardData.cardNumber.slice(-4);
+      }
       if (exitPopup.payMethod === 'transfer') receipt.transferReference = transferRef;
 
       // If payment was gated (barrier_allowed: false), now register the exit with paid=true
@@ -433,6 +457,9 @@ export default function ControlAccesoPage() {
 
       setExitPopup(prev => prev ? { ...prev, step: 'receipt', receiptData: receipt } : null);
       setCashPopup(null);
+      setShowCardForm(false);
+      setCardPaymentError(null);
+      setCardDetails(null);
       setCardType('visa');
       setTransferRef('');
       toast.success('Pago procesado');
@@ -441,8 +468,14 @@ export default function ControlAccesoPage() {
       // Restart countdown for receipt auto-dismiss
       startExitCountdown();
     } catch (err) {
-      toast.error(err.message || 'Error al procesar pago');
-      setExitPopup(prev => prev ? { ...prev, step: 'fee' } : null);
+      // For card payments, show error in the card form instead of dismissing it
+      if (exitPopup.payMethod === 'card' && cardData) {
+        setCardPaymentError(err.message || 'Pago con tarjeta rechazado');
+        setExitPopup(prev => prev ? { ...prev, step: 'fee' } : null);
+      } else {
+        toast.error(err.message || 'Error al procesar pago');
+        setExitPopup(prev => prev ? { ...prev, step: 'fee' } : null);
+      }
     }
   };
 
@@ -936,17 +969,11 @@ export default function ControlAccesoPage() {
                       </div>
                     </div>
 
-                    {/* Card type selector */}
+                    {/* Card payment indicator */}
                     {exitPopup.payMethod === 'card' && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-                        <p className="text-xs font-semibold text-blue-800">Tipo de Tarjeta</p>
-                        <select value={cardType} onChange={(e) => setCardType(e.target.value)}
-                          className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-                          <option value="visa">Visa</option>
-                          <option value="mastercard">Mastercard</option>
-                          <option value="amex">American Express</option>
-                          <option value="otra">Otra</option>
-                        </select>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+                        <CreditCard size={16} className="text-blue-600 shrink-0" />
+                        <p className="text-xs text-blue-800 font-medium">Se solicitarán los datos de la tarjeta al confirmar</p>
                       </div>
                     )}
 
@@ -1022,6 +1049,8 @@ export default function ControlAccesoPage() {
                       <div className="flex justify-between"><span className="text-gray-500">Total</span><span className="font-bold text-green-700 text-lg">{fmtMoney(r.total)}</span></div>
                       <div className="flex justify-between"><span className="text-gray-500">Método</span><span>{{ cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' }[r.paymentMethod]}</span></div>
                       {r.cardType && <div className="flex justify-between"><span className="text-gray-500">Tarjeta</span><span className="capitalize">{r.cardType}</span></div>}
+                      {r.cardLastFour && <div className="flex justify-between"><span className="text-gray-500">Últimos 4</span><span className="font-mono">••••{r.cardLastFour}</span></div>}
+                      {r.cardHolderName && <div className="flex justify-between"><span className="text-gray-500">Titular</span><span>{r.cardHolderName}</span></div>}
                       {r.transferReference && <div className="flex justify-between"><span className="text-gray-500">Referencia</span><span className="text-xs">{r.transferReference}</span></div>}
                       {r.cashReceived > 0 && (
                         <>
@@ -1225,6 +1254,42 @@ export default function ControlAccesoPage() {
                 className="w-full flex items-center justify-center gap-2 bg-green-600 text-white rounded-lg py-3 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg">
                 <CheckCircle size={20} /> Confirmar Cobro
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════
+          CARD PAYMENT FORM OVERLAY
+          Shows when payMethod === 'card' and user clicks Cobrar
+         ════════════════════════════════════════════════════════ */}
+      {showCardForm && exitPopup?.feeData && (
+        <div className="fixed inset-0 bg-black/70 z-[80] flex items-center justify-center p-4"
+          onClick={() => { setShowCardForm(false); setCardPaymentError(null); }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3 text-white">
+                <CreditCard size={22} />
+                <div>
+                  <h3 className="font-bold">Pago con Tarjeta</h3>
+                  <p className="text-indigo-200 text-sm font-mono">{exitPopup.session.vehicle_plate}</p>
+                </div>
+              </div>
+              <button onClick={() => { setShowCardForm(false); setCardPaymentError(null); }}
+                className="text-white/80 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="p-5">
+              <CardPaymentForm
+                amount={parseFloat(exitPopup.feeData.total)}
+                onSubmit={(cardData) => {
+                  setShowCardForm(false);
+                  handlePopupPayment(cardData);
+                }}
+                onCancel={() => { setShowCardForm(false); setCardPaymentError(null); }}
+                isLoading={exitPopup.step === 'paying'}
+                error={cardPaymentError}
+              />
             </div>
           </div>
         </div>
