@@ -405,6 +405,14 @@ export const reportsAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
+  revenueDaily: async (params = {}) => {
+    const result = await apiFetch('/api/v1/reports/revenue-daily?' + new URLSearchParams({ days: params.days || 7 }));
+    return wrap(result);
+  },
+  todaySummary: async () => {
+    const result = await apiFetch('/api/v1/reports/today-summary');
+    return wrap(result);
+  },
   exportData: async (type, params = {}) => {
     const result = await rpc('report_export_csv', {
       p_token: getToken(),

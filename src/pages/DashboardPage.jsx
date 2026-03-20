@@ -1,9 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { reportsAPI, plansAPI, accessAPI, expensesAPI, incidentsAPI } from '../services/api';
 import { connectSocket, disconnectSocket } from '../services/socket';
-import { DollarSign, Users, Car, AlertTriangle, TrendingUp, TrendingDown, Shield, Receipt, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { DollarSign, Users, Car, AlertTriangle, TrendingUp, TrendingDown, Shield, Receipt, ArrowUpRight, ArrowDownRight, LogIn, LogOut, Wallet, CheckCircle } from 'lucide-react';
 
 const fmtRD = (n) => { const p = Number(n || 0).toFixed(0).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
+
+const DAY_LABELS_ES = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+function generateMockTrend() {
+  const today = new Date();
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (6 - i));
+    return { date: d.toISOString().split('T')[0], amount: 0, label: DAY_LABELS_ES[d.getDay()] };
+  });
+}
 
 function StatCard({ icon: Icon, label, value, color, subtext }) {
   const colors = {
@@ -60,6 +71,168 @@ function OccupancyBar({ plan }) {
   );
 }
 
+// ---- Revenue Trend Mini-Chart (inline SVG bars) ----
+function RevenueTrendChart({ data }) {
+  const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+  const BAR_WIDTH = 28;
+  const BAR_MAX_H = 80;
+  const GAP = 12;
+  const SVG_W = data.length * (BAR_WIDTH + GAP);
+  const SVG_H = BAR_MAX_H + 36;
+  const maxVal = Math.max(...data.map((d) => d.amount), 1);
+
+  return (
+    <div className="bg-white rounded-xl p-5 shadow-sm flex-1">
+      <h4 className="text-sm font-semibold text-gray-600 mb-3">Tendencia (7 días)</h4>
+      {data.length === 0 ? (
+        <p className="text-xs text-gray-400">No disponible</p>
+      ) : (
+        <svg width={SVG_W} height={SVG_H} className="overflow-visible">
+          {data.map((d, i) => {
+            const barH = Math.max(4, Math.round((d.amount / maxVal) * BAR_MAX_H));
+            const x = i * (BAR_WIDTH + GAP);
+            const y = BAR_MAX_H - barH;
+            const isToday = i === data.length - 1;
+            return (
+              <g key={i}>
+                <rect
+                  x={x}
+                  y={y}
+                  width={BAR_WIDTH}
+                  height={barH}
+                  rx={4}
+                  fill={isToday ? '#4f46e5' : '#a5b4fc'}
+                />
+                <text
+                  x={x + BAR_WIDTH / 2}
+                  y={BAR_MAX_H + 13}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill="#9ca3af"
+                >
+                  {d.label || DAY_LABELS[new Date(d.date).getDay()] || ''}
+                </text>
+                <text
+                  x={x + BAR_WIDTH / 2}
+                  y={BAR_MAX_H + 26}
+                  textAnchor="middle"
+                  fontSize={8}
+                  fill="#6b7280"
+                >
+                  {d.amount >= 1000 ? `${(d.amount / 1000).toFixed(1)}k` : d.amount.toFixed(0)}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      )}
+    </div>
+  );
+}
+
+// ---- Payment Method Donut (inline SVG) ----
+function PaymentDonut({ methods }) {
+  const COLORS = { efectivo: '#22c55e', tarjeta: '#3b82f6', transferencia: '#a855f7' };
+  const LABELS = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', transferencia: 'Transferencia' };
+  const total = methods.reduce((s, m) => s + m.amount, 0);
+  const R = 42;
+  const CX = 56;
+  const CY = 56;
+  const CIRCUMFERENCE = 2 * Math.PI * R;
+
+  let offset = 0;
+  const segments = methods.map((m) => {
+    const pct = total > 0 ? m.amount / total : 0;
+    const seg = { ...m, pct, dashArray: pct * CIRCUMFERENCE, dashOffset: -offset * CIRCUMFERENCE };
+    offset += pct;
+    return seg;
+  });
+
+  return (
+    <div className="bg-white rounded-xl p-5 shadow-sm flex-1">
+      <h4 className="text-sm font-semibold text-gray-600 mb-3">Métodos de Pago</h4>
+      {total === 0 ? (
+        <p className="text-xs text-gray-400">No disponible</p>
+      ) : (
+        <div className="flex items-center gap-4">
+          <svg width={112} height={112}>
+            <circle cx={CX} cy={CY} r={R} fill="none" stroke="#f3f4f6" strokeWidth={16} />
+            {segments.map((seg, i) => (
+              <circle
+                key={i}
+                cx={CX}
+                cy={CY}
+                r={R}
+                fill="none"
+                stroke={COLORS[seg.key] || '#d1d5db'}
+                strokeWidth={16}
+                strokeDasharray={`${seg.dashArray} ${CIRCUMFERENCE}`}
+                strokeDashoffset={seg.dashOffset}
+                style={{ transform: 'rotate(-90deg)', transformOrigin: `${CX}px ${CY}px` }}
+              />
+            ))}
+            <text x={CX} y={CY - 5} textAnchor="middle" fontSize={10} fill="#374151" fontWeight="600">
+              {fmtRD(total).replace('RD$ ', '')}
+            </text>
+            <text x={CX} y={CY + 9} textAnchor="middle" fontSize={8} fill="#9ca3af">
+              total
+            </text>
+          </svg>
+          <div className="flex flex-col gap-1.5">
+            {segments.map((seg, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ background: COLORS[seg.key] || '#d1d5db' }}
+                />
+                <span className="text-xs text-gray-600">
+                  {LABELS[seg.key] || seg.key}
+                </span>
+                <span className="text-xs font-semibold text-gray-700 ml-auto">
+                  {Math.round(seg.pct * 100)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- Circular Progress Indicator ----
+function CircularProgress({ value, label, size = 72 }) {
+  const R = (size - 12) / 2;
+  const CX = size / 2;
+  const CY = size / 2;
+  const CIRC = 2 * Math.PI * R;
+  const filled = Math.min(100, Math.max(0, value));
+  const color = filled >= 95 ? '#22c55e' : filled >= 80 ? '#f59e0b' : '#ef4444';
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <svg width={size} height={size}>
+        <circle cx={CX} cy={CY} r={R} fill="none" stroke="#e5e7eb" strokeWidth={6} />
+        <circle
+          cx={CX}
+          cy={CY}
+          r={R}
+          fill="none"
+          stroke={color}
+          strokeWidth={6}
+          strokeDasharray={`${(filled / 100) * CIRC} ${CIRC}`}
+          strokeLinecap="round"
+          style={{ transform: 'rotate(-90deg)', transformOrigin: `${CX}px ${CY}px`, transition: 'stroke-dasharray 0.5s ease' }}
+        />
+        <text x={CX} y={CY + 4} textAnchor="middle" fontSize={13} fontWeight="700" fill={color}>
+          {filled.toFixed(0)}%
+        </text>
+      </svg>
+      {label && <span className="text-xs text-gray-500 text-center">{label}</span>}
+    </div>
+  );
+}
+
 const sessionStatusLabel = (s) => {
   const map = { active: 'Activa', paid: 'Pagada', closed: 'Cerrada', abandoned: 'Abandonada' };
   return map[s] || s || 'Activa';
@@ -94,12 +267,18 @@ function ActiveSessionRow({ session }) {
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState(null);
   const [plans, setPlans] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [expenseStats, setExpenseStats] = useState(null);
   const [openIncidents, setOpenIncidents] = useState(0);
   const [loading, setLoading] = useState(true);
+  // New state for enhancements
+  const [revenueTrend, setRevenueTrend] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [todayStats, setTodayStats] = useState(null);
+  const [collectionRate, setCollectionRate] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -119,6 +298,24 @@ export default function DashboardPage() {
           total_subscriptions: d.totalSubscriptions ?? d.total_subscriptions ?? 0,
           overdue_count: d.overdueCount ?? d.overdue_count ?? 0,
         });
+        // Derive today stats and collection rate from dashboard data if available
+        const todayEntries = d.todayEntries ?? d.today_entries ?? null;
+        const todayExits = d.todayExits ?? d.today_exits ?? null;
+        const todayPayments = d.todayPayments ?? d.today_payments ?? null;
+        const todayRevenue = d.todayRevenue ?? d.today_revenue ?? null;
+        const sessionsPaid = d.sessionsPaid ?? d.sessions_paid ?? null;
+        const sessionsCompleted = d.sessionsCompleted ?? d.sessions_completed ?? null;
+        if (todayEntries !== null || todayRevenue !== null) {
+          setTodayStats({
+            entries: todayEntries ?? 0,
+            exits: todayExits ?? 0,
+            payments: todayPayments ?? 0,
+            revenue: todayRevenue ?? 0,
+          });
+        }
+        if (sessionsPaid !== null && sessionsCompleted !== null && sessionsCompleted > 0) {
+          setCollectionRate(Math.round((sessionsPaid / sessionsCompleted) * 100));
+        }
       }
       if (plansRes.status === 'fulfilled') setPlans(plansRes.value.data.data || plansRes.value.data || []);
       if (sessionsRes.status === 'fulfilled') setSessions(sessionsRes.value.data.data || sessionsRes.value.data || []);
@@ -135,8 +332,89 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Fetch revenue trend and payment methods separately (may not exist on all backends)
+  const fetchChartData = useCallback(async () => {
+    // Revenue trend last 7 days
+    try {
+      const res = await reportsAPI.revenue({ groupBy: 'day', period: 'week' });
+      const raw = res.data?.data || res.data || [];
+      const rows = Array.isArray(raw) ? raw : (raw.rows || raw.items || []);
+      if (rows.length > 0) {
+        const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+        const mapped = rows.slice(-7).map((r) => ({
+          date: r.date || r.period || r.day,
+          amount: parseFloat(r.amount || r.total || r.revenue || 0),
+          label: r.label || (r.date ? DAY_LABELS[new Date(r.date).getDay()] : ''),
+        }));
+        setRevenueTrend(mapped);
+      } else {
+        // Mock last 7 days from no data (show zeros)
+        setRevenueTrend(generateMockTrend());
+      }
+    } catch {
+      setRevenueTrend(generateMockTrend());
+    }
+
+    // Payment methods — try sessions report or cash reconciliation
+    try {
+      const res = await reportsAPI.cashReconciliation({ period: 'month' });
+      const raw = res.data?.data || res.data || {};
+      const byMethod = raw.by_method || raw.byMethod || raw.payment_methods || raw.paymentMethods || null;
+      if (byMethod && (Array.isArray(byMethod) ? byMethod.length : Object.keys(byMethod).length)) {
+        const arr = Array.isArray(byMethod)
+          ? byMethod
+          : Object.entries(byMethod).map(([key, val]) => ({ key, amount: parseFloat(val?.amount ?? val ?? 0) }));
+        setPaymentMethods(arr.map((m) => ({
+          key: (m.key || m.method || m.payment_method || '').toLowerCase(),
+          amount: parseFloat(m.amount || m.total || 0),
+        })));
+      } else {
+        // Try to build from raw totals in the reconciliation data
+        const pm = [];
+        if (raw.efectivo_total != null) pm.push({ key: 'efectivo', amount: parseFloat(raw.efectivo_total) });
+        if (raw.tarjeta_total != null) pm.push({ key: 'tarjeta', amount: parseFloat(raw.tarjeta_total) });
+        if (raw.transferencia_total != null) pm.push({ key: 'transferencia', amount: parseFloat(raw.transferencia_total) });
+        setPaymentMethods(pm);
+      }
+    } catch {
+      setPaymentMethods([]);
+    }
+  }, []);
+
+  // Fetch sessions report for collection rate if not available in dashboard
+  const fetchSessionStats = useCallback(async () => {
+    if (collectionRate !== null) return;
+    try {
+      const res = await reportsAPI.sessions({ period: 'month' });
+      const raw = res.data?.data || res.data || {};
+      const paid = raw.paid_count ?? raw.paidCount ?? raw.sessions_paid ?? null;
+      const completed = raw.total_completed ?? raw.totalCompleted ?? raw.sessions_completed ?? (raw.total ?? null);
+      if (paid !== null && completed > 0) {
+        setCollectionRate(Math.round((paid / completed) * 100));
+      }
+    } catch {}
+  }, [collectionRate]);
+
+  // Today stats fallback: try executiveSummary
+  const fetchTodayStats = useCallback(async () => {
+    if (todayStats !== null) return;
+    try {
+      const res = await reportsAPI.executiveSummary();
+      const raw = res.data?.data || res.data || {};
+      setTodayStats({
+        entries: raw.today_entries ?? raw.todayEntries ?? 0,
+        exits: raw.today_exits ?? raw.todayExits ?? 0,
+        payments: raw.today_payments ?? raw.todayPayments ?? 0,
+        revenue: raw.today_revenue ?? raw.todayRevenue ?? 0,
+      });
+    } catch {}
+  }, [todayStats]);
+
   useEffect(() => {
     fetchData();
+    fetchChartData();
+    fetchSessionStats();
+    fetchTodayStats();
     const interval = setInterval(fetchData, 2000);
 
     const socket = connectSocket();
@@ -151,7 +429,7 @@ export default function DashboardPage() {
       clearInterval(interval);
       disconnectSocket();
     };
-  }, [fetchData]);
+  }, [fetchData, fetchChartData, fetchSessionStats, fetchTodayStats]);
 
   if (loading) {
     return (
@@ -163,7 +441,34 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
+      </div>
+
+      {/* Quick Actions Row */}
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={() => navigate('/control-acceso')}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+        >
+          <LogIn size={16} />
+          Nueva Entrada
+        </button>
+        <button
+          onClick={() => navigate('/control-acceso')}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+        >
+          <LogOut size={16} />
+          Registrar Salida
+        </button>
+        <button
+          onClick={() => navigate('/caja')}
+          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+        >
+          <Wallet size={16} />
+          Abrir Caja
+        </button>
+      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -196,8 +501,37 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Today's Performance Info Bar */}
+      {todayStats && (
+        <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-5 py-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          <span className="font-semibold text-indigo-700">Hoy:</span>
+          <span className="flex items-center gap-1.5 text-gray-700">
+            <LogIn size={14} className="text-indigo-500" />
+            <strong>{todayStats.entries}</strong> entradas
+          </span>
+          <span className="flex items-center gap-1.5 text-gray-700">
+            <LogOut size={14} className="text-emerald-500" />
+            <strong>{todayStats.exits}</strong> salidas
+          </span>
+          <span className="flex items-center gap-1.5 text-gray-700">
+            <CheckCircle size={14} className="text-blue-500" />
+            <strong>{todayStats.payments}</strong> pagos
+          </span>
+          <span className="flex items-center gap-1.5 text-gray-700">
+            <DollarSign size={14} className="text-green-500" />
+            <strong>{fmtRD(todayStats.revenue)}</strong> recaudado
+          </span>
+        </div>
+      )}
+
+      {/* Revenue Trend + Payment Methods */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <RevenueTrendChart data={revenueTrend} />
+        <PaymentDonut methods={paymentMethods} />
+      </div>
+
       {/* Secondary Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-4 shadow-sm border flex items-center gap-4">
           <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
             <Receipt size={20} />
@@ -228,6 +562,28 @@ export default function DashboardPage() {
             <p className="text-xs text-gray-500">Morosos</p>
             <p className="text-xl font-bold text-red-600">{dashboard?.overdue_count || 0}</p>
           </div>
+        </div>
+        {/* Collection Rate */}
+        <div className="bg-white rounded-xl p-4 shadow-sm border flex items-center gap-4">
+          {collectionRate !== null ? (
+            <>
+              <CircularProgress value={collectionRate} size={68} />
+              <div>
+                <p className="text-xs text-gray-500">Tasa de Cobro</p>
+                <p className="text-xs text-gray-400 mt-0.5">Sesiones pagadas</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="w-10 h-10 rounded-lg bg-gray-100 text-gray-400 flex items-center justify-center">
+                <CheckCircle size={20} />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Tasa de Cobro</p>
+                <p className="text-sm font-semibold text-gray-400">No disponible</p>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

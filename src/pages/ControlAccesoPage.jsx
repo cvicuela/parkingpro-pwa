@@ -1049,6 +1049,8 @@ export default function ControlAccesoPage() {
                       <div className="flex justify-between"><span className="text-gray-500">Total</span><span className="font-bold text-green-700 text-lg">{fmtMoney(r.total)}</span></div>
                       <div className="flex justify-between"><span className="text-gray-500">Método</span><span>{{ cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' }[r.paymentMethod]}</span></div>
                       {r.cardType && <div className="flex justify-between"><span className="text-gray-500">Tarjeta</span><span className="capitalize">{r.cardType}</span></div>}
+                      {r.cardLastFour && <div className="flex justify-between"><span className="text-gray-500">Últimos 4</span><span className="font-mono">••••{r.cardLastFour}</span></div>}
+                      {r.cardHolderName && <div className="flex justify-between"><span className="text-gray-500">Titular</span><span>{r.cardHolderName}</span></div>}
                       {r.transferReference && <div className="flex justify-between"><span className="text-gray-500">Referencia</span><span className="text-xs">{r.transferReference}</span></div>}
                       {r.cashReceived > 0 && (
                         <>

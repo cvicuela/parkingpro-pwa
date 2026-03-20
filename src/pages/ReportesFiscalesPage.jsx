@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import {
   FileText, Download, Calendar, Building2, Eye,
   TrendingUp, TrendingDown, AlertCircle, ChevronDown,
-  CheckCircle, RefreshCw
+  CheckCircle, RefreshCw, Clock
 } from 'lucide-react';
 import { fiscalAPI, settingsAPI } from '../services/api';
 
@@ -136,6 +136,93 @@ function downloadTXT(content, filename) {
   URL.revokeObjectURL(url);
 }
 
+function downloadCSV(content, filename) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function generate607CSV(rows) {
+  const headers = [
+    'RNC/Cedula', 'Tipo ID', 'NCF', 'NCF Modificado', 'Tipo Ingreso',
+    'Fecha Comprobante', 'Fecha Retención', 'Monto Facturado', 'ITBIS Facturado',
+    'ITBIS Retenido', 'ITBIS Percibido', 'Retención Renta', 'ISC',
+    'Otros Impuestos', 'Propina Legal', 'Efectivo', 'Cheque/Transferencia',
+    'Tarjeta', 'Venta Crédito', 'Bonos', 'Permuta', 'Otras Formas'
+  ];
+  const escapeCSV = v => {
+    const s = String(v ?? '');
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [headers.join(',')];
+  for (const r of rows) {
+    lines.push([
+      r.buyer_id || '', r.buyer_id_type || '2', r.ncf || '', r.ncf_modified || '',
+      r.income_type || '01', r.invoice_date || '', r.retention_date || '',
+      fmtNum(r.subtotal), fmtNum(r.itbis), fmtNum(r.itbis_retenido),
+      fmtNum(r.itbis_percibido), fmtNum(r.isr_retenido), fmtNum(r.impuesto_selectivo),
+      fmtNum(r.otros_impuestos), fmtNum(r.propina_legal), fmtNum(r.cash_amount),
+      fmtNum(r.check_transfer_amount), fmtNum(r.card_amount), fmtNum(r.credit_sale_amount),
+      fmtNum(0), fmtNum(r.permuta_amount), fmtNum(r.other_amount)
+    ].map(escapeCSV).join(','));
+  }
+  return lines.join('\r\n');
+}
+
+function generate606CSV(rows) {
+  const headers = [
+    'RNC/Cedula', 'Tipo ID', 'Tipo Bienes/Servicios', 'NCF', 'NCF Modificado',
+    'Fecha Comprobante', 'Fecha Pago', 'Monto Servicios', 'Monto Bienes',
+    'Total Facturado', 'ITBIS Facturado', 'ITBIS Retenido', 'ITBIS Proporcionalidad',
+    'ITBIS Costo', 'ITBIS Por Adelantar', 'ITBIS Percibido', 'Tipo Retención ISR',
+    'Monto Retención Renta', 'ISR Percibido', 'ISC', 'Otros Impuestos',
+    'Propina Legal', 'Forma de Pago'
+  ];
+  const escapeCSV = v => {
+    const s = String(v ?? '');
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [headers.join(',')];
+  for (const r of rows) {
+    lines.push([
+      r.supplier_id || '', r.supplier_id_type || '1', r.expense_type || '02',
+      r.ncf || '', r.ncf_modified || '', r.invoice_date || '', r.payment_date || '',
+      fmtNum(r.services_amount), fmtNum(r.goods_amount), fmtNum(r.total_invoiced),
+      fmtNum(r.itbis), fmtNum(r.itbis_retenido), fmtNum(r.itbis_proporcionalidad),
+      fmtNum(r.itbis_costo), fmtNum(r.itbis_adelantar), fmtNum(r.itbis_percibido),
+      r.isr_type || '00', fmtNum(r.isr_retenido), fmtNum(r.isr_percibido),
+      fmtNum(r.impuesto_selectivo), fmtNum(r.otros_impuestos), fmtNum(r.propina_legal),
+      r.payment_method || '04'
+    ].map(escapeCSV).join(','));
+  }
+  return lines.join('\r\n');
+}
+
+function isValidNCF(ncf) {
+  return ncf && typeof ncf === 'string' && ncf.startsWith('B') && ncf.length >= 11;
+}
+
+function getPreviousPeriod(year, month) {
+  if (month === 1) return { year: year - 1, month: 12 };
+  return { year, month: month - 1 };
+}
+
+function getDGIIDeadline(year, month) {
+  // Deadline is 15th of the month following the reported period
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  return new Date(nextYear, nextMonth - 1, 15);
+}
+
+function pctChange(current, previous) {
+  if (!previous || previous === 0) return null;
+  return ((current - previous) / previous) * 100;
+}
+
 export default function ReportesFiscalesPage() {
   const now = new Date();
   const [activeTab, setActiveTab] = useState('607');
@@ -147,6 +234,7 @@ export default function ReportesFiscalesPage() {
   const [companyRnc, setCompanyRnc] = useState('');
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
+  const [prevReportData, setPrevReportData] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
 
   const period = `${periodYear}${String(periodMonth).padStart(2, '0')}`;
@@ -155,6 +243,7 @@ export default function ReportesFiscalesPage() {
     try {
       setLoading(true);
       setReportData(null);
+      setPrevReportData(null);
 
       // Load company RNC from settings if not set
       if (!companyRnc) {
@@ -180,12 +269,27 @@ export default function ReportesFiscalesPage() {
       }
 
       setReportData(res.data?.data || null);
+
+      // Fetch previous period for comparison (only when using period selector, not custom dates)
+      if (!useCustomDates) {
+        try {
+          const prev = getPreviousPeriod(periodYear, periodMonth);
+          const prevPeriod = `${prev.year}${String(prev.month).padStart(2, '0')}`;
+          let prevRes;
+          if (activeTab === '607') {
+            prevRes = await fiscalAPI.generate607({ period: prevPeriod });
+          } else {
+            prevRes = await fiscalAPI.generate606({ period: prevPeriod });
+          }
+          setPrevReportData(prevRes.data?.data || null);
+        } catch { /* ignore prev period errors */ }
+      }
     } catch (err) {
       toast.error('Error generando reporte: ' + err.message);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, period, useCustomDates, fromDate, toDate, companyRnc]);
+  }, [activeTab, period, periodYear, periodMonth, useCustomDates, fromDate, toDate, companyRnc]);
 
   const handleExportTXT = () => {
     if (!reportData?.rows?.length) {
@@ -209,6 +313,23 @@ export default function ReportesFiscalesPage() {
     toast.success(`Archivo ${filename} descargado`);
   };
 
+  const handleExportCSV = () => {
+    if (!reportData?.rows?.length) {
+      toast.warning('No hay datos para exportar');
+      return;
+    }
+    let content, filename;
+    if (activeTab === '607') {
+      content = generate607CSV(reportData.rows);
+      filename = `607_${companyRnc || '000000000'}_${period}.csv`;
+    } else {
+      content = generate606CSV(reportData.rows);
+      filename = `606_${companyRnc || '000000000'}_${period}.csv`;
+    }
+    downloadCSV(content, filename);
+    toast.success(`Archivo ${filename} descargado`);
+  };
+
   const handleSaveRnc = async () => {
     if (!companyRnc || companyRnc.length < 9) {
       toast.error('RNC debe tener al menos 9 dígitos');
@@ -224,16 +345,60 @@ export default function ReportesFiscalesPage() {
 
   const rows = reportData?.rows || [];
   const totals = reportData?.totals || {};
+  const prevTotals = prevReportData?.totals || {};
 
   const years = [];
   for (let y = now.getFullYear(); y >= now.getFullYear() - 3; y--) years.push(y);
 
+  // Validation counts
+  const missingNCF = rows.filter(r => !isValidNCF(r.ncf)).length;
+  const missingId = rows.filter(r => {
+    const id = activeTab === '607' ? r.buyer_id : r.supplier_id;
+    return !id || id.trim() === '';
+  }).length;
+  const zeroAmount = rows.filter(r => {
+    const amt = activeTab === '607' ? (r.total_amount || 0) : (r.total || r.total_invoiced || 0);
+    return parseFloat(amt) === 0;
+  }).length;
+  const allValid = missingNCF === 0 && missingId === 0 && zeroAmount === 0;
+
+  // Period comparison
+  const incomeChangePct = pctChange(totals.total_amount || 0, prevTotals.total_amount || 0);
+  const countChangePct = pctChange(totals.count || 0, prevTotals.count || 0);
+  const itbisChangePct = pctChange(totals.total_itbis || 0, prevTotals.total_itbis || 0);
+
+  // DGII deadline
+  const deadline = getDGIIDeadline(periodYear, periodMonth);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const daysLeft = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+  const deadlinePassed = daysLeft <= 0;
+  const deadlineLabel = deadline.toLocaleDateString('es-DO', { day: '2-digit', month: 'long', year: 'numeric' });
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reportes Fiscales DGII</h1>
-        <p className="text-sm text-gray-500 mt-1">Generación de formatos 606 (compras) y 607 (ventas) para la DGII</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Reportes Fiscales DGII</h1>
+          <p className="text-sm text-gray-500 mt-1">Generación de formatos 606 (compras) y 607 (ventas) para la DGII</p>
+        </div>
+        {/* DGII Deadline Indicator */}
+        {!useCustomDates && (
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium ${
+            deadlinePassed
+              ? 'bg-red-50 border-red-200 text-red-700'
+              : daysLeft <= 5
+              ? 'bg-amber-50 border-amber-200 text-amber-700'
+              : 'bg-green-50 border-green-200 text-green-700'
+          }`}>
+            <Clock size={16} />
+            <span>
+              {deadlinePassed
+                ? `Plazo de envío vencido (venció ${deadlineLabel})`
+                : `Plazo de envío: ${daysLeft} día${daysLeft !== 1 ? 's' : ''} restante${daysLeft !== 1 ? 's' : ''} · ${deadlineLabel}`}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Tab Selector */}
@@ -337,11 +502,18 @@ export default function ReportesFiscalesPage() {
           </button>
 
           {reportData && rows.length > 0 && (
-            <button onClick={handleExportTXT}
-              className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-              <Download size={16} />
-              Descargar TXT
-            </button>
+            <>
+              <button onClick={handleExportTXT}
+                className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <Download size={16} />
+                Descargar TXT
+              </button>
+              <button onClick={handleExportCSV}
+                className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">
+                <Download size={16} />
+                Descargar Excel
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -368,6 +540,65 @@ export default function ReportesFiscalesPage() {
               <p className="text-lg font-bold">{formatCurrency(totals.total_itbis)}</p>
             </div>
           </div>
+
+          {/* Period Comparison Row */}
+          {!useCustomDates && prevReportData && (prevTotals.count || 0) > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border px-5 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+              <span className="text-gray-500 font-medium">vs mes anterior:</span>
+              {incomeChangePct !== null && (
+                <span className={incomeChangePct >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                  {incomeChangePct >= 0 ? '+' : ''}{incomeChangePct.toFixed(1)}% ingresos
+                </span>
+              )}
+              {countChangePct !== null && (
+                <span className={countChangePct >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                  {countChangePct >= 0 ? '+' : ''}{(totals.count - prevTotals.count) > 0 ? '+' : ''}{(totals.count || 0) - (prevTotals.count || 0)} registros
+                </span>
+              )}
+              {itbisChangePct !== null && (
+                <span className={itbisChangePct >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                  {itbisChangePct >= 0 ? '+' : ''}{itbisChangePct.toFixed(1)}% ITBIS
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Pre-export Validation Panel */}
+          {rows.length > 0 && (
+            <div className={`rounded-xl border p-4 ${allValid ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
+              <p className="text-sm font-semibold text-gray-700 mb-3">Validación previa al envío DGII</p>
+              {allValid ? (
+                <div className="flex items-center gap-2 text-green-700">
+                  <CheckCircle size={18} className="text-green-500" />
+                  <span className="text-sm font-medium">Todos los registros validados</span>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${
+                    missingNCF > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                  }`}>
+                    {missingNCF > 0
+                      ? <><AlertCircle size={15} />{missingNCF} registro{missingNCF !== 1 ? 's' : ''} sin NCF</>
+                      : <><CheckCircle size={15} />NCF completos</>}
+                  </div>
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${
+                    missingId > 0 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+                  }`}>
+                    {missingId > 0
+                      ? <><AlertCircle size={15} />{missingId} registro{missingId !== 1 ? 's' : ''} sin identificación</>
+                      : <><CheckCircle size={15} />Identificaciones completas</>}
+                  </div>
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${
+                    zeroAmount > 0 ? 'bg-gray-100 text-gray-600' : 'bg-green-100 text-green-700'
+                  }`}>
+                    {zeroAmount > 0
+                      ? <><AlertCircle size={15} />{zeroAmount} registro{zeroAmount !== 1 ? 's' : ''} con monto $0</>
+                      : <><CheckCircle size={15} />Montos válidos</>}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Data Table */}
           <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
@@ -411,6 +642,7 @@ export default function ReportesFiscalesPage() {
                       <th className="text-left px-3 py-2 font-medium text-gray-600">Cliente</th>
                       <th className="text-left px-3 py-2 font-medium text-gray-600">RNC/Cédula</th>
                       <th className="text-left px-3 py-2 font-medium text-gray-600">NCF</th>
+                      <th className="w-6 px-1 py-2"></th>
                       <th className="text-left px-3 py-2 font-medium text-gray-600">Fecha</th>
                       <th className="text-right px-3 py-2 font-medium text-gray-600">Subtotal</th>
                       <th className="text-right px-3 py-2 font-medium text-gray-600">ITBIS</th>
@@ -425,6 +657,12 @@ export default function ReportesFiscalesPage() {
                         <td className="px-3 py-2 font-medium">{r.customer_name}</td>
                         <td className="px-3 py-2 font-mono text-xs">{r.buyer_id || '-'}</td>
                         <td className="px-3 py-2 font-mono text-xs">{r.ncf || '-'}</td>
+                        <td className="px-1 py-2">
+                          <span
+                            title={isValidNCF(r.ncf) ? 'NCF válido' : 'NCF ausente o malformado'}
+                            className={`inline-block w-2.5 h-2.5 rounded-full ${isValidNCF(r.ncf) ? 'bg-green-500' : 'bg-red-500'}`}
+                          />
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap">{formatDGIIDate(r.invoice_date)}</td>
                         <td className="px-3 py-2 text-right">{formatCurrency(r.subtotal)}</td>
                         <td className="px-3 py-2 text-right">{formatCurrency(r.itbis)}</td>
@@ -460,6 +698,7 @@ export default function ReportesFiscalesPage() {
                       <th className="text-left px-3 py-2 font-medium text-gray-600">Suplidor</th>
                       <th className="text-left px-3 py-2 font-medium text-gray-600">RNC</th>
                       <th className="text-left px-3 py-2 font-medium text-gray-600">NCF</th>
+                      <th className="w-6 px-1 py-2"></th>
                       <th className="text-left px-3 py-2 font-medium text-gray-600">Tipo</th>
                       <th className="text-left px-3 py-2 font-medium text-gray-600">Fecha</th>
                       <th className="text-right px-3 py-2 font-medium text-gray-600">Monto</th>
@@ -475,6 +714,12 @@ export default function ReportesFiscalesPage() {
                         <td className="px-3 py-2 font-medium">{r.supplier_name}</td>
                         <td className="px-3 py-2 font-mono text-xs">{r.supplier_id || '-'}</td>
                         <td className="px-3 py-2 font-mono text-xs">{r.ncf || '-'}</td>
+                        <td className="px-1 py-2">
+                          <span
+                            title={isValidNCF(r.ncf) ? 'NCF válido' : 'NCF ausente o malformado'}
+                            className={`inline-block w-2.5 h-2.5 rounded-full ${isValidNCF(r.ncf) ? 'bg-green-500' : 'bg-red-500'}`}
+                          />
+                        </td>
                         <td className="px-3 py-2 text-xs">{EXPENSE_TYPE_LABELS[r.expense_type] || r.expense_type}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{formatDGIIDate(r.invoice_date)}</td>
                         <td className="px-3 py-2 text-right">{formatCurrency(r.goods_amount)}</td>
@@ -486,7 +731,7 @@ export default function ReportesFiscalesPage() {
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-50 border-t-2 font-semibold">
-                      <td colSpan={6} className="px-3 py-2 text-right">Totales:</td>
+                      <td colSpan={7} className="px-3 py-2 text-right">Totales:</td>
                       <td className="px-3 py-2 text-right">{formatCurrency(totals.total_subtotal)}</td>
                       <td className="px-3 py-2 text-right">{formatCurrency(totals.total_itbis)}</td>
                       <td className="px-3 py-2 text-right">{formatCurrency(totals.total_amount)}</td>
