@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Search, RotateCcw, DollarSign, CheckCircle, XCircle, Clock, FileText, RefreshCw, X } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import Pagination from '../components/Pagination';
 
 const fmtMoney = (v) => { const p = Number(v || 0).toFixed(2).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
 
@@ -25,6 +26,8 @@ export default function PagosPage() {
   const [endDate, setEndDate] = useState('');
   const [refundModal, setRefundModal] = useState(null);
   const [refundReason, setRefundReason] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const fetchPayments = useCallback(async () => {
     setLoading(true);
@@ -39,7 +42,7 @@ export default function PagosPage() {
     } catch {} finally { setLoading(false); }
   }, [search, statusFilter, startDate, endDate]);
 
-  useEffect(() => { fetchPayments(); }, [fetchPayments]);
+  useEffect(() => { setPage(1); fetchPayments(); }, [fetchPayments]);
 
   const openRefundModal = (id) => {
     setRefundReason('');
@@ -121,6 +124,7 @@ export default function PagosPage() {
         ) : payments.length === 0 ? (
           <EmptyState icon={DollarSign} title="No se encontraron pagos" description="Los pagos aparecerán aquí cuando se procesen cobros por estacionamiento." />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-sm text-gray-500">
@@ -135,7 +139,7 @@ export default function PagosPage() {
                 </tr>
               </thead>
               <tbody>
-                {payments.map((p) => {
+                {payments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((p) => {
                   const config = statusConfig[p.status] || statusConfig.pending;
                   const StatusIcon = config.icon;
                   return (
@@ -170,6 +174,8 @@ export default function PagosPage() {
               </tbody>
             </table>
           </div>
+          <Pagination currentPage={page} totalItems={payments.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
+          </>
         )}
       </div>
 

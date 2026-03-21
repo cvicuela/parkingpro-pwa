@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import EmptyState from '../components/EmptyState';
 import { Plus, Search, Edit2, Trash2, X, Building2, User, History, Printer, Car, CreditCard, FileText, Clock } from 'lucide-react';
 import PrintPreviewModal from '../components/PrintPreviewModal';
+import Pagination from '../components/Pagination';
 
 const GENERIC_CUSTOMER_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -353,6 +354,8 @@ export default function ClientesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [historyCustomer, setHistoryCustomer] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const fetchCustomers = async () => {
     try {
@@ -363,7 +366,7 @@ export default function ClientesPage() {
     }
   };
 
-  useEffect(() => { fetchCustomers(); }, [search]);
+  useEffect(() => { setPage(1); fetchCustomers(); }, [search]);
 
   const handleDelete = async (id) => {
     if (id === GENERIC_CUSTOMER_ID) {
@@ -408,6 +411,7 @@ export default function ClientesPage() {
         ) : customers.length === 0 ? (
           <EmptyState icon={Users} title="No se encontraron clientes" description="Agregue su primer cliente para comenzar a gestionar suscripciones." actionLabel="Nuevo Cliente" onAction={() => { setEditing(null); setShowModal(true); }} />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-sm text-gray-500">
@@ -420,7 +424,7 @@ export default function ClientesPage() {
                 </tr>
               </thead>
               <tbody>
-                {customers.map((c) => (
+                {customers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((c) => (
                   <tr key={c.id} className={`border-b border-gray-100 hover:bg-gray-50 ${isGeneric(c) ? 'bg-amber-50/50' : ''}`}>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
@@ -475,6 +479,8 @@ export default function ClientesPage() {
               </tbody>
             </table>
           </div>
+          <Pagination currentPage={page} totalItems={customers.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
+          </>
         )}
       </div>
 

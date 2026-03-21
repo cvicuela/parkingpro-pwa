@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { FileText, Search, Printer, RefreshCw, X, Eye } from 'lucide-react';
 import { invoicesAPI } from '../services/api';
 import PrintPreviewModal from '../components/PrintPreviewModal';
+import Pagination from '../components/Pagination';
 
 const fmtMoney = (v) => { const p = Number(v || 0).toFixed(2).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '-';
@@ -73,6 +74,8 @@ export default function FacturasPage() {
   const [endDate, setEndDate] = useState('');
   const [selected, setSelected] = useState(null);
   const [printInvoice, setPrintInvoice] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -109,7 +112,7 @@ export default function FacturasPage() {
     }
   }, [search, startDate, endDate]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { setPage(1); fetchData(); }, [fetchData]);
 
   const kpis = stats ? [
     { label: 'Facturas emitidas', value: stats.total_invoices, fmt: v => v, color: 'blue' },
@@ -173,7 +176,7 @@ export default function FacturasPage() {
             <tbody>
               {invoices.length === 0
                 ? <tr><td colSpan={8} className="text-center text-gray-500 py-12"><FileText size={32} className="mx-auto text-gray-300 mb-2" />No hay facturas para el periodo seleccionado</td></tr>
-                : invoices.map(inv => (
+                : invoices.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(inv => (
                   <tr key={inv.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <button onClick={() => setSelected(inv)}
@@ -199,6 +202,7 @@ export default function FacturasPage() {
             </tbody>
           </table>
         )}
+        <Pagination currentPage={page} totalItems={invoices.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
       </div>
 
       {/* Modal detalle */}

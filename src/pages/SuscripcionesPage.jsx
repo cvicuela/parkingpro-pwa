@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Plus, Search, X, Pause, Play, Trash2, AlertTriangle, Eye, FileText, User, Phone, Mail, Car, CreditCard, Calendar, Building2, ExternalLink } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import Pagination from '../components/Pagination';
 
 const statusBadge = {
   active: 'bg-green-100 text-green-700',
@@ -325,6 +326,8 @@ export default function SuscripcionesPage() {
   const [cancelModal, setCancelModal] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [detailSub, setDetailSub] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const navigate = useNavigate();
 
@@ -335,7 +338,7 @@ export default function SuscripcionesPage() {
     } catch {} finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchSubs(); }, [search]);
+  useEffect(() => { setPage(1); fetchSubs(); }, [search]);
 
   const handleSuspend = async (id) => {
     try {
@@ -396,6 +399,7 @@ export default function SuscripcionesPage() {
         ) : subs.length === 0 ? (
           <EmptyState icon={CreditCard} title="No se encontraron suscripciones" description="Cree una suscripción para asociar un cliente a un plan de parqueo." actionLabel="Nueva Suscripción" onAction={() => setShowModal(true)} />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-sm text-gray-500">
@@ -410,7 +414,7 @@ export default function SuscripcionesPage() {
                 </tr>
               </thead>
               <tbody>
-                {subs.map((s) => (
+                {subs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((s) => (
                   <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <button
@@ -469,6 +473,8 @@ export default function SuscripcionesPage() {
               </tbody>
             </table>
           </div>
+          <Pagination currentPage={page} totalItems={subs.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
+          </>
         )}
       </div>
 
