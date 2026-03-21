@@ -733,6 +733,7 @@ export const ncfAPI = {
     const result = await rpc('update_ncf_sequence', {
       p_token: getToken(),
       p_id: id,
+      p_range_from: data.rangeFrom ?? null,
       p_range_to: data.rangeTo ?? null,
       p_alert_threshold: data.alertThreshold ?? null,
       p_is_active: data.isActive ?? null,

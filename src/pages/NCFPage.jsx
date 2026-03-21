@@ -62,6 +62,7 @@ export default function NCFPage() {
   const startEdit = (seq) => {
     setEditingId(seq.id);
     setEditForm({
+      rangeFrom: seq.range_from,
       rangeTo: seq.range_to,
       alertThreshold: seq.alert_threshold,
       expirationDate: seq.expiration_date || '',
@@ -192,11 +193,17 @@ export default function NCFPage() {
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-gray-500">
                       {isEditing ? (
-                        <input type="number" value={editForm.rangeTo}
-                          onChange={e => setEditForm({ ...editForm, rangeTo: parseInt(e.target.value) })}
-                          className="w-24 border rounded px-2 py-1 text-right text-sm" />
+                        <div className="flex items-center gap-1 justify-end">
+                          <input type="number" value={editForm.rangeFrom}
+                            onChange={e => setEditForm({ ...editForm, rangeFrom: parseInt(e.target.value) || 0 })}
+                            className="w-20 border rounded px-2 py-1 text-right text-sm" />
+                          <span className="text-gray-400">-</span>
+                          <input type="number" value={editForm.rangeTo}
+                            onChange={e => setEditForm({ ...editForm, rangeTo: parseInt(e.target.value) || 0 })}
+                            className="w-20 border rounded px-2 py-1 text-right text-sm" />
+                        </div>
                       ) : (
-                        `${seq.range_from.toLocaleString()} - ${seq.range_to.toLocaleString()}`
+                        `${(seq.range_from ?? 0).toLocaleString()} - ${(seq.range_to ?? 0).toLocaleString()}`
                       )}
                     </td>
                     <td className={`px-4 py-3 text-right font-semibold ${
