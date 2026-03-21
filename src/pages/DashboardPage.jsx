@@ -246,9 +246,17 @@ const sessionStatusColor = (s) => {
 };
 
 function ActiveSessionRow({ session }) {
-  const minutes = Math.round(session.minutes_elapsed || 0);
+  // Calculate duration client-side from entry_time for real-time updates
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(t);
+  }, []);
+  const entryMs = new Date(session.entry_time).getTime();
+  const minutes = Math.max(0, Math.round((now - entryMs) / 60000));
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
+  const amount = parseFloat(session.current_amount ?? session.calculated_amount ?? 0);
 
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50">
@@ -263,7 +271,7 @@ function ActiveSessionRow({ session }) {
         </span>
       </td>
       <td className="py-3 px-4 text-sm font-medium text-green-600">
-        RD$ {(session.current_amount || 0).toFixed(2)}
+        RD$ {amount.toFixed(2)}
       </td>
     </tr>
   );
