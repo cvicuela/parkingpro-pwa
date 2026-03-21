@@ -736,8 +736,8 @@ export const ncfAPI = {
       p_range_to: data.rangeTo ?? null,
       p_alert_threshold: data.alertThreshold ?? null,
       p_is_active: data.isActive ?? null,
-      p_authorized_date: data.authorizedDate ?? null,
-      p_expiration_date: data.expirationDate ?? null,
+      p_authorized_date: data.authorizedDate || null,
+      p_expiration_date: data.expirationDate || null,
     });
     if (!result.success) throw new Error(result.error);
     return wrap(result);
