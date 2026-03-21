@@ -153,7 +153,7 @@ function ParkingStep({ data, onChange }) {
         <Field label="Espacios Totales" required hint="Cantidad total de espacios de parqueo">
           <Input type="number" min="1" value={data.parking_spaces || ''} onChange={e => update('parking_spaces', e.target.value)} placeholder="50" />
         </Field>
-        <Field label="Periodo de Gracia (min)" required hint="Minutos gratis al entrar">
+        <Field label="Período de Gracia (min)" required hint="Minutos gratis al entrar">
           <Input type="number" min="0" value={data.grace_period || ''} onChange={e => update('grace_period', e.target.value)} placeholder="15" />
         </Field>
         <Field label="Tolerancia de Salida (min)" hint="Margen adicional antes de cobrar siguiente hora">
@@ -697,7 +697,7 @@ export default function SetupWizardPage() {
                 disabled={isFirst}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isFirst
-                    ? 'text-gray-300 cursor-default'
+                    ? 'text-gray-400 cursor-default'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { plansAPI } from '../services/api';
 import { toast } from 'react-toastify';
-import { Plus, Edit2, Trash2, X, Clock, Sun, Moon, Timer, DollarSign, Save, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Clock, Sun, Moon, Timer, DollarSign, Save, RefreshCw, AlertTriangle, Layers } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
 
 const planIcons = { diurno: Sun, nocturno: Moon, '24h': Clock, hourly: Timer };
 const planColors = {
@@ -415,6 +416,9 @@ export default function PlanesPage() {
         </button>
       </div>
 
+      {plans.length === 0 && !loading ? (
+        <EmptyState icon={Layers} title="No hay planes configurados" description="Cree su primer plan de parqueo para definir tarifas y espacios." actionLabel="Crear Plan" onAction={() => { setEditing(null); setShowModal(true); }} />
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {plans.map((plan) => {
           const Icon = planIcons[plan.type] || Clock;
@@ -458,6 +462,7 @@ export default function PlanesPage() {
           );
         })}
       </div>
+      )}
 
       {showModal && (
         <PlanModal

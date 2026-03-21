@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import {
   Bell, Send, Mail, MessageCircle, Smartphone, CheckCircle,
-  XCircle, Clock, Filter, RefreshCw, ChevronLeft, ChevronRight,
+  XCircle, Clock, Filter, RefreshCw,
   Plus, X
 } from 'lucide-react';
 import { notificationsAPI } from '../services/api';
 import PushNotificationToggle from '../components/PushNotificationToggle';
+import Pagination from '../components/Pagination';
 
 const CHANNEL_CONFIG = {
   whatsapp: { icon: MessageCircle, label: 'WhatsApp', color: 'green' },
@@ -78,13 +79,11 @@ export default function NotificacionesPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const totalPages = Math.ceil(total / limit);
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Notificaciones</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Notificaciones</h1>
           <p className="text-sm text-gray-500 mt-1">Historial y envío de notificaciones a clientes</p>
         </div>
         <button onClick={() => setShowSendModal(true)}
@@ -191,24 +190,7 @@ export default function NotificacionesPage() {
           </table>
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
-            <p className="text-xs text-gray-500">
-              Mostrando {page * limit + 1}-{Math.min((page + 1) * limit, total)} de {total}
-            </p>
-            <div className="flex gap-1">
-              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30">
-                <ChevronLeft size={16} />
-              </button>
-              <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-                className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30">
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination currentPage={page + 1} totalItems={total} pageSize={limit} onPageChange={(p) => setPage(p - 1)} />
       </div>
 
       {/* Send Modal */}

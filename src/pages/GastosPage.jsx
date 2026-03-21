@@ -6,6 +6,7 @@ import {
   TrendingDown, Receipt, AlertCircle
 } from 'lucide-react';
 import { expensesAPI } from '../services/api';
+import Pagination from '../components/Pagination';
 
 const EXPENSE_TYPES = [
   { code: '01', label: 'Gastos de Personal' },
@@ -86,6 +87,8 @@ export default function GastosPage() {
   const [filterTo, setFilterTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const fetchExpenses = useCallback(async () => {
     try {
@@ -116,6 +119,7 @@ export default function GastosPage() {
   }, [filterFrom, filterTo]);
 
   useEffect(() => {
+    setPage(1);
     fetchExpenses();
     fetchStats();
   }, [fetchExpenses, fetchStats]);
@@ -227,7 +231,7 @@ export default function GastosPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Registro de Gastos</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Registro de Gastos</h1>
           <p className="text-sm text-gray-500 mt-1">Gastos y compras operativas - Alimenta reporte DGII 606</p>
         </div>
         <button
@@ -287,7 +291,7 @@ export default function GastosPage() {
               type="text"
               placeholder="Buscar por suplidor, RNC, NCF..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
               className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
@@ -346,6 +350,7 @@ export default function GastosPage() {
             <p className="text-sm mt-1">Registra tu primer gasto para alimentar el reporte 606</p>
           </div>
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -363,7 +368,7 @@ export default function GastosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filtered.map(exp => (
+                {filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(exp => (
                   <tr key={exp.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 whitespace-nowrap">{formatDate(exp.expense_date)}</td>
                     <td className="px-4 py-3">
@@ -409,6 +414,8 @@ export default function GastosPage() {
               </tfoot>
             </table>
           </div>
+          <Pagination currentPage={page} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
+          </>
         )}
       </div>
 

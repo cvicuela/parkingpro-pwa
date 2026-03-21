@@ -612,7 +612,7 @@ export default function ControlAccesoPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
 
           {/* ── Input bar ── */}
@@ -855,7 +855,7 @@ export default function ControlAccesoPage() {
                     <CheckCircle className="text-green-600" size={40} />
                   </div>
                   <p className="text-xl font-bold text-green-700">Salida Libre</p>
-                  <p className="text-gray-500">{exitPopup.feeData?.message || 'Suscriptor activo o periodo de gracia'}</p>
+                  <p className="text-gray-500">{exitPopup.feeData?.message || 'Suscriptor activo o período de gracia'}</p>
                   <p className="text-3xl font-mono font-bold text-indigo-700">{exitPopup.session.vehicle_plate}</p>
                   <p className="text-sm text-gray-400">Abrir barrera</p>
                 </div>
@@ -969,7 +969,7 @@ export default function ControlAccesoPage() {
                       <p className={`text-sm font-medium mb-2 ${exitPopup.paymentPending ? 'text-amber-700 font-semibold' : 'text-gray-700'}`}>
                         {exitPopup.paymentPending ? 'Seleccionar forma de cobro' : 'Método de Pago'}
                       </p>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {[
                           { id: 'cash', label: 'Efectivo', icon: Banknote },
                           { id: 'card', label: 'Tarjeta', icon: CreditCard },
@@ -1008,7 +1008,7 @@ export default function ControlAccesoPage() {
                       <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 space-y-2">
                         <p className="text-xs font-semibold text-purple-800">Referencia de Transferencia</p>
                         <textarea value={transferRef} onChange={(e) => setTransferRef(e.target.value)}
-                          placeholder="Numero de referencia, banco emisor, notas..."
+                          placeholder="Número de referencia, banco emisor, notas..."
                           rows={2}
                           className="w-full px-3 py-2 border border-purple-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 outline-none resize-none" />
                       </div>
@@ -1084,8 +1084,8 @@ export default function ControlAccesoPage() {
                           <div className="flex justify-between"><span className="text-gray-500">Devuelta</span><span className="font-bold text-blue-700">{fmtMoney(r.cashChange)}</span></div>
                         </>
                       )}
-                      {r.code && <div className="flex justify-between"><span className="text-gray-500">Codigo</span><span className="font-mono">{r.code}</span></div>}
-                      {r.verification_code && <div className="flex justify-between"><span className="text-gray-500">Verificacion</span><span className="font-mono font-bold text-indigo-700">{r.verification_code}</span></div>}
+                      {r.code && <div className="flex justify-between"><span className="text-gray-500">Código</span><span className="font-mono">{r.code}</span></div>}
+                      {r.verification_code && <div className="flex justify-between"><span className="text-gray-500">Verificación</span><span className="font-mono font-bold text-indigo-700">{r.verification_code}</span></div>}
                     </div>
                     <div className="text-center">
                       <div className="mx-auto w-36 h-36 flex items-center justify-center">
@@ -1154,7 +1154,7 @@ export default function ControlAccesoPage() {
               <p className="text-sm text-gray-500">{entryTicket.type === 'subscriber' ? 'Suscriptor' : 'Por Hora'}</p>
               {entryTicket.verificationCode && (
                 <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2">
-                  <p className="text-xs text-indigo-500 mb-0.5">Codigo de Verificacion</p>
+                  <p className="text-xs text-indigo-500 mb-0.5">Código de Verificación</p>
                   <p className="text-lg font-mono font-bold text-indigo-700 tracking-wider cursor-pointer"
                     onClick={() => { navigator.clipboard.writeText(entryTicket.verificationCode); toast.info('Codigo copiado'); }}>
                     {entryTicket.verificationCode}
@@ -1342,7 +1342,7 @@ export default function ControlAccesoPage() {
             <div className="p-4 space-y-3">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-xs text-blue-800 font-medium">Conteo de efectivo inicial</p>
-                <p className="text-xs text-blue-600">Ingrese la cantidad de cada denominacion con la que inicia la caja</p>
+                <p className="text-xs text-blue-600">Ingrese la cantidad de cada denominación con la que inicia la caja</p>
               </div>
 
               <div className="grid grid-cols-2 gap-2">

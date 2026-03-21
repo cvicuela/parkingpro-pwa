@@ -31,7 +31,7 @@ export default memo(function Header({ onMenuClick }) {
           <Menu size={24} />
         </button>
         <h1 className="text-lg font-semibold text-white hidden md:block">
-          Sistema de Gestion de Parqueos
+          Sistema de Gestión de Parqueos
         </h1>
       </div>
 

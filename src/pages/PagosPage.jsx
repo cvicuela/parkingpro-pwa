@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { paymentsAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Search, RotateCcw, DollarSign, CheckCircle, XCircle, Clock, FileText, RefreshCw, X } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
+import Pagination from '../components/Pagination';
 
 const fmtMoney = (v) => { const p = Number(v || 0).toFixed(2).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
 
@@ -13,14 +16,18 @@ const statusConfig = {
 };
 
 export default function PagosPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [refundModal, setRefundModal] = useState(null); // { id } of payment being refunded
+  const [refundModal, setRefundModal] = useState(null);
   const [refundReason, setRefundReason] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const fetchPayments = useCallback(async () => {
     setLoading(true);
@@ -35,7 +42,7 @@ export default function PagosPage() {
     } catch {} finally { setLoading(false); }
   }, [search, statusFilter, startDate, endDate]);
 
-  useEffect(() => { fetchPayments(); }, [fetchPayments]);
+  useEffect(() => { setPage(1); fetchPayments(); }, [fetchPayments]);
 
   const openRefundModal = (id) => {
     setRefundReason('');
@@ -115,34 +122,35 @@ export default function PagosPage() {
         {loading ? (
           <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
         ) : payments.length === 0 ? (
-          <p className="p-8 text-center text-gray-400">No se encontraron pagos</p>
+          <EmptyState icon={DollarSign} title="No se encontraron pagos" description="Los pagos aparecerán aquí cuando se procesen cobros por estacionamiento." />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-sm text-gray-500">
                 <tr>
-                  <th className="py-3 px-4">Fecha</th>
+                  <th className="py-3 px-4 hidden sm:table-cell">Fecha</th>
                   <th className="py-3 px-4">Cliente</th>
                   <th className="py-3 px-4">Total</th>
-                  <th className="py-3 px-4">Método</th>
-                  <th className="py-3 px-4">NCF</th>
+                  <th className="py-3 px-4 hidden md:table-cell">Método</th>
+                  <th className="py-3 px-4 hidden md:table-cell">NCF</th>
                   <th className="py-3 px-4">Estado</th>
                   <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {payments.map((p) => {
+                {payments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((p) => {
                   const config = statusConfig[p.status] || statusConfig.pending;
                   const StatusIcon = config.icon;
                   return (
                     <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-gray-500">
+                      <td className="py-3 px-4 text-sm text-gray-500 hidden sm:table-cell">
                         {new Date(p.created_at).toLocaleString('es-DO', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Santo_Domingo' })}
                       </td>
                       <td className="py-3 px-4 text-sm font-medium text-gray-800">{p.customer_name || 'Sin cliente'}</td>
                       <td className="py-3 px-4 font-semibold">{fmtMoney(p.total_amount)}</td>
-                      <td className="py-3 px-4 text-sm capitalize">{p.payment_method || '-'}</td>
-                      <td className="py-3 px-4 text-xs font-mono text-gray-500">
+                      <td className="py-3 px-4 text-sm capitalize hidden md:table-cell">{p.payment_method || '-'}</td>
+                      <td className="py-3 px-4 text-xs font-mono text-gray-500 hidden md:table-cell">
                         {p.ncf ? (
                           <span className="flex items-center gap-1"><FileText size={12} />{p.ncf}</span>
                         ) : '—'}
@@ -153,7 +161,7 @@ export default function PagosPage() {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        {p.status === 'paid' && (
+                        {p.status === 'paid' && isAdmin && (
                           <button onClick={() => openRefundModal(p.id)}
                             className="text-xs px-2 py-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded">
                             Reembolsar
@@ -166,16 +174,18 @@ export default function PagosPage() {
               </tbody>
             </table>
           </div>
+          <Pagination currentPage={page} totalItems={payments.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
+          </>
         )}
       </div>
 
       {/* Refund Reason Modal */}
       {refundModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setRefundModal(null)}>
-          <div className="bg-white rounded-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setRefundModal(null)} role="presentation">
+          <div className="bg-white rounded-xl max-w-md w-full" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="refund-modal-title">
             <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-800">Motivo del Reembolso</h3>
-              <button onClick={() => setRefundModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+              <h3 id="refund-modal-title" className="text-lg font-semibold text-gray-800">Motivo del Reembolso</h3>
+              <button onClick={() => setRefundModal(null)} className="text-gray-400 hover:text-gray-600" aria-label="Cerrar"><X size={20} /></button>
             </div>
             <div className="p-4 space-y-3">
               <p className="text-sm text-gray-500">Ingrese el motivo del reembolso. Este campo es obligatorio.</p>

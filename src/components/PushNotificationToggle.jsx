@@ -107,8 +107,8 @@ export default function PushNotificationToggle({ compact = false }) {
             <p className="font-medium text-gray-900">Notificaciones Push</p>
             <p className="text-sm text-gray-500">
               {subscribed
-                ? 'Recibiras alertas en tiempo real'
-                : 'Activa para recibir alertas instantaneas'}
+                ? 'Recibirás alertas en tiempo real'
+                : 'Activa para recibir alertas instantáneas'}
             </p>
           </div>
         </div>

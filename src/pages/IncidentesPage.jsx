@@ -5,6 +5,7 @@ import {
   Filter, Shield, Car, MessageSquare, RefreshCw, Eye
 } from 'lucide-react';
 import { incidentsAPI } from '../services/api';
+import Pagination from '../components/Pagination';
 
 const TYPES = {
   vehicle_damage: 'Daño a vehículo',
@@ -41,6 +42,8 @@ export default function IncidentesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showResolveModal, setShowResolveModal] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const loadData = useCallback(async () => {
     try {
@@ -60,7 +63,7 @@ export default function IncidentesPage() {
     }
   }, [filterStatus, filterSeverity, filterType]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { setPage(1); loadData(); }, [loadData]);
 
   const openCount = incidents.filter(i => i.status === 'open' || i.status === 'investigating').length;
 
@@ -68,7 +71,7 @@ export default function IncidentesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Incidentes</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Incidentes</h1>
           <p className="text-sm text-gray-500 mt-1">Gestión de incidentes del parqueo</p>
         </div>
         <button onClick={() => setShowCreateModal(true)}
@@ -129,7 +132,7 @@ export default function IncidentesPage() {
             <p className="font-medium text-gray-500">No hay incidentes registrados</p>
             <p className="text-sm text-gray-400 mt-1">Todo está en orden</p>
           </div>
-        ) : incidents.map(inc => {
+        ) : incidents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(inc => {
           const sev = SEVERITIES[inc.severity] || SEVERITIES.medium;
           const stat = STATUSES[inc.status] || STATUSES.open;
           const StatIcon = stat.icon;
@@ -185,6 +188,7 @@ export default function IncidentesPage() {
             </div>
           );
         })}
+        <Pagination currentPage={page} totalItems={incidents.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
       </div>
 
       {/* Modals */}

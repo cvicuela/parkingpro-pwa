@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { subscriptionsAPI, customersAPI, vehiclesAPI, plansAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Plus, Search, X, Pause, Play, Trash2, AlertTriangle, Eye, FileText, User, Phone, Mail, Car, CreditCard, Calendar, Building2, ExternalLink } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
+import Pagination from '../components/Pagination';
 
 const statusBadge = {
   active: 'bg-green-100 text-green-700',
@@ -313,6 +316,8 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
 
 /* ─── Main Page ─── */
 export default function SuscripcionesPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const [subs, setSubs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -321,6 +326,8 @@ export default function SuscripcionesPage() {
   const [cancelModal, setCancelModal] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [detailSub, setDetailSub] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const navigate = useNavigate();
 
@@ -331,7 +338,7 @@ export default function SuscripcionesPage() {
     } catch {} finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchSubs(); }, [search]);
+  useEffect(() => { setPage(1); fetchSubs(); }, [search]);
 
   const handleSuspend = async (id) => {
     try {
@@ -390,23 +397,24 @@ export default function SuscripcionesPage() {
         {loading ? (
           <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
         ) : subs.length === 0 ? (
-          <p className="p-8 text-center text-gray-400">No se encontraron suscripciones</p>
+          <EmptyState icon={CreditCard} title="No se encontraron suscripciones" description="Cree una suscripción para asociar un cliente a un plan de parqueo." actionLabel="Nueva Suscripción" onAction={() => setShowModal(true)} />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-sm text-gray-500">
                 <tr>
                   <th className="py-3 px-4">Cliente</th>
                   <th className="py-3 px-4">Plan</th>
-                  <th className="py-3 px-4">Placa</th>
-                  <th className="py-3 px-4">Freq. Pago</th>
+                  <th className="py-3 px-4 hidden sm:table-cell">Placa</th>
+                  <th className="py-3 px-4 hidden md:table-cell">Freq. Pago</th>
                   <th className="py-3 px-4">Estado</th>
-                  <th className="py-3 px-4">Próxima Factura</th>
+                  <th className="py-3 px-4 hidden sm:table-cell">Próxima Factura</th>
                   <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {subs.map((s) => (
+                {subs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((s) => (
                   <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <button
@@ -419,8 +427,8 @@ export default function SuscripcionesPage() {
                       </button>
                     </td>
                     <td className="py-3 px-4 text-sm">{s.plan_name || s.plan?.name || '-'}</td>
-                    <td className="py-3 px-4 font-mono text-sm">{s.vehicle_plate || s.vehicle?.plate || '-'}</td>
-                    <td className="py-3 px-4 text-sm text-gray-500">
+                    <td className="py-3 px-4 font-mono text-sm hidden sm:table-cell">{s.vehicle_plate || s.vehicle?.plate || '-'}</td>
+                    <td className="py-3 px-4 text-sm text-gray-500 hidden md:table-cell">
                       {billingLabel[s.billing_frequency] || s.billing_frequency || 'Mensual'}
                     </td>
                     <td className="py-3 px-4">
@@ -428,7 +436,7 @@ export default function SuscripcionesPage() {
                         {statusLabel[s.status] || s.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-sm">
+                    <td className="py-3 px-4 text-sm hidden sm:table-cell">
                       {s.next_billing_date ? (
                         <button
                           onClick={() => navigate('/facturas')}
@@ -446,15 +454,15 @@ export default function SuscripcionesPage() {
                       <div className="flex justify-end gap-1">
                         <button onClick={() => setDetailSub(s)} title="Ver detalle"
                           className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"><Eye size={14} /></button>
-                        {s.status === 'active' && (
+                        {s.status === 'active' && isAdmin && (
                           <button onClick={() => handleSuspend(s.id)} title="Suspender"
                             className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded"><Pause size={14} /></button>
                         )}
-                        {(s.status === 'suspended' || s.status === 'past_due') && (
+                        {(s.status === 'suspended' || s.status === 'past_due') && isAdmin && (
                           <button onClick={() => handleReactivate(s.id)} title="Reactivar"
                             className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"><Play size={14} /></button>
                         )}
-                        {s.status !== 'cancelled' && (
+                        {s.status !== 'cancelled' && isAdmin && (
                           <button onClick={() => openCancelModal(s.id)} title="Cancelar"
                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                         )}
@@ -465,6 +473,8 @@ export default function SuscripcionesPage() {
               </tbody>
             </table>
           </div>
+          <Pagination currentPage={page} totalItems={subs.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
+          </>
         )}
       </div>
 

@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { History, CheckCircle, AlertTriangle, Eye, RefreshCw, Search } from 'lucide-react';
 import { cashAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import Pagination from '../components/Pagination';
 
 export default function CajaHistorialPage() {
   const { user } = useAuth();
@@ -13,6 +14,8 @@ export default function CajaHistorialPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [approveNotes, setApproveNotes] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const fetchHistory = useCallback(async () => {
     setLoading(true);
@@ -29,7 +32,7 @@ export default function CajaHistorialPage() {
     }
   }, [startDate, endDate]);
 
-  useEffect(() => { fetchHistory(); }, [fetchHistory]);
+  useEffect(() => { setPage(1); fetchHistory(); }, [fetchHistory]);
 
   const viewDetails = async (register) => {
     setSelected(register);
@@ -119,7 +122,7 @@ export default function CajaHistorialPage() {
             <tbody>
               {history.length === 0
                 ? <tr><td colSpan={9} className="text-center text-gray-400 py-8">Sin registros</td></tr>
-                : history.map(h => (
+                : history.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(h => (
                   <tr key={h.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
                       {h.opened_at ? new Date(h.opened_at).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '—'}
@@ -154,6 +157,7 @@ export default function CajaHistorialPage() {
             </tbody>
           </table>
         )}
+        <Pagination currentPage={page} totalItems={history.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
       </div>
 
       {/* Modal detalle */}

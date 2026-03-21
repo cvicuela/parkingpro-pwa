@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { vehiclesAPI, customersAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import { Plus, Search, Edit2, Trash2, X, Car } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
+import Pagination from '../components/Pagination';
 
 function VehicleModal({ vehicle, onClose, onSave }) {
   const [form, setForm] = useState(vehicle || {
@@ -105,6 +107,8 @@ export default function VehiculosPage() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const fetchVehicles = async () => {
     try {
@@ -113,7 +117,7 @@ export default function VehiculosPage() {
     } catch {} finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchVehicles(); }, [search]);
+  useEffect(() => { setPage(1); fetchVehicles(); }, [search]);
 
   const handleDelete = async (id) => {
     if (!confirm('Eliminar este vehículo?')) return;
@@ -147,8 +151,9 @@ export default function VehiculosPage() {
         {loading ? (
           <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
         ) : vehicles.length === 0 ? (
-          <p className="p-8 text-center text-gray-400">No se encontraron vehículos</p>
+          <EmptyState icon={Car} title="No se encontraron vehículos" description="Los vehículos se registran al crear suscripciones o al ingresar al parqueo." />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-sm text-gray-500">
@@ -161,7 +166,7 @@ export default function VehiculosPage() {
                 </tr>
               </thead>
               <tbody>
-                {vehicles.map((v) => (
+                {vehicles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((v) => (
                   <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
@@ -185,6 +190,8 @@ export default function VehiculosPage() {
               </tbody>
             </table>
           </div>
+          <Pagination currentPage={page} totalItems={vehicles.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
+          </>
         )}
       </div>
 

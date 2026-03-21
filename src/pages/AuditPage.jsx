@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { ShieldAlert, Search, RefreshCw, Filter } from 'lucide-react';
 import { auditAPI } from '../services/api';
+import Pagination from '../components/Pagination';
 
 const ACTION_COLORS = {
   payment_created: 'green',
@@ -21,6 +22,8 @@ export default function AuditPage() {
   const [filters, setFilters] = useState({ action: '', entityType: '', startDate: '', endDate: '' });
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -38,7 +41,7 @@ export default function AuditPage() {
     }
   }, [filters, search]);
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  useEffect(() => { setPage(1); fetchLogs(); }, [fetchLogs]);
 
   const setFilter = (key, val) => setFilters(p => ({ ...p, [key]: val }));
 
@@ -102,7 +105,7 @@ export default function AuditPage() {
             <tbody>
               {logs.length === 0
                 ? <tr><td colSpan={6} className="text-center text-gray-400 py-8">No hay registros de auditoría</td></tr>
-                : logs.map(log => (
+                : logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(log => (
                   <tr key={log.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => setSelected(log)}>
                     <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
                       {new Date(log.created_at).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' })}
@@ -129,6 +132,7 @@ export default function AuditPage() {
             </tbody>
           </table>
         )}
+        <Pagination currentPage={page} totalItems={logs.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
       </div>
 
       {/* Modal detalle */}

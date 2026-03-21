@@ -379,7 +379,7 @@ export default function ReportesFiscalesPage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reportes Fiscales DGII</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Reportes Fiscales DGII</h1>
           <p className="text-sm text-gray-500 mt-1">Generación de formatos 606 (compras) y 607 (ventas) para la DGII</p>
         </div>
         {/* DGII Deadline Indicator */}

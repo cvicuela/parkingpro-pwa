@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { FileText, Search, Printer, RefreshCw, X, Eye } from 'lucide-react';
 import { invoicesAPI } from '../services/api';
 import PrintPreviewModal from '../components/PrintPreviewModal';
+import Pagination from '../components/Pagination';
 
 const fmtMoney = (v) => { const p = Number(v || 0).toFixed(2).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '-';
@@ -73,6 +74,8 @@ export default function FacturasPage() {
   const [endDate, setEndDate] = useState('');
   const [selected, setSelected] = useState(null);
   const [printInvoice, setPrintInvoice] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -109,7 +112,7 @@ export default function FacturasPage() {
     }
   }, [search, startDate, endDate]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { setPage(1); fetchData(); }, [fetchData]);
 
   const kpis = stats ? [
     { label: 'Facturas emitidas', value: stats.total_invoices, fmt: v => v, color: 'blue' },
@@ -165,15 +168,20 @@ export default function FacturasPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                {['N° Factura', 'NCF', 'Cliente', 'Subtotal', 'ITBIS', 'Total', 'Fecha', 'Acciones'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
-                ))}
+                <th className="py-3 px-4 text-left text-sm text-gray-500">N° Factura</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500 hidden sm:table-cell">NCF</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500">Cliente</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500 hidden md:table-cell">Subtotal</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500 hidden md:table-cell">ITBIS</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500">Total</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500 hidden sm:table-cell">Fecha</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {invoices.length === 0
-                ? <tr><td colSpan={8} className="text-center text-gray-400 py-8">No hay facturas</td></tr>
-                : invoices.map(inv => (
+                ? <tr><td colSpan={8} className="text-center text-gray-500 py-12"><FileText size={32} className="mx-auto text-gray-300 mb-2" />No hay facturas para el período seleccionado</td></tr>
+                : invoices.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(inv => (
                   <tr key={inv.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <button onClick={() => setSelected(inv)}
@@ -181,12 +189,12 @@ export default function FacturasPage() {
                         #{inv.invoice_number}
                       </button>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs">{inv.ncf || '-'}</td>
+                    <td className="px-4 py-3 font-mono text-xs hidden sm:table-cell">{inv.ncf || '-'}</td>
                     <td className="px-4 py-3">{inv.customer_name || 'N/A'}</td>
-                    <td className="px-4 py-3">{fmtMoney(inv.subtotal)}</td>
-                    <td className="px-4 py-3">{fmtMoney(inv.tax_amount)}</td>
+                    <td className="px-4 py-3 hidden md:table-cell">{fmtMoney(inv.subtotal)}</td>
+                    <td className="px-4 py-3 hidden md:table-cell">{fmtMoney(inv.tax_amount)}</td>
                     <td className="px-4 py-3 font-semibold">{fmtMoney(inv.total)}</td>
-                    <td className="px-4 py-3 text-gray-500">{fmtDate(inv.created_at)}</td>
+                    <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{fmtDate(inv.created_at)}</td>
                     <td className="px-4 py-3">
                       <button onClick={() => setPrintInvoice(inv)}
                         className="flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 text-xs">
@@ -199,6 +207,7 @@ export default function FacturasPage() {
             </tbody>
           </table>
         )}
+        <Pagination currentPage={page} totalItems={invoices.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
       </div>
 
       {/* Modal detalle */}
