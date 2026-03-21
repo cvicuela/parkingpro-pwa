@@ -3,7 +3,7 @@ import { customersAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import EmptyState from '../components/EmptyState';
-import { Plus, Search, Edit2, Trash2, X, Building2, User, History, Printer, Car, CreditCard, FileText, Clock } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Building2, User, Users, History, Printer, Car, CreditCard, FileText, Clock } from 'lucide-react';
 import PrintPreviewModal from '../components/PrintPreviewModal';
 import Pagination from '../components/Pagination';
 
