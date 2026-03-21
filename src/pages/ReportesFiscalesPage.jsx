@@ -232,6 +232,7 @@ export default function ReportesFiscalesPage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [companyRnc, setCompanyRnc] = useState('');
+  const [rncLoaded, setRncLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [prevReportData, setPrevReportData] = useState(null);
@@ -239,23 +240,44 @@ export default function ReportesFiscalesPage() {
 
   const period = `${periodYear}${String(periodMonth).padStart(2, '0')}`;
 
+  // Cargar RNC al montar el componente (busca company_rnc o business_rnc)
+  useState(() => {
+    (async () => {
+      try {
+        // Intentar company_rnc primero
+        const sRes = await settingsAPI.get('company_rnc');
+        const val = sRes.data?.data?.value;
+        if (val) {
+          const rnc = typeof val === 'string' ? val.replace(/"/g, '') : val;
+          if (rnc && rnc !== '000000000' && rnc !== '') {
+            setCompanyRnc(rnc);
+            setRncLoaded(true);
+            return;
+          }
+        }
+      } catch { /* ignore */ }
+      try {
+        // Fallback: buscar business_rnc (configurado en Setup/Config)
+        const bRes = await settingsAPI.get('business_rnc');
+        const bVal = bRes.data?.data?.value;
+        if (bVal) {
+          const rnc = typeof bVal === 'string' ? bVal.replace(/"/g, '') : bVal;
+          if (rnc && rnc !== '') {
+            setCompanyRnc(rnc);
+            // Sincronizar a company_rnc para futuras cargas
+            try { await settingsAPI.update('company_rnc', rnc); } catch {}
+          }
+        }
+      } catch { /* ignore */ }
+      setRncLoaded(true);
+    })();
+  });
+
   const loadReport = useCallback(async () => {
     try {
       setLoading(true);
       setReportData(null);
       setPrevReportData(null);
-
-      // Load company RNC from settings if not set
-      if (!companyRnc) {
-        try {
-          const sRes = await settingsAPI.get('company_rnc');
-          const val = sRes.data?.data?.value;
-          if (val) {
-            const rnc = typeof val === 'string' ? val.replace(/"/g, '') : val;
-            if (rnc && rnc !== '000000000') setCompanyRnc(rnc);
-          }
-        } catch { /* ignore */ }
-      }
 
       const params = useCustomDates
         ? { fromDate, toDate }
@@ -337,7 +359,9 @@ export default function ReportesFiscalesPage() {
     }
     try {
       await settingsAPI.update('company_rnc', companyRnc);
-      toast.success('RNC guardado');
+      // Sincronizar con business_rnc para que aparezca en Configuración
+      try { await settingsAPI.update('business_rnc', companyRnc); } catch {}
+      toast.success('RNC guardado como predeterminado');
     } catch (err) {
       toast.error('Error guardando RNC: ' + err.message);
     }
@@ -434,6 +458,11 @@ export default function ReportesFiscalesPage() {
           <div>
             <label className="text-xs text-gray-500 mb-1 flex items-center gap-1">
               <Building2 size={12} /> RNC de la Empresa
+              {rncLoaded && companyRnc && companyRnc.length >= 9 && (
+                <span className="text-green-500 flex items-center gap-0.5 ml-1">
+                  <CheckCircle size={10} /> Guardado
+                </span>
+              )}
             </label>
             <div className="flex gap-2">
               <input
@@ -449,6 +478,9 @@ export default function ReportesFiscalesPage() {
                 Guardar
               </button>
             </div>
+            {!companyRnc && rncLoaded && (
+              <p className="text-xs text-amber-500 mt-1">Configure el RNC en Configuración o aquí para exportar</p>
+            )}
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
