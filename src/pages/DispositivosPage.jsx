@@ -10,7 +10,7 @@ import {
 
 const DEVICE_TYPES = {
   barrier: { label: 'Barrera', icon: Shield, color: 'bg-blue-100 text-blue-700' },
-  lpr_camera: { label: 'Camara LPR', icon: Camera, color: 'bg-purple-100 text-purple-700' },
+  lpr_camera: { label: 'Cámara LPR', icon: Camera, color: 'bg-purple-100 text-purple-700' },
   controller: { label: 'Controlador', icon: Server, color: 'bg-orange-100 text-orange-700' },
   reader: { label: 'Lector', icon: Monitor, color: 'bg-teal-100 text-teal-700' },
 };
@@ -171,7 +171,7 @@ function DeviceModal({ device, onClose, onSave }) {
                 setForm({ ...form, type: newType, model: MODELS[newType]?.[0] || '' });
               }} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                 <option value="barrier">Barrera</option>
-                <option value="lpr_camera">Camara LPR</option>
+                <option value="lpr_camera">Cámara LPR</option>
                 <option value="controller">Controlador</option>
                 <option value="reader">Lector RFID/Bio</option>
               </select>
@@ -261,7 +261,7 @@ function DeviceModal({ device, onClose, onSave }) {
           {/* LPR-specific config */}
           {form.type === 'lpr_camera' && (
             <div className="bg-purple-50 rounded-lg p-3 space-y-2">
-              <p className="text-sm font-semibold text-purple-800">Config. Camara LPR</p>
+              <p className="text-sm font-semibold text-purple-800">Config. Cámara LPR</p>
               <div>
                 <label className="block text-xs text-purple-700 mb-1">Sensibilidad</label>
                 <select value={form.lpr_sensitivity} onChange={set('lpr_sensitivity')}
@@ -510,7 +510,7 @@ export default function DispositivosPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Dispositivos ZKTeco</h2>
-          <p className="text-sm text-gray-500">Barreras, camaras LPR, controladores y lectores</p>
+          <p className="text-sm text-gray-500">Barreras, cámaras LPR, controladores y lectores</p>
         </div>
         <button onClick={() => { setEditing(null); setShowModal(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">

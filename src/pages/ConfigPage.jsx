@@ -17,8 +17,8 @@ import DispositivosPage from './DispositivosPage';
 const categoryConfig = {
   general: { label: 'General', icon: Building2, color: 'indigo', description: 'Datos del negocio y moneda' },
   caja: { label: 'Caja Registradora', icon: Wallet, color: 'green', description: 'Umbrales y configuración de caja' },
-  facturacion: { label: 'Facturación', icon: Receipt, color: 'blue', description: 'ITBIS, NCF y comprobantes fiscales' },
-  antifraude: { label: 'Antifraude', icon: Shield, color: 'red', description: 'Limites de reembolso y proteccion' },
+  facturacion: { label: 'Facturación', icon: Receipt, color: 'blue', description: 'ITBIS y numeración interna' },
+  antifraude: { label: 'Antifraude', icon: Shield, color: 'red', description: 'Límites de reembolso y protección' },
   notificaciones: { label: 'Notificaciones', icon: Bell, color: 'amber', description: 'Email, Telegram y alertas' },
   parqueo: { label: 'Parqueo', icon: Globe, color: 'purple', description: 'Espacios, tolerancia y mora' },
 };
@@ -34,22 +34,22 @@ const fieldConfig = {
   tax_rate: { label: 'Tasa ITBIS', type: 'number', hint: '0.18 = 18%' },
   invoice_mode: { label: 'Modo de Facturación', type: 'select', options: ['fiscal', 'interno'], hint: 'Fiscal = NCF/DGII | Interno = numeración propia sin reporte fiscal' },
   internal_invoice_prefix: { label: 'Prefijo factura interna', type: 'text', hint: 'Solo modo interno. Ej: FAC, INV', placeholder: 'FAC' },
-  internal_invoice_next: { label: 'Proximo numero factura interna', type: 'number', hint: 'Numero secuencial siguiente para facturas internas' },
-  refund_limit_operator: { label: 'Limite reembolso por operador (RD$)', type: 'number', hint: 'Maximo que un operador puede reembolsar sin aprobación' },
+  internal_invoice_next: { label: 'Próximo número factura interna', type: 'number', hint: 'Número secuencial siguiente para facturas internas' },
+  refund_limit_operator: { label: 'Límite reembolso por operador (RD$)', type: 'number', hint: 'Máximo que un operador puede reembolsar sin aprobación' },
   refund_daily_multiplier: { label: 'Multiplicador diario de reembolso', type: 'number', hint: 'Tope diario = limite x multiplicador' },
   notification_email_1_enabled: { hidden: true },
-  notification_email_1: { label: 'Email 1 (Principal)', type: 'email', placeholder: 'admin@empresa.com', hint: 'Email principal para alertas de caja, reembolsos y alertas criticas', toggleKey: 'notification_email_1_enabled' },
+  notification_email_1: { label: 'Email 1 (Principal)', type: 'email', placeholder: 'admin@empresa.com', hint: 'Email principal para alertas de caja, reembolsos y alertas críticas', toggleKey: 'notification_email_1_enabled' },
   notification_email_2_enabled: { hidden: true },
   notification_email_2: { label: 'Email 2 (Secundario)', type: 'email', placeholder: 'gerente@empresa.com', hint: 'Email secundario para recibir copias de notificaciones', toggleKey: 'notification_email_2_enabled' },
   notification_email_3_enabled: { hidden: true },
   notification_email_3: { label: 'Email 3 (Adicional)', type: 'email', placeholder: 'supervisor@empresa.com', hint: 'Email adicional para notificaciones', toggleKey: 'notification_email_3_enabled' },
-  telegram_enabled: { label: 'Notificaciones por Telegram', type: 'toggle', hint: 'Activar envio de alertas a los numeros configurados' },
-  telegram_phone_1: { label: 'Telegram - Numero 1 (Principal)', type: 'text', placeholder: '+1 809-000-0000', hint: 'Numero de WhatsApp/Telegram para alertas' },
-  telegram_phone_2: { label: 'Telegram - Numero 2 (Opcional)', type: 'text', placeholder: '+1 809-000-0000' },
-  telegram_phone_3: { label: 'Telegram - Numero 3 (Opcional)', type: 'text', placeholder: '+1 809-000-0000' },
+  telegram_enabled: { label: 'Notificaciones por Telegram', type: 'toggle', hint: 'Activar envío de alertas a los números configurados' },
+  telegram_phone_1: { label: 'Telegram - Número 1 (Principal)', type: 'text', placeholder: '+1 809-000-0000', hint: 'Número de WhatsApp/Telegram para alertas' },
+  telegram_phone_2: { label: 'Telegram - Número 2 (Opcional)', type: 'text', placeholder: '+1 809-000-0000' },
+  telegram_phone_3: { label: 'Telegram - Número 3 (Opcional)', type: 'text', placeholder: '+1 809-000-0000' },
   parking_name: { label: 'Nombre del Parqueo', type: 'text' },
   total_spaces: { label: 'Total de Espacios', type: 'number' },
-  grace_period_hours: { label: 'Periodo de Gracia (horas)', type: 'number' },
+  grace_period_hours: { label: 'Período de Gracia (horas)', type: 'number' },
   tolerance_minutes: { label: 'Tolerancia (minutos)', type: 'number' },
   late_fee: { label: 'Cargo por Mora (RD$)', type: 'number' },
   payment_retry_attempts: { label: 'Reintentos de Pago', type: 'number' },
@@ -975,7 +975,7 @@ export default function ConfigPage() {
             </div>
             <div className="text-left">
               <h3 className="font-semibold text-gray-800">Impresoras</h3>
-              <p className="text-xs text-gray-400">Gestiona impresoras termicas y de recibos ({printers.length} configuradas)</p>
+              <p className="text-xs text-gray-400">Gestiona impresoras térmicas y de recibos ({printers.length} configuradas)</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -987,8 +987,8 @@ export default function ConfigPage() {
           <div className="border-t p-5 space-y-4">
             {/* How it works */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-sm text-blue-800 font-medium mb-1">Como funciona</p>
-              <p className="text-xs text-blue-600">ParkingPro usa el <strong>dialogo de impresion nativo</strong> de tu sistema operativo (Windows, Mac, Linux). Al imprimir, se abrira la ventana del SO donde puedes seleccionar cualquier impresora instalada, configurar copias, y ajustar preferencias.</p>
+              <p className="text-sm text-blue-800 font-medium mb-1">Cómo funciona</p>
+              <p className="text-xs text-blue-600">ParkingPro usa el <strong>diálogo de impresión nativo</strong> de tu sistema operativo (Windows, Mac, Linux). Al imprimir, se abrirá la ventana del SO donde puedes seleccionar cualquier impresora instalada, configurar copias, y ajustar preferencias.</p>
             </div>
 
             {/* Registered printers */}
@@ -1171,7 +1171,7 @@ export default function ConfigPage() {
             {/* Info box */}
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
               <p className="text-sm text-emerald-800 font-medium mb-1">Configuración de Perimetrales</p>
-              <p className="text-xs text-emerald-600">Registra los escaner QR fijos y dispositivos de barrera para automatizar la entrada y salida de vehículos. Los dispositivos se conectan por red local (IP) o USB. Cuando estan instalados, el sistema valida automaticamente el QR del ticket o suscripción.</p>
+              <p className="text-xs text-emerald-600">Registra los escáner QR fijos y dispositivos de barrera para automatizar la entrada y salida de vehículos. Los dispositivos se conectan por red local (IP) o USB. Cuando están instalados, el sistema valida automáticamente el QR del ticket o suscripción.</p>
             </div>
 
             {/* Registered scanners */}
@@ -1199,7 +1199,7 @@ export default function ConfigPage() {
                             </span>
                           </p>
                           <p className="text-xs text-gray-400">
-                            {sc.type === 'qr_fixed' ? 'Escaner QR Fijo' : sc.type === 'barrier' ? 'Barrera Automatica' : sc.type === 'camera' ? 'Camara LPR' : 'Otro'}
+                            {sc.type === 'qr_fixed' ? 'Escáner QR Fijo' : sc.type === 'barrier' ? 'Barrera Automática' : sc.type === 'camera' ? 'Cámara LPR' : 'Otro'}
                             {sc.ip ? ` · IP: ${sc.ip}` : ''}
                             {sc.port ? `:${sc.port}` : ''}
                           </p>
@@ -1235,10 +1235,10 @@ export default function ConfigPage() {
                     className="col-span-2 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
                   <select value={newScanner.type} onChange={e => setNewScanner(p => ({ ...p, type: e.target.value }))}
                     className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-                    <option value="qr_fixed">Escaner QR Fijo</option>
-                    <option value="barrier">Barrera Automatica</option>
-                    <option value="camera">Camara LPR (Lectura Placas)</option>
-                    <option value="handheld">Escaner QR Portatil</option>
+                    <option value="qr_fixed">Escáner QR Fijo</option>
+                    <option value="barrier">Barrera Automática</option>
+                    <option value="camera">Cámara LPR (Lectura Placas)</option>
+                    <option value="handheld">Escáner QR Portátil</option>
                   </select>
                   <select value={newScanner.location} onChange={e => setNewScanner(p => ({ ...p, location: e.target.value }))}
                     className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
@@ -1277,12 +1277,12 @@ export default function ConfigPage() {
 
             {/* Integration info */}
             <div className="border-t pt-4 mt-2">
-              <p className="font-medium text-gray-700 text-sm mb-2 flex items-center gap-2"><Wifi size={14} className="text-blue-500" /> Estado de Integracion</p>
+              <p className="font-medium text-gray-700 text-sm mb-2 flex items-center gap-2"><Wifi size={14} className="text-blue-500" /> Estado de Integración</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
                 {[
                   { label: 'Escaner QR', desc: scanners.filter(s => s.type === 'qr_fixed' && s.enabled !== false).length > 0 ? 'Configurado' : 'No instalado', active: scanners.filter(s => s.type === 'qr_fixed' && s.enabled !== false).length > 0 },
                   { label: 'Barreras', desc: scanners.filter(s => s.type === 'barrier' && s.enabled !== false).length > 0 ? 'Configurado' : 'No instalado', active: scanners.filter(s => s.type === 'barrier' && s.enabled !== false).length > 0 },
-                  { label: 'Camara LPR', desc: scanners.filter(s => s.type === 'camera' && s.enabled !== false).length > 0 ? 'Configurado' : 'No instalado', active: scanners.filter(s => s.type === 'camera' && s.enabled !== false).length > 0 },
+                  { label: 'Cámara LPR', desc: scanners.filter(s => s.type === 'camera' && s.enabled !== false).length > 0 ? 'Configurado' : 'No instalado', active: scanners.filter(s => s.type === 'camera' && s.enabled !== false).length > 0 },
                 ].map(({ label, desc, active }) => (
                   <div key={label} className={`p-3 rounded-lg border ${active ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
                     <p className={`font-medium ${active ? 'text-green-700' : 'text-gray-600'}`}>{label}</p>
@@ -1306,7 +1306,7 @@ export default function ConfigPage() {
         icon={CreditCard}
         iconColor="bg-violet-100 text-violet-600"
         title="Tarjetas RFID"
-        subtitle="Gestion de tarjetas de proximidad, asignacion y estados"
+        subtitle="Gestión de tarjetas de proximidad, asignación y estados"
       >
         <RFIDPage />
       </CollapsibleSection>
@@ -1316,7 +1316,7 @@ export default function ConfigPage() {
         icon={Shield}
         iconColor="bg-cyan-100 text-cyan-600"
         title="Dispositivos ZKTeco"
-        subtitle="Barreras, camaras LPR, controladores y lectores"
+        subtitle="Barreras, cámaras LPR, controladores y lectores"
       >
         <DispositivosPage />
       </CollapsibleSection>
@@ -1333,8 +1333,8 @@ export default function ConfigPage() {
                 <AlertTriangle size={24} className="text-amber-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-800 text-lg">Confirmar Cambio Critico</h3>
-                <p className="text-sm text-gray-500">Esta accion requiere doble verificacion</p>
+                <h3 className="font-bold text-gray-800 text-lg">Confirmar Cambio Crítico</h3>
+                <p className="text-sm text-gray-500">Esta acción requiere doble verificación</p>
               </div>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
@@ -1342,7 +1342,7 @@ export default function ConfigPage() {
               <p className="font-bold text-gray-900 mt-1">{confirmModal.label}</p>
               <p className="text-sm text-gray-600 mt-2">Nuevo valor: <span className="font-mono font-bold text-indigo-700">{confirmModal.value}</span></p>
             </div>
-            <p className="text-xs text-gray-500">Los cambios en configuraciones fiscales, monetarias y de secuencia pueden afectar la facturacion y reportes. Verifica que el valor es correcto antes de confirmar.</p>
+            <p className="text-xs text-gray-500">Los cambios en configuraciones fiscales, monetarias y de secuencia pueden afectar la facturación y reportes. Verifica que el valor es correcto antes de confirmar.</p>
             <div className="flex gap-3">
               <button onClick={() => setConfirmModal({ open: false, key: null, label: '', value: '' })}
                 className="flex-1 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-2">
@@ -1405,8 +1405,8 @@ export default function ConfigPage() {
               <h4 className="font-semibold text-gray-800">Resetear Datos Operacionales</h4>
               <p className="text-sm text-gray-500 mt-1">
                 Elimina todas las sesiones de parqueo, pagos, facturas, cuadres de caja, incidentes,
-                notificaciones y registros de auditoria. <strong>Se preservan:</strong> usuarios, clientes,
-                vehiculos, planes, suscripciones, configuracion general, NCF (rangos), RNC, nombre de empresa y gastos.
+                notificaciones y registros de auditoría. <strong>Se preservan:</strong> usuarios, clientes,
+                vehículos, planes, suscripciones, configuración general, NCF (rangos), RNC, nombre de empresa y gastos.
               </p>
               <button
                 onClick={async () => {
@@ -1433,7 +1433,7 @@ export default function ConfigPage() {
         </div>
       </div>
 
-      {/* ═══════════ MODAL: TRIPLE VERIFICACION RESET ═══════════ */}
+      {/* ═══════════ MODAL: TRIPLE VERIFICACIÓN RESET ═══════════ */}
       {resetStep > 0 && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => { setResetStep(0); setResetCode(''); setResetPassword(''); }}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -1443,7 +1443,7 @@ export default function ConfigPage() {
                 <ShieldAlert size={24} className="text-white" />
                 <div>
                   <h3 className="font-bold text-white text-lg">Reset de Datos</h3>
-                  <p className="text-red-200 text-xs">Verificacion {resetStep} de 3</p>
+                  <p className="text-red-200 text-xs">Verificación {resetStep} de 3</p>
                 </div>
               </div>
               <button onClick={() => { setResetStep(0); setResetCode(''); setResetPassword(''); }} className="text-red-200 hover:text-white">
@@ -1498,8 +1498,8 @@ export default function ConfigPage() {
                   )}
 
                   <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-green-800 mb-1">Se preservaran:</p>
-                    <p className="text-xs text-green-700">Usuarios, Clientes, Vehiculos, Planes, Suscripciones, Configuracion General, NCF (rangos), RNC, Nombre Empresa, Gastos/Suplidores</p>
+                    <p className="text-xs font-semibold text-green-800 mb-1">Se preservarán:</p>
+                    <p className="text-xs text-green-700">Usuarios, Clientes, Vehículos, Planes, Suscripciones, Configuración General, NCF (rangos), RNC, Nombre Empresa, Gastos/Suplidores</p>
                   </div>
 
                   <div className="flex gap-3 pt-2">
@@ -1518,12 +1518,12 @@ export default function ConfigPage() {
                 <>
                   <div className="text-center">
                     <Lock size={48} className="text-red-500 mx-auto mb-3" />
-                    <h4 className="font-bold text-gray-800 text-lg">Codigo de Confirmacion</h4>
-                    <p className="text-sm text-gray-500 mt-1">Escribe el codigo exacto para continuar</p>
+                    <h4 className="font-bold text-gray-800 text-lg">Código de Confirmación</h4>
+                    <p className="text-sm text-gray-500 mt-1">Escribe el código exacto para continuar</p>
                   </div>
 
                   <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                    <p className="text-xs text-gray-500 mb-1">Escribe este codigo exactamente:</p>
+                    <p className="text-xs text-gray-500 mb-1">Escribe este código exactamente:</p>
                     <p className="font-mono font-bold text-lg text-red-700 tracking-wider select-all">RESETEAR-DATOS-OPERACIONALES</p>
                   </div>
 
@@ -1531,7 +1531,7 @@ export default function ConfigPage() {
                     type="text"
                     value={resetCode}
                     onChange={e => setResetCode(e.target.value.toUpperCase())}
-                    placeholder="Escribe el codigo aqui..."
+                    placeholder="Escribe el código aquí..."
                     className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-center font-mono text-sm focus:border-red-500 focus:ring-red-500 focus:outline-none"
                     autoComplete="off"
                     spellCheck={false}

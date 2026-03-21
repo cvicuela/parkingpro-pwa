@@ -329,7 +329,7 @@ export default function CajaPage() {
             <div className="text-center py-12">
               <ArrowUpDown size={40} className="mx-auto text-gray-200 mb-3" />
               <p className="text-gray-400 font-medium">Sin movimientos registrados</p>
-              <p className="text-gray-500 text-sm mt-1">Los cobros y reembolsos apareceran aqui</p>
+              <p className="text-gray-500 text-sm mt-1">Los cobros y reembolsos aparecerán aquí</p>
             </div>
           ) : (
             transactions
@@ -374,7 +374,7 @@ export default function CajaPage() {
             <div className="flex items-center justify-between p-5 border-b">
               <div>
                 <h2 className="text-lg font-bold text-gray-800">Cierre de Caja</h2>
-                <p className="text-sm text-gray-500">Cuenta el efectivo por denominacion</p>
+                <p className="text-sm text-gray-500">Cuenta el efectivo por denominación</p>
               </div>
               <button onClick={() => setShowClose(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
@@ -626,7 +626,7 @@ function OpenCajaModal({ form, setForm, onSubmit, onClose, saving }) {
                 <input placeholder="Teléfono" value={newOp.phone}
                   onChange={e => setNewOp(p => ({ ...p, phone: e.target.value }))}
                   className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
-                <input placeholder="Contrasena" value={newOp.password}
+                <input placeholder="Contraseña" value={newOp.password}
                   onChange={e => setNewOp(p => ({ ...p, password: e.target.value }))}
                   className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
               </div>
@@ -654,7 +654,7 @@ function OpenCajaModal({ form, setForm, onSubmit, onClose, saving }) {
 
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
             <p className="text-xs text-blue-700">
-              <strong>Nota:</strong> Todos los cobros realizados durante el turno se registraran automaticamente en esta caja.
+              <strong>Nota:</strong> Todos los cobros realizados durante el turno se registrarán automáticamente en esta caja.
             </p>
           </div>
 

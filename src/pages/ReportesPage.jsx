@@ -433,8 +433,8 @@ function TabClientes({ period, customFrom, customTo }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard icon={Users} label="Tasa de Retención" value={fmtPct(d.retentionRate)} color="green"
           subValue="Suscripciones activas/total" />
-        <KPICard icon={TrendingUp} label="Nuevos (periodo)" value={newTrend.reduce((s, t) => s + t.count, 0)} color="blue" />
-        <KPICard icon={TrendingDown} label="Cancelados (periodo)" value={churnTrend.reduce((s, t) => s + t.count, 0)} color="red" />
+        <KPICard icon={TrendingUp} label="Nuevos (período)" value={newTrend.reduce((s, t) => s + t.count, 0)} color="blue" />
+        <KPICard icon={TrendingDown} label="Cancelados (período)" value={churnTrend.reduce((s, t) => s + t.count, 0)} color="red" />
         <KPICard icon={AlertTriangle} label="Cuentas Morosas" value={delinquent.length} color="amber" />
       </div>
 
@@ -541,8 +541,8 @@ function TabOcupacion({ period, customFrom, customTo }) {
         <KPICard icon={Car} label="Ocupación Actual" value={`${totalOccupancy}/${totalCapacity}`} color="blue"
           subValue={fmtPct(totalCapacity > 0 ? totalOccupancy / totalCapacity * 100 : 0)} />
         <KPICard icon={Activity} label="Espacios Disponibles" value={totalCapacity - totalOccupancy} color="green" />
-        <KPICard icon={Clock} label="Entradas (periodo)" value={dailyTrend.reduce((s, d) => s + d.entries, 0)} color="indigo" />
-        <KPICard icon={Clock} label="Salidas (periodo)" value={dailyTrend.reduce((s, d) => s + d.exits, 0)} color="purple" />
+        <KPICard icon={Clock} label="Entradas (período)" value={dailyTrend.reduce((s, d) => s + d.entries, 0)} color="indigo" />
+        <KPICard icon={Clock} label="Salidas (período)" value={dailyTrend.reduce((s, d) => s + d.exits, 0)} color="purple" />
       </div>
 
       {/* Occupancy by plan */}
