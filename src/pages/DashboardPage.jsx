@@ -480,14 +480,14 @@ export default function DashboardPage() {
       {/* Quick Actions Row */}
       <div className="flex flex-wrap gap-3">
         <button
-          onClick={() => navigate('/control-acceso')}
+          onClick={() => navigate('/acceso')}
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
         >
           <LogIn size={16} />
           Nueva Entrada
         </button>
         <button
-          onClick={() => navigate('/control-acceso')}
+          onClick={() => navigate('/acceso')}
           className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
         >
           <LogOut size={16} />
