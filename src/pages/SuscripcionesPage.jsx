@@ -127,6 +127,7 @@ function CustomerDetailPopup({ subscription, onClose }) {
                 <div className="flex items-center gap-1.5 text-sm text-gray-600">
                   <CreditCard size={13} /> Precio: {fmtMoney(subscription.price_per_period)}
                   <span className="text-gray-400">/ {billingLabel[subscription.billing_frequency] || subscription.billing_frequency || 'mes'}</span>
+                  <span className="text-xs text-green-600">(ITBIS incl.)</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-sm text-gray-600">
                   <Calendar size={13} /> Próxima factura: {fmtDate(subscription.next_billing_date)}
@@ -276,7 +277,7 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
               <option value="">Seleccionar...</option>
               {plans.filter(p => p.type !== 'hourly').map((p) => (
-                <option key={p.id} value={p.id}>{p.name} - RD$ {parseFloat(p.base_price).toLocaleString()}/mes</option>
+                <option key={p.id} value={p.id}>{p.name} - RD$ {parseFloat(p.base_price).toLocaleString()}/mes (ITBIS incl.)</option>
               ))}
             </select>
           </div>
@@ -290,14 +291,19 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
               <option value="semiannual">Semestral</option>
               <option value="annual">Anual</option>
             </select>
-            {selectedPlan && (
-              <p className="text-xs text-gray-500 mt-1">
-                {form.billing_frequency === 'monthly' && `Cobro: ${fmtMoney(selectedPlan.base_price)} cada mes`}
-                {form.billing_frequency === 'quarterly' && `Cobro: ${fmtMoney(selectedPlan.base_price * 3)} cada 3 meses`}
-                {form.billing_frequency === 'semiannual' && `Cobro: ${fmtMoney(selectedPlan.base_price * 6)} cada 6 meses`}
-                {form.billing_frequency === 'annual' && `Cobro: ${fmtMoney(selectedPlan.base_price * 12)} cada 12 meses`}
-              </p>
-            )}
+            {selectedPlan && (() => {
+              const mult = { monthly: 1, quarterly: 3, semiannual: 6, annual: 12 }[form.billing_frequency] || 1;
+              const freqLabel = { monthly: 'mes', quarterly: '3 meses', semiannual: '6 meses', annual: '12 meses' }[form.billing_frequency] || 'mes';
+              const total = parseFloat(selectedPlan.base_price) * mult;
+              const subtotal = Math.round((total / 1.18) * 100) / 100;
+              const itbis = Math.round((total - subtotal) * 100) / 100;
+              return (
+                <div className="text-xs text-gray-500 mt-1 space-y-0.5">
+                  <p>Cobro: {fmtMoney(total)} cada {freqLabel} (ITBIS incluido)</p>
+                  <p className="text-gray-400">Subtotal: {fmtMoney(subtotal)} + ITBIS 18%: {fmtMoney(itbis)}</p>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="flex gap-3 pt-2">

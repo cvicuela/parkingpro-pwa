@@ -126,7 +126,7 @@ function HourlyRatesEditor({ planId }) {
       <div className="bg-gray-50 rounded-lg border">
         <div className="grid grid-cols-[60px_1fr_1fr_40px] gap-2 px-3 py-2 text-xs font-semibold text-gray-500 uppercase border-b">
           <span>Hora</span>
-          <span>Tarifa (RD$)</span>
+          <span>Tarifa (RD$) <span className="text-green-600 normal-case">ITBIS incl.</span></span>
           <span>Descripción</span>
           <span></span>
         </div>
@@ -294,9 +294,14 @@ function PlanModal({ plan, onClose, onSave }) {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Precio Base (RD$)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Precio (RD$) <span className="text-xs text-green-600 font-normal">ITBIS incluido</span></label>
                 <input type="number" value={form.base_price} onChange={set('base_price')} required step="0.01"
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                {form.base_price > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Subtotal: RD$ {(parseFloat(form.base_price) / 1.18).toFixed(2)} + ITBIS: RD$ {(parseFloat(form.base_price) - parseFloat(form.base_price) / 1.18).toFixed(2)}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Capacidad Max</label>
@@ -332,7 +337,7 @@ function PlanModal({ plan, onClose, onSave }) {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Exceso/h (RD$)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Exceso/h (RD$) <span className="text-xs text-green-600 font-normal">ITBIS incl.</span></label>
                 <input type="number" value={form.overage_hourly_rate} onChange={set('overage_hourly_rate')} step="0.01"
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
               </div>
@@ -440,11 +445,18 @@ export default function PlanesPage() {
               </div>
               <h3 className="font-semibold text-gray-800">{plan.name}</h3>
               <p className="text-sm text-gray-500 mb-3">{plan.description}</p>
-              <div className="text-xl font-bold text-indigo-600 mb-3">
-                RD$ {parseFloat(plan.base_price).toLocaleString()}
-                <span className="text-xs font-normal text-gray-400">
-                  {plan.type === 'hourly' ? '/hora' : '/mes'}
-                </span>
+              <div className="mb-3">
+                <div className="text-xl font-bold text-indigo-600">
+                  RD$ {parseFloat(plan.base_price).toLocaleString()}
+                  <span className="text-xs font-normal text-gray-400">
+                    {plan.type === 'hourly' ? '/hora' : '/mes'}
+                  </span>
+                </div>
+                {plan.tax_breakdown && (
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    Subtotal: RD$ {plan.tax_breakdown.subtotal?.toLocaleString()} + ITBIS: RD$ {plan.tax_breakdown.tax_amount?.toLocaleString()}
+                  </div>
+                )}
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
                 <div className={`h-2 rounded-full ${pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-green-500'}`}
