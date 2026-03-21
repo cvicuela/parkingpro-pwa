@@ -406,10 +406,10 @@ export default function SuscripcionesPage() {
                 <tr>
                   <th className="py-3 px-4">Cliente</th>
                   <th className="py-3 px-4">Plan</th>
-                  <th className="py-3 px-4">Placa</th>
-                  <th className="py-3 px-4">Freq. Pago</th>
+                  <th className="py-3 px-4 hidden sm:table-cell">Placa</th>
+                  <th className="py-3 px-4 hidden md:table-cell">Freq. Pago</th>
                   <th className="py-3 px-4">Estado</th>
-                  <th className="py-3 px-4">Próxima Factura</th>
+                  <th className="py-3 px-4 hidden sm:table-cell">Próxima Factura</th>
                   <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -427,8 +427,8 @@ export default function SuscripcionesPage() {
                       </button>
                     </td>
                     <td className="py-3 px-4 text-sm">{s.plan_name || s.plan?.name || '-'}</td>
-                    <td className="py-3 px-4 font-mono text-sm">{s.vehicle_plate || s.vehicle?.plate || '-'}</td>
-                    <td className="py-3 px-4 text-sm text-gray-500">
+                    <td className="py-3 px-4 font-mono text-sm hidden sm:table-cell">{s.vehicle_plate || s.vehicle?.plate || '-'}</td>
+                    <td className="py-3 px-4 text-sm text-gray-500 hidden md:table-cell">
                       {billingLabel[s.billing_frequency] || s.billing_frequency || 'Mensual'}
                     </td>
                     <td className="py-3 px-4">
@@ -436,7 +436,7 @@ export default function SuscripcionesPage() {
                         {statusLabel[s.status] || s.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-sm">
+                    <td className="py-3 px-4 text-sm hidden sm:table-cell">
                       {s.next_billing_date ? (
                         <button
                           onClick={() => navigate('/facturas')}

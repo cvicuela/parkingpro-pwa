@@ -417,9 +417,9 @@ export default function ClientesPage() {
               <thead className="bg-gray-50 text-sm text-gray-500">
                 <tr>
                   <th className="py-3 px-4">Cliente</th>
-                  <th className="py-3 px-4">Documento</th>
+                  <th className="py-3 px-4 hidden sm:table-cell">Documento</th>
                   <th className="py-3 px-4">Tipo</th>
-                  <th className="py-3 px-4">Fecha</th>
+                  <th className="py-3 px-4 hidden sm:table-cell">Fecha</th>
                   <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -439,7 +439,7 @@ export default function ClientesPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{c.id_document || '-'}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">{c.id_document || '-'}</td>
                     <td className="py-3 px-4">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         isGeneric(c) ? 'bg-amber-100 text-amber-700' :
@@ -448,7 +448,7 @@ export default function ClientesPage() {
                         {isGeneric(c) ? 'Genérico' : c.is_company ? 'Empresa' : 'Personal'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-500">
+                    <td className="py-3 px-4 text-sm text-gray-500 hidden sm:table-cell">
                       {fmtDate(c.created_at)}
                     </td>
                     <td className="py-3 px-4 text-right">

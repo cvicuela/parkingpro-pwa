@@ -129,11 +129,11 @@ export default function PagosPage() {
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-sm text-gray-500">
                 <tr>
-                  <th className="py-3 px-4">Fecha</th>
+                  <th className="py-3 px-4 hidden sm:table-cell">Fecha</th>
                   <th className="py-3 px-4">Cliente</th>
                   <th className="py-3 px-4">Total</th>
-                  <th className="py-3 px-4">Método</th>
-                  <th className="py-3 px-4">NCF</th>
+                  <th className="py-3 px-4 hidden md:table-cell">Método</th>
+                  <th className="py-3 px-4 hidden md:table-cell">NCF</th>
                   <th className="py-3 px-4">Estado</th>
                   <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
@@ -144,13 +144,13 @@ export default function PagosPage() {
                   const StatusIcon = config.icon;
                   return (
                     <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-gray-500">
+                      <td className="py-3 px-4 text-sm text-gray-500 hidden sm:table-cell">
                         {new Date(p.created_at).toLocaleString('es-DO', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Santo_Domingo' })}
                       </td>
                       <td className="py-3 px-4 text-sm font-medium text-gray-800">{p.customer_name || 'Sin cliente'}</td>
                       <td className="py-3 px-4 font-semibold">{fmtMoney(p.total_amount)}</td>
-                      <td className="py-3 px-4 text-sm capitalize">{p.payment_method || '-'}</td>
-                      <td className="py-3 px-4 text-xs font-mono text-gray-500">
+                      <td className="py-3 px-4 text-sm capitalize hidden md:table-cell">{p.payment_method || '-'}</td>
+                      <td className="py-3 px-4 text-xs font-mono text-gray-500 hidden md:table-cell">
                         {p.ncf ? (
                           <span className="flex items-center gap-1"><FileText size={12} />{p.ncf}</span>
                         ) : '—'}

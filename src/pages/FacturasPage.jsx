@@ -168,9 +168,14 @@ export default function FacturasPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                {['N° Factura', 'NCF', 'Cliente', 'Subtotal', 'ITBIS', 'Total', 'Fecha', 'Acciones'].map(h => (
-                  <th key={h} className="py-3 px-4 text-left text-sm text-gray-500">{h}</th>
-                ))}
+                <th className="py-3 px-4 text-left text-sm text-gray-500">N° Factura</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500 hidden sm:table-cell">NCF</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500">Cliente</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500 hidden md:table-cell">Subtotal</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500 hidden md:table-cell">ITBIS</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500">Total</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500 hidden sm:table-cell">Fecha</th>
+                <th className="py-3 px-4 text-left text-sm text-gray-500">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -184,12 +189,12 @@ export default function FacturasPage() {
                         #{inv.invoice_number}
                       </button>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs">{inv.ncf || '-'}</td>
+                    <td className="px-4 py-3 font-mono text-xs hidden sm:table-cell">{inv.ncf || '-'}</td>
                     <td className="px-4 py-3">{inv.customer_name || 'N/A'}</td>
-                    <td className="px-4 py-3">{fmtMoney(inv.subtotal)}</td>
-                    <td className="px-4 py-3">{fmtMoney(inv.tax_amount)}</td>
+                    <td className="px-4 py-3 hidden md:table-cell">{fmtMoney(inv.subtotal)}</td>
+                    <td className="px-4 py-3 hidden md:table-cell">{fmtMoney(inv.tax_amount)}</td>
                     <td className="px-4 py-3 font-semibold">{fmtMoney(inv.total)}</td>
-                    <td className="px-4 py-3 text-gray-500">{fmtDate(inv.created_at)}</td>
+                    <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{fmtDate(inv.created_at)}</td>
                     <td className="px-4 py-3">
                       <button onClick={() => setPrintInvoice(inv)}
                         className="flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100 text-xs">
