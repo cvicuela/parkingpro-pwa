@@ -296,29 +296,40 @@ export default function DashboardPage() {
       if (dashRes.status === 'fulfilled') {
         const d = dashRes.value.data.data || dashRes.value.data;
         const dashboardData = {
-          revenue: d.revenue ?? d.total_revenue ?? 0,
-          active_customers: d.activeCustomers ?? d.active_customers ?? 0,
-          total_subscriptions: d.totalSubscriptions ?? d.total_subscriptions ?? 0,
-          overdue_count: d.overdueCount ?? d.overdue_count ?? 0,
+          revenue: parseFloat(d.revenue ?? d.total_revenue ?? 0),
+          active_customers: parseInt(d.activeCustomers ?? d.active_customers ?? 0),
+          total_subscriptions: parseInt(d.totalSubscriptions ?? d.total_subscriptions ?? 0),
+          overdue_count: parseInt(d.overdueCount ?? d.overdue_count ?? 0),
         };
         setDashboard(dashboardData);
         offlineQueue.cacheData('dashboard', dashboardData);
-        // Derive today stats and collection rate from dashboard data if available
+
+        // Expense data from dashboard RPC (fallback if expensesAPI.stats fails)
+        if (d.expense_total != null && !expenseStats) {
+          setExpenseStats({
+            total_amount: parseFloat(d.expense_total ?? 0),
+            total_itbis: parseFloat(d.expense_itbis ?? 0),
+          });
+        }
+
+        // Today stats from dashboard RPC
         const todayEntries = d.todayEntries ?? d.today_entries ?? null;
         const todayExits = d.todayExits ?? d.today_exits ?? null;
         const todayPayments = d.todayPayments ?? d.today_payments ?? null;
         const todayRevenue = d.todayRevenue ?? d.today_revenue ?? null;
-        const sessionsPaid = d.sessionsPaid ?? d.sessions_paid ?? null;
-        const sessionsCompleted = d.sessionsCompleted ?? d.sessions_completed ?? null;
         if (todayEntries !== null || todayRevenue !== null) {
           setTodayStats({
-            entries: todayEntries ?? 0,
-            exits: todayExits ?? 0,
-            payments: todayPayments ?? 0,
-            revenue: todayRevenue ?? 0,
+            entries: parseInt(todayEntries ?? 0),
+            exits: parseInt(todayExits ?? 0),
+            payments: parseInt(todayPayments ?? 0),
+            revenue: parseFloat(todayRevenue ?? 0),
           });
         }
-        if (sessionsPaid !== null && sessionsCompleted !== null && sessionsCompleted > 0) {
+
+        // Collection rate from dashboard RPC
+        const sessionsPaid = parseInt(d.sessionsPaid ?? d.sessions_paid ?? 0);
+        const sessionsCompleted = parseInt(d.sessionsCompleted ?? d.sessions_completed ?? 0);
+        if (sessionsCompleted > 0) {
           setCollectionRate(Math.round((sessionsPaid / sessionsCompleted) * 100));
         }
       }
@@ -426,7 +437,7 @@ export default function DashboardPage() {
     fetchChartData();
     fetchSessionStats();
     fetchTodayStats();
-    const interval = setInterval(fetchData, 2000);
+    const interval = setInterval(fetchData, 30000);
 
     const socket = connectSocket();
     socket.on('occupancy_update', (data) => {
