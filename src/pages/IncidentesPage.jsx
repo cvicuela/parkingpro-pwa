@@ -68,7 +68,7 @@ export default function IncidentesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Incidentes</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Incidentes</h1>
           <p className="text-sm text-gray-500 mt-1">Gestión de incidentes del parqueo</p>
         </div>
         <button onClick={() => setShowCreateModal(true)}

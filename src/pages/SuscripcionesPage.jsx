@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { subscriptionsAPI, customersAPI, vehiclesAPI, plansAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Plus, Search, X, Pause, Play, Trash2, AlertTriangle, Eye, FileText, User, Phone, Mail, Car, CreditCard, Calendar, Building2, ExternalLink } from 'lucide-react';
 
@@ -313,6 +314,8 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
 
 /* ─── Main Page ─── */
 export default function SuscripcionesPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const [subs, setSubs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -446,15 +449,15 @@ export default function SuscripcionesPage() {
                       <div className="flex justify-end gap-1">
                         <button onClick={() => setDetailSub(s)} title="Ver detalle"
                           className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"><Eye size={14} /></button>
-                        {s.status === 'active' && (
+                        {s.status === 'active' && isAdmin && (
                           <button onClick={() => handleSuspend(s.id)} title="Suspender"
                             className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded"><Pause size={14} /></button>
                         )}
-                        {(s.status === 'suspended' || s.status === 'past_due') && (
+                        {(s.status === 'suspended' || s.status === 'past_due') && isAdmin && (
                           <button onClick={() => handleReactivate(s.id)} title="Reactivar"
                             className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"><Play size={14} /></button>
                         )}
-                        {s.status !== 'cancelled' && (
+                        {s.status !== 'cancelled' && isAdmin && (
                           <button onClick={() => openCancelModal(s.id)} title="Cancelar"
                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                         )}

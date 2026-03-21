@@ -612,7 +612,7 @@ export default function ControlAccesoPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
 
           {/* ── Input bar ── */}
@@ -969,7 +969,7 @@ export default function ControlAccesoPage() {
                       <p className={`text-sm font-medium mb-2 ${exitPopup.paymentPending ? 'text-amber-700 font-semibold' : 'text-gray-700'}`}>
                         {exitPopup.paymentPending ? 'Seleccionar forma de cobro' : 'Método de Pago'}
                       </p>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {[
                           { id: 'cash', label: 'Efectivo', icon: Banknote },
                           { id: 'card', label: 'Tarjeta', icon: CreditCard },

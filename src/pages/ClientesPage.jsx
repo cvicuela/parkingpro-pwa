@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { customersAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Plus, Search, Edit2, Trash2, X, Building2, User, History, Printer, Car, CreditCard, FileText, Clock } from 'lucide-react';
 import PrintPreviewModal from '../components/PrintPreviewModal';
@@ -343,6 +344,8 @@ function CustomerHistoryModal({ customer, onClose }) {
 }
 
 export default function ClientesPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -456,10 +459,12 @@ export default function ClientesPage() {
                               className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded">
                               <Edit2 size={16} />
                             </button>
-                            <button onClick={() => handleDelete(c.id)}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
-                              <Trash2 size={16} />
-                            </button>
+                            {isAdmin && (
+                              <button onClick={() => handleDelete(c.id)}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
+                                <Trash2 size={16} />
+                              </button>
+                            )}
                           </>
                         )}
                       </div>

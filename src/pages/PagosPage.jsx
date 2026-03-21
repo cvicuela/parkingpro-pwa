@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { paymentsAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Search, RotateCcw, DollarSign, CheckCircle, XCircle, Clock, FileText, RefreshCw, X } from 'lucide-react';
 
@@ -13,13 +14,15 @@ const statusConfig = {
 };
 
 export default function PagosPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [refundModal, setRefundModal] = useState(null); // { id } of payment being refunded
+  const [refundModal, setRefundModal] = useState(null);
   const [refundReason, setRefundReason] = useState('');
 
   const fetchPayments = useCallback(async () => {
@@ -153,7 +156,7 @@ export default function PagosPage() {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        {p.status === 'paid' && (
+                        {p.status === 'paid' && isAdmin && (
                           <button onClick={() => openRefundModal(p.id)}
                             className="text-xs px-2 py-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded">
                             Reembolsar
@@ -171,11 +174,11 @@ export default function PagosPage() {
 
       {/* Refund Reason Modal */}
       {refundModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setRefundModal(null)}>
-          <div className="bg-white rounded-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setRefundModal(null)} role="presentation">
+          <div className="bg-white rounded-xl max-w-md w-full" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="refund-modal-title">
             <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-800">Motivo del Reembolso</h3>
-              <button onClick={() => setRefundModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+              <h3 id="refund-modal-title" className="text-lg font-semibold text-gray-800">Motivo del Reembolso</h3>
+              <button onClick={() => setRefundModal(null)} className="text-gray-400 hover:text-gray-600" aria-label="Cerrar"><X size={20} /></button>
             </div>
             <div className="p-4 space-y-3">
               <p className="text-sm text-gray-500">Ingrese el motivo del reembolso. Este campo es obligatorio.</p>

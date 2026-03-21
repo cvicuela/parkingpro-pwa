@@ -166,7 +166,7 @@ export default function FacturasPage() {
             <thead className="bg-gray-50 border-b">
               <tr>
                 {['N° Factura', 'NCF', 'Cliente', 'Subtotal', 'ITBIS', 'Total', 'Fecha', 'Acciones'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                  <th key={h} className="py-3 px-4 text-left text-sm text-gray-500">{h}</th>
                 ))}
               </tr>
             </thead>

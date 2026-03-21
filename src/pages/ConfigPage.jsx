@@ -102,7 +102,7 @@ function TimezoneClockPanel() {
         </div>
 
         {/* Timezone info grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <div className="bg-gray-50 rounded-lg p-3">
             <p className="text-xs text-gray-400 font-medium uppercase">Zona Horaria</p>
             <p className="text-sm font-bold text-gray-800 mt-0.5">{timeService.TZ}</p>

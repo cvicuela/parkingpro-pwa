@@ -204,7 +204,7 @@ export default function CajaPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 md:p-12 text-center">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Lock size={36} className="text-gray-400" />
           </div>
@@ -272,7 +272,7 @@ export default function CajaPage() {
 
       {/* Desglose por método de pago */}
       {(totalCard > 0 || totalTransfer > 0) && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="bg-white border border-green-200 rounded-xl p-3 flex items-center gap-3">
             <Banknote size={18} className="text-green-600" />
             <div>
@@ -329,7 +329,7 @@ export default function CajaPage() {
             <div className="text-center py-12">
               <ArrowUpDown size={40} className="mx-auto text-gray-200 mb-3" />
               <p className="text-gray-400 font-medium">Sin movimientos registrados</p>
-              <p className="text-gray-300 text-sm mt-1">Los cobros y reembolsos apareceran aqui</p>
+              <p className="text-gray-500 text-sm mt-1">Los cobros y reembolsos apareceran aqui</p>
             </div>
           ) : (
             transactions
