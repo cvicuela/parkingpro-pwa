@@ -172,7 +172,7 @@ export default function FacturasPage() {
             </thead>
             <tbody>
               {invoices.length === 0
-                ? <tr><td colSpan={8} className="text-center text-gray-400 py-8">No hay facturas</td></tr>
+                ? <tr><td colSpan={8} className="text-center text-gray-500 py-12"><FileText size={32} className="mx-auto text-gray-300 mb-2" />No hay facturas para el periodo seleccionado</td></tr>
                 : invoices.map(inv => (
                   <tr key={inv.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3">

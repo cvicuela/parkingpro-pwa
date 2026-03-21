@@ -3,6 +3,7 @@ import { paymentsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Search, RotateCcw, DollarSign, CheckCircle, XCircle, Clock, FileText, RefreshCw, X } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
 
 const fmtMoney = (v) => { const p = Number(v || 0).toFixed(2).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
 
@@ -118,7 +119,7 @@ export default function PagosPage() {
         {loading ? (
           <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
         ) : payments.length === 0 ? (
-          <p className="p-8 text-center text-gray-400">No se encontraron pagos</p>
+          <EmptyState icon={DollarSign} title="No se encontraron pagos" description="Los pagos aparecerán aquí cuando se procesen cobros por estacionamiento." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { customersAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import EmptyState from '../components/EmptyState';
 import { Plus, Search, Edit2, Trash2, X, Building2, User, History, Printer, Car, CreditCard, FileText, Clock } from 'lucide-react';
 import PrintPreviewModal from '../components/PrintPreviewModal';
 
@@ -405,7 +406,7 @@ export default function ClientesPage() {
         {loading ? (
           <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
         ) : customers.length === 0 ? (
-          <p className="p-8 text-center text-gray-400">No se encontraron clientes</p>
+          <EmptyState icon={Users} title="No se encontraron clientes" description="Agregue su primer cliente para comenzar a gestionar suscripciones." actionLabel="Nuevo Cliente" onAction={() => { setEditing(null); setShowModal(true); }} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">

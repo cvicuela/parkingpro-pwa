@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { vehiclesAPI, customersAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import { Plus, Search, Edit2, Trash2, X, Car } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
 
 function VehicleModal({ vehicle, onClose, onSave }) {
   const [form, setForm] = useState(vehicle || {
@@ -147,7 +148,7 @@ export default function VehiculosPage() {
         {loading ? (
           <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
         ) : vehicles.length === 0 ? (
-          <p className="p-8 text-center text-gray-400">No se encontraron vehículos</p>
+          <EmptyState icon={Car} title="No se encontraron vehículos" description="Los vehículos se registran al crear suscripciones o al ingresar al parqueo." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">

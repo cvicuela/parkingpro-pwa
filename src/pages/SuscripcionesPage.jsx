@@ -4,6 +4,7 @@ import { subscriptionsAPI, customersAPI, vehiclesAPI, plansAPI } from '../servic
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { Plus, Search, X, Pause, Play, Trash2, AlertTriangle, Eye, FileText, User, Phone, Mail, Car, CreditCard, Calendar, Building2, ExternalLink } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
 
 const statusBadge = {
   active: 'bg-green-100 text-green-700',
@@ -393,7 +394,7 @@ export default function SuscripcionesPage() {
         {loading ? (
           <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
         ) : subs.length === 0 ? (
-          <p className="p-8 text-center text-gray-400">No se encontraron suscripciones</p>
+          <EmptyState icon={CreditCard} title="No se encontraron suscripciones" description="Cree una suscripción para asociar un cliente a un plan de parqueo." actionLabel="Nueva Suscripción" onAction={() => setShowModal(true)} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
