@@ -30,7 +30,7 @@ const fieldConfig = {
   business_phone: { label: 'Teléfono', type: 'text', placeholder: '809-000-0000' },
   currency: { label: 'Moneda', type: 'select', options: ['DOP', 'USD', 'EUR'] },
   cash_diff_threshold: { label: 'Umbral diferencia de caja (RD$)', type: 'number', hint: 'Diferencias mayores requieren aprobación del supervisor' },
-  multi_register_enabled: { label: 'Multiples cajas simultaneas', type: 'toggle' },
+  multi_register_enabled: { label: 'Múltiples cajas simultáneas', type: 'toggle' },
   tax_rate: { label: 'Tasa ITBIS', type: 'number', hint: '0.18 = 18%' },
   invoice_mode: { label: 'Modo de Facturación', type: 'select', options: ['fiscal', 'interno'], hint: 'Fiscal = NCF/DGII | Interno = numeración propia sin reporte fiscal' },
   internal_invoice_prefix: { label: 'Prefijo factura interna', type: 'text', hint: 'Solo modo interno. Ej: FAC, INV', placeholder: 'FAC' },
@@ -1280,7 +1280,7 @@ export default function ConfigPage() {
               <p className="font-medium text-gray-700 text-sm mb-2 flex items-center gap-2"><Wifi size={14} className="text-blue-500" /> Estado de Integración</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
                 {[
-                  { label: 'Escaner QR', desc: scanners.filter(s => s.type === 'qr_fixed' && s.enabled !== false).length > 0 ? 'Configurado' : 'No instalado', active: scanners.filter(s => s.type === 'qr_fixed' && s.enabled !== false).length > 0 },
+                  { label: 'Escáner QR', desc: scanners.filter(s => s.type === 'qr_fixed' && s.enabled !== false).length > 0 ? 'Configurado' : 'No instalado', active: scanners.filter(s => s.type === 'qr_fixed' && s.enabled !== false).length > 0 },
                   { label: 'Barreras', desc: scanners.filter(s => s.type === 'barrier' && s.enabled !== false).length > 0 ? 'Configurado' : 'No instalado', active: scanners.filter(s => s.type === 'barrier' && s.enabled !== false).length > 0 },
                   { label: 'Cámara LPR', desc: scanners.filter(s => s.type === 'camera' && s.enabled !== false).length > 0 ? 'Configurado' : 'No instalado', active: scanners.filter(s => s.type === 'camera' && s.enabled !== false).length > 0 },
                 ].map(({ label, desc, active }) => (

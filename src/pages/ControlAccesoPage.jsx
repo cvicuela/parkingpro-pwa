@@ -1156,7 +1156,7 @@ export default function ControlAccesoPage() {
                 <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2">
                   <p className="text-xs text-indigo-500 mb-0.5">Código de Verificación</p>
                   <p className="text-lg font-mono font-bold text-indigo-700 tracking-wider cursor-pointer"
-                    onClick={() => { navigator.clipboard.writeText(entryTicket.verificationCode); toast.info('Codigo copiado'); }}>
+                    onClick={() => { navigator.clipboard.writeText(entryTicket.verificationCode); toast.info('Código copiado'); }}>
                     {entryTicket.verificationCode}
                   </p>
                 </div>
