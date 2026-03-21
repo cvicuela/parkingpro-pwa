@@ -534,6 +534,7 @@ export default function SetupWizardPage() {
       const settingsToSave = {
         business_name: data.business_name,
         business_rnc: data.business_rnc,
+        company_rnc: data.business_rnc, // Sync para Reportes Fiscales DGII
         business_address: data.business_address,
         business_phone: data.business_phone,
         currency: data.currency,

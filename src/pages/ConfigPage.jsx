@@ -637,6 +637,10 @@ export default function ConfigPage() {
     setSaving(prev => ({ ...prev, [key]: true }));
     try {
       await settingsAPI.update(key, editValues[key]);
+      // Sincronizar business_rnc → company_rnc para Reportes Fiscales DGII
+      if (key === 'business_rnc') {
+        try { await settingsAPI.update('company_rnc', editValues[key]); } catch {}
+      }
       toast.success(`${fieldConfig[key]?.label || key} actualizado`);
       setHasChanges(prev => ({ ...prev, [key]: false }));
       // Update localStorage cache for printService
