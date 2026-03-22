@@ -686,6 +686,9 @@ export default function ConfigPage() {
     try {
       const { data } = await settingsAPI.list();
       const items = data.data || data || [];
+      if (!Array.isArray(items)) {
+        throw new Error('Formato de respuesta inválido');
+      }
       setSettings(items);
       const vals = {};
       items.forEach(s => {
@@ -697,8 +700,20 @@ export default function ConfigPage() {
       try { localStorage.setItem('pp_settings', JSON.stringify(vals)); } catch {}
       // Start all categories collapsed for a clean view
       setExpandedCategories({});
-    } catch {
-      toast.error('Error cargando configuraciones');
+    } catch (err) {
+      console.error('[ConfigPage] Error loading settings:', err);
+      // Try to load from localStorage cache as last resort
+      try {
+        const cached = JSON.parse(localStorage.getItem('pp_settings') || '{}');
+        if (Object.keys(cached).length > 0) {
+          setEditValues(cached);
+          toast.warning('Cargando configuraciones desde caché local');
+        } else {
+          toast.error('Error cargando configuraciones: ' + (err.message || 'Servidor no disponible'));
+        }
+      } catch {
+        toast.error('Error cargando configuraciones: ' + (err.message || 'Servidor no disponible'));
+      }
     } finally {
       setLoading(false);
     }
