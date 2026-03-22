@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
+import { useAuth } from './AuthContext';
 
 const TerminalContext = createContext(null);
 
@@ -7,6 +8,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const getToken = () => localStorage.getItem('pp_token') || '';
 
 export function TerminalProvider({ children }) {
+  const { user } = useAuth();
   const [terminal, setTerminal] = useState(() => {
     const saved = localStorage.getItem('pp_terminal');
     return saved ? JSON.parse(saved) : null;
@@ -29,10 +31,21 @@ export function TerminalProvider({ children }) {
     }
   }, []);
 
+  // React to auth state changes: fetch terminals on login, clear on logout
   useEffect(() => {
-    if (getToken()) fetchTerminals();
-    else setLoading(false);
-  }, [fetchTerminals]);
+    if (user) {
+      // User just logged in — fetch available terminals
+      fetchTerminals();
+      // Re-read localStorage in case it was cleared on logout
+      const saved = localStorage.getItem('pp_terminal');
+      setTerminal(saved ? JSON.parse(saved) : null);
+    } else {
+      // User logged out — clear everything
+      setTerminal(null);
+      setTerminals([]);
+      setLoading(false);
+    }
+  }, [user, fetchTerminals]);
 
   const selectTerminal = useCallback((t) => {
     setTerminal(t);
@@ -45,9 +58,9 @@ export function TerminalProvider({ children }) {
     localStorage.removeItem('pp_terminal');
   }, []);
 
-  // Heartbeat every 2 minutes
+  // Heartbeat every 2 minutes (skip for "Sin Terminal" placeholder)
   useEffect(() => {
-    if (!terminal) return;
+    if (!terminal || !terminal.id) return;
     const sendHeartbeat = async () => {
       try {
         await fetch(`${API_BASE}/api/v1/terminals/${terminal.code}/heartbeat`, {
