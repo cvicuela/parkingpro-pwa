@@ -17,7 +17,7 @@ export default function LoginPage() {
       await login(email, password);
       toast.success('Sesión iniciada correctamente');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error al iniciar sesión');
+      toast.error(err.message || 'Error al iniciar sesión');
     } finally {
       setLoading(false);
     }
