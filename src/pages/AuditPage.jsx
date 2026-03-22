@@ -19,7 +19,7 @@ export default function AuditPage() {
   const [total, setTotal] = useState(0);
   const [actions, setActions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ action: '', entityType: '', startDate: '', endDate: '' });
+  const [filters, setFilters] = useState(() => { const today = new Date().toISOString().split('T')[0]; const y = new Date(); y.setDate(y.getDate() - 1); return { action: '', entityType: '', startDate: y.toISOString().split('T')[0], endDate: today }; });
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [page, setPage] = useState(1);

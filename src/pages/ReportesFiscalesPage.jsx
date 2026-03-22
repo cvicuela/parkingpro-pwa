@@ -229,8 +229,8 @@ export default function ReportesFiscalesPage() {
   const [periodYear, setPeriodYear] = useState(now.getFullYear());
   const [periodMonth, setPeriodMonth] = useState(now.getMonth() + 1);
   const [useCustomDates, setUseCustomDates] = useState(false);
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [fromDate, setFromDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; });
+  const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [companyRnc, setCompanyRnc] = useState('');
   const [rncLoaded, setRncLoaded] = useState(false);
   const [loading, setLoading] = useState(false);

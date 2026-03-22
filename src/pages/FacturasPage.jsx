@@ -70,8 +70,8 @@ export default function FacturasPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selected, setSelected] = useState(null);
   const [printInvoice, setPrintInvoice] = useState(null);
   const [page, setPage] = useState(1);

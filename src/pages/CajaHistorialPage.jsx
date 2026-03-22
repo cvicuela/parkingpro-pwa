@@ -11,8 +11,8 @@ export default function CajaHistorialPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [transactions, setTransactions] = useState([]);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [approveNotes, setApproveNotes] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 15;
