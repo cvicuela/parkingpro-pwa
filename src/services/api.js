@@ -245,17 +245,36 @@ export const accessAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  // REST endpoints (no PG stored procedures for these)
-  history: (params = {}) => apiFetch(`/api/v1/access/history?limit=${params?.limit || 50}&offset=${params?.offset || 0}`),
-  activeSessions: () => apiFetch('/api/v1/access/sessions/active'),
-  sessionByPlate: (plate) => apiFetch(`/api/v1/access/sessions/${encodeURIComponent(plate)}`),
-  endSession: (id) => apiFetch(`/api/v1/access/sessions/${id}/end`, { method: 'POST' }),
-  sessionPayment: (id, data) => apiFetch(`/api/v1/access/sessions/${id}/payment`, {
-    method: 'POST', body: JSON.stringify(data),
-  }),
-  validateExit: (data) => apiFetch('/api/v1/access/validate', {
-    method: 'POST', body: JSON.stringify(data),
-  }),
+  history: async (params = {}) => {
+    const result = await rpc('access_history', { p_token: getToken(), p_limit: params?.limit || 50, p_offset: params?.offset || 0 });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  activeSessions: async () => {
+    const result = await rpc('list_active_sessions', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  sessionByPlate: async (plate) => {
+    const result = await rpc('session_by_plate', { p_token: getToken(), p_plate: plate });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  endSession: async (id) => {
+    const result = await rpc('end_session', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  sessionPayment: async (id) => {
+    const result = await rpc('session_payment', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  validateExit: async (data) => {
+    const result = await rpc('validate_exit', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
   // RPC functions (PG stored procedures exist)
   calculateFee: async (data) => {
     const result = await rpc('calculate_parking_fee', { p_token: getToken(), p_data: data });
@@ -401,31 +420,50 @@ export const reportsAPI = {
     return wrap(result);
   },
   occupancyByHour: async (params = {}) => {
-    const query = new URLSearchParams();
-    if (params.fromDate) query.set('fromDate', params.fromDate);
-    if (params.toDate) query.set('toDate', params.toDate);
-    const qs = query.toString();
-    return apiFetch(`/api/v1/reports/occupancy-by-hour${qs ? `?${qs}` : ''}`);
+    const result = await rpc('report_occupancy', {
+      p_token: getToken(),
+      p_period: 'custom',
+      p_from: params.fromDate || null,
+      p_to: params.toDate || null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   revenueByMethod: async (params = {}) => {
-    const query = new URLSearchParams();
-    if (params.fromDate) query.set('fromDate', params.fromDate);
-    if (params.toDate) query.set('toDate', params.toDate);
-    const qs = query.toString();
-    return apiFetch(`/api/v1/reports/revenue-by-method${qs ? `?${qs}` : ''}`);
+    const result = await rpc('report_revenue', {
+      p_token: getToken(),
+      p_period: 'custom',
+      p_from: params.fromDate || null,
+      p_to: params.toDate || null,
+      p_group_by: 'method'
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   topCustomers: async (params = {}) => {
-    const query = new URLSearchParams();
-    if (params.limit) query.set('limit', params.limit);
-    const qs = query.toString();
-    return apiFetch(`/api/v1/reports/top-customers${qs ? `?${qs}` : ''}`);
+    const result = await rpc('report_customers', {
+      p_token: getToken(),
+      p_period: 'month',
+      p_from: null,
+      p_to: null
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   revenueDaily: async (params = {}) => {
-    const result = await apiFetch('/api/v1/reports/revenue-daily?' + new URLSearchParams({ days: params.days || 7 }));
+    const result = await rpc('report_revenue', {
+      p_token: getToken(),
+      p_period: 'week',
+      p_from: null,
+      p_to: null,
+      p_group_by: 'day'
+    });
+    if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
   todaySummary: async () => {
-    const result = await apiFetch('/api/v1/reports/today-summary');
+    const result = await rpc('report_executive_summary', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
   exportData: async (type, params = {}) => {
@@ -496,38 +534,22 @@ export const reportsAPI = {
   },
 };
 
-// Settings — RPC primary, REST fallback
+// Settings — via RPC
 export const settingsAPI = {
   list: async () => {
-    try {
-      const result = await rpc('list_settings', { p_token: getToken() });
-      if (!result.success) throw new Error(result.error);
-      return wrap(result);
-    } catch {
-      // Fallback to REST endpoint (Express backend)
-      return apiFetch('/api/v1/settings');
-    }
+    const result = await rpc('list_settings', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   get: async (key) => {
-    try {
-      const result = await rpc('get_setting', { p_token: getToken(), p_key: key });
-      if (!result.success) throw new Error(result.error);
-      return wrap(result);
-    } catch {
-      return apiFetch(`/api/v1/settings/${encodeURIComponent(key)}`);
-    }
+    const result = await rpc('get_setting', { p_token: getToken(), p_key: key });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   update: async (key, value) => {
-    try {
-      const result = await rpc('update_setting', { p_token: getToken(), p_key: key, p_value: typeof value === 'string' ? value : String(value) });
-      if (!result.success) throw new Error(result.error);
-      return wrap(result);
-    } catch {
-      return apiFetch(`/api/v1/settings/${encodeURIComponent(key)}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ value }),
-      });
-    }
+    const result = await rpc('update_setting', { p_token: getToken(), p_key: key, p_value: typeof value === 'string' ? value : String(value) });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
 };
 
@@ -551,24 +573,43 @@ export const systemAPI = {
   },
 };
 
-// Cash Registers — REST endpoints (not Supabase RPC)
+// Cash Registers — via RPC
 export const cashAPI = {
-  open: (data) => apiFetch('/api/v1/cash-registers/open', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  active: () => apiFetch('/api/v1/cash-registers/active'),
-  close: (id, data) => apiFetch(`/api/v1/cash-registers/${id}/close`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  approve: (id, data) => apiFetch(`/api/v1/cash-registers/${id}/approve`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  transactions: (id) => apiFetch(`/api/v1/cash-registers/${id}/transactions`),
-  history: (params = {}) => apiFetch(`/api/v1/cash-registers/history?limit=${params?.limit || 50}`),
-  limits: () => apiFetch('/api/v1/cash-registers/limits'),
+  open: async (data) => {
+    const result = await rpc('safe_open_cash_register', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  active: async () => {
+    const result = await rpc('get_active_register', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  close: async (id, data) => {
+    const result = await rpc('close_cash_register', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  approve: async (id, data) => {
+    const result = await rpc('approve_cash_register', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  transactions: async (id) => {
+    const result = await rpc('get_register_transactions', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  history: async (params = {}) => {
+    const result = await rpc('cash_register_history', { p_token: getToken(), p_limit: params?.limit || 50 });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  limits: async () => {
+    const result = await rpc('get_cash_limits', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Operators — via RPC (same auth path as usersAPI)
@@ -609,7 +650,11 @@ export const invoicesAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  stats: () => apiFetch('/api/v1/invoices/stats'),
+  stats: async () => {
+    const result = await rpc('invoice_stats', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
   fromPayment: async (paymentId) => {
     const result = await rpc('create_invoice_from_payment', { p_token: getToken(), p_payment_id: paymentId });
     if (!result.success) throw new Error(result.error);
@@ -624,7 +669,11 @@ export const auditAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  actions: () => apiFetch('/api/v1/audit/actions'),
+  actions: async () => {
+    const result = await rpc('list_audit_actions', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Expenses (Gastos - feeds DGII 606)
@@ -862,85 +911,50 @@ export const usersAPI = {
   },
 };
 
-// RFID Cards (all via REST API)
+// RFID Cards — requires local Express backend (hardware feature)
+const rfidUnavailable = () => { throw new Error('RFID requiere el backend local (Express). No disponible en modo remoto.'); };
 export const rfidAPI = {
-  list: async (params = {}) => {
-    const query = new URLSearchParams();
-    if (params.cardType) query.set('cardType', params.cardType);
-    if (params.status) query.set('status', params.status);
-    if (params.search) query.set('search', params.search);
-    if (params.limit) query.set('limit', params.limit);
-    if (params.offset) query.set('offset', params.offset);
-    const qs = query.toString();
-    return apiFetch(`/api/v1/rfid/cards${qs ? `?${qs}` : ''}`);
-  },
-  poolStats: async () => apiFetch('/api/v1/rfid/cards/pool-stats'),
-  get: async (id) => apiFetch(`/api/v1/rfid/cards/${id}`),
-  register: async (data) => apiFetch('/api/v1/rfid/cards', {
-    method: 'POST',
-    body: JSON.stringify({ cardUid: data.cardUid, cardType: data.cardType, label: data.label || null }),
-  }),
-  assignPermanent: async (cardId, subscriptionId) => apiFetch(`/api/v1/rfid/cards/${cardId}/assign-permanent`, {
-    method: 'POST',
-    body: JSON.stringify({ subscriptionId }),
-  }),
-  assignTemporary: async (cardId, vehiclePlate) => apiFetch(`/api/v1/rfid/cards/${cardId}/assign-temporary`, {
-    method: 'POST',
-    body: JSON.stringify({ vehiclePlate }),
-  }),
-  returnCard: async (cardId) => apiFetch(`/api/v1/rfid/cards/${cardId}/return`, { method: 'POST' }),
-  reportLost: async (cardId) => apiFetch(`/api/v1/rfid/cards/${cardId}/report-lost`, { method: 'POST' }),
-  disable: async (cardId) => apiFetch(`/api/v1/rfid/cards/${cardId}/disable`, { method: 'POST' }),
-  enable: async (cardId) => apiFetch(`/api/v1/rfid/cards/${cardId}/enable`, { method: 'POST' }),
-  resolve: async (cardUid) => apiFetch(`/api/v1/rfid/resolve/${cardUid}`),
-  listByCustomer: async (customerId) => apiFetch(`/api/v1/rfid/cards/by-customer/${customerId}`),
-  listBySubscription: async (subscriptionId) => apiFetch(`/api/v1/rfid/cards/by-subscription/${subscriptionId}`),
+  list: async () => wrap({ success: true, data: [] }),
+  poolStats: async () => wrap({ success: true, data: { total: 0, available: 0, assigned: 0, lost: 0 } }),
+  get: rfidUnavailable,
+  register: rfidUnavailable,
+  assignPermanent: rfidUnavailable,
+  assignTemporary: rfidUnavailable,
+  returnCard: rfidUnavailable,
+  reportLost: rfidUnavailable,
+  disable: rfidUnavailable,
+  enable: rfidUnavailable,
+  resolve: async () => wrap({ success: true, data: null }),
+  listByCustomer: async () => wrap({ success: true, data: [] }),
+  listBySubscription: async () => wrap({ success: true, data: [] }),
 };
 
-// ZKTeco Devices
+// ZKTeco Devices — requires local Express backend (hardware feature)
+const deviceUnavailable = () => { throw new Error('Dispositivos ZKTeco requieren el backend local (Express). No disponible en modo remoto.'); };
 export const devicesAPI = {
-  list: async (params = {}) => {
-    const query = new URLSearchParams();
-    if (params.type) query.set('type', params.type);
-    if (params.status) query.set('status', params.status);
-    if (params.location) query.set('location', params.location);
-    const qs = query.toString();
-    return apiFetch(`/api/v1/zkteco/devices${qs ? `?${qs}` : ''}`);
-  },
-  get: async (serial) => apiFetch(`/api/v1/zkteco/devices/${serial}`),
-  create: async (data) =>
-    apiFetch('/api/v1/zkteco/devices', { method: 'POST', body: JSON.stringify(data) }),
-  update: async (serial, data) =>
-    apiFetch(`/api/v1/zkteco/devices/${serial}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: async (serial) =>
-    apiFetch(`/api/v1/zkteco/devices/${serial}`, { method: 'DELETE' }),
-  openBarrier: async (serial) =>
-    apiFetch(`/api/v1/zkteco/devices/${serial}/open`, { method: 'POST' }),
-  closeBarrier: async (serial) =>
-    apiFetch(`/api/v1/zkteco/devices/${serial}/close`, { method: 'POST' }),
-  requestCardRead: async (serial) =>
-    apiFetch(`/api/v1/zkteco/devices/${serial}/read-card`, { method: 'POST' }),
-  stopReading: async (serial) =>
-    apiFetch(`/api/v1/zkteco/devices/${serial}/stop-reading`, { method: 'POST' }),
-  readers: async () => apiFetch('/api/v1/zkteco/readers'),
-  stats: async () => apiFetch('/api/v1/zkteco/stats'),
-  events: async (params = {}) => {
-    const query = new URLSearchParams();
-    if (params.serial_number) query.set('serial_number', params.serial_number);
-    if (params.limit) query.set('limit', params.limit);
-    const qs = query.toString();
-    return apiFetch(`/api/v1/zkteco/events${qs ? `?${qs}` : ''}`);
-  },
+  list: async () => wrap({ success: true, data: [] }),
+  get: deviceUnavailable,
+  create: deviceUnavailable,
+  update: deviceUnavailable,
+  delete: deviceUnavailable,
+  openBarrier: deviceUnavailable,
+  closeBarrier: deviceUnavailable,
+  requestCardRead: deviceUnavailable,
+  stopReading: deviceUnavailable,
+  readers: async () => wrap({ success: true, data: [] }),
+  stats: async () => wrap({ success: true, data: { total: 0, online: 0, offline: 0 } }),
+  events: async () => wrap({ success: true, data: [] }),
 };
 
-// Terminals
+// Terminals — requires local Express backend (hardware feature)
+const terminalUnavailable = () => { throw new Error('Terminales requieren el backend local (Express). No disponible en modo remoto.'); };
 export const terminalsAPI = {
-  list: async () => apiFetch('/api/v1/terminals'),
-  create: async (data) => apiFetch('/api/v1/terminals', { method: 'POST', body: JSON.stringify(data) }),
-  update: async (id, data) => apiFetch(`/api/v1/terminals/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: async (id) => apiFetch(`/api/v1/terminals/${id}`, { method: 'DELETE' }),
-  heartbeat: async (code) => apiFetch(`/api/v1/terminals/${code}/heartbeat`, { method: 'POST' }),
-  stats: async () => apiFetch('/api/v1/terminals/stats'),
+  list: async () => wrap({ success: true, data: [] }),
+  create: terminalUnavailable,
+  update: terminalUnavailable,
+  delete: terminalUnavailable,
+  heartbeat: terminalUnavailable,
+  stats: async () => wrap({ success: true, data: { total: 0, online: 0, offline: 0 } }),
 };
 
 // Default export for backward compatibility
