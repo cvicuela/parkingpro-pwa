@@ -58,6 +58,7 @@ export function AuthProvider({ children }) {
     authAPI.logout().catch(() => {});
     localStorage.removeItem('pp_token');
     localStorage.removeItem('pp_user');
+    localStorage.removeItem('pp_terminal');
     setUser(null);
   };
 

@@ -34,6 +34,8 @@ export default function TerminalSelector({ compact = false }) {
     return (Date.now() - new Date(t.last_heartbeat).getTime()) < 300000;
   };
 
+  const isNoneTerminal = terminal && !terminal.id;
+
   if (compact) {
     return (
       <div className="relative">
@@ -43,18 +45,21 @@ export default function TerminalSelector({ compact = false }) {
           aria-expanded={showList}
           aria-label={`Terminal: ${terminal ? terminal.name : 'Sin terminal'}`}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-            terminal
+            terminal && terminal.id
               ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
-              : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'
+              : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
           }`}>
           <Monitor size={14} aria-hidden="true" />
-          <span>{terminal ? terminal.name : 'Sin terminal'}</span>
+          <span>{terminal && terminal.id ? terminal.name : 'Sin terminal'}</span>
           <ChevronDown size={12} aria-hidden="true" />
         </button>
         {showList && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setShowList(false)} />
             <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-xl shadow-lg border z-50 py-2 max-h-80 overflow-y-auto" role="listbox" aria-label="Seleccionar terminal">
+              {terminals.length > 0 && (
+                <p className="px-4 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Cambiar terminal</p>
+              )}
               {terminals.map(t => (
                 <button key={t.id} onClick={() => { selectTerminal(t); setShowList(false); }}
                   role="option"
@@ -70,7 +75,10 @@ export default function TerminalSelector({ compact = false }) {
                   <div className={`w-2 h-2 rounded-full ${isOnline(t) ? 'bg-green-500' : 'bg-gray-300'}`} aria-label={isOnline(t) ? 'En línea' : 'Fuera de línea'} />
                 </button>
               ))}
-              {terminal && (
+              {terminals.length === 0 && (
+                <p className="px-4 py-3 text-sm text-gray-500 text-center">No hay terminales configuradas</p>
+              )}
+              {terminal && terminal.id && (
                 <button onClick={() => { clearTerminal(); setShowList(false); }}
                   className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 border-t mt-1 pt-2 text-sm">
                   <X size={14} aria-hidden="true" /> Desconectar terminal
