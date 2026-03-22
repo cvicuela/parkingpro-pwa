@@ -23,32 +23,31 @@ const apiFetch = async (path, options = {}) => {
   return wrap(json);
 };
 
-// Auth
+// Auth — uses Express REST endpoints so tokens are compatible with all REST routes
 export const authAPI = {
   login: async ({ email, password }) => {
-    const result = await rpc('authenticate', { p_email: email, p_password: password });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
+    return apiFetch('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
   },
   register: async (formData) => {
-    const result = await rpc('register_user', {
-      p_email: formData.email,
-      p_phone: formData.phone,
-      p_password: formData.password,
-      p_first_name: formData.firstName || null,
-      p_last_name: formData.lastName || null
+    return apiFetch('/api/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        firstName: formData.firstName || null,
+        lastName: formData.lastName || null,
+      }),
     });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
   },
   me: async () => {
-    const result = await rpc('get_current_user_info', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
+    return apiFetch('/api/v1/auth/me');
   },
   logout: async () => {
-    const result = await rpc('do_logout', { p_token: getToken() });
-    return wrap(result);
+    return apiFetch('/api/v1/auth/logout', { method: 'POST' });
   },
 };
 
