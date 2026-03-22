@@ -530,16 +530,24 @@ export const settingsAPI = {
   },
 };
 
-// System Reset
+// System Reset — via Express RPC proxy to avoid Supabase SSL issues
 export const systemAPI = {
   resetPreview: async () => {
-    const result = await rpc('reset_data_preview', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return result.data;
+    const { data } = await apiFetch('/api/v1/rpc/reset_data_preview', {
+      method: 'POST',
+      body: JSON.stringify({ p_token: getToken() }),
+    });
+    const result = data.reset_data_preview || data;
+    if (result.success === false) throw new Error(result.error);
+    return result.data || result;
   },
   resetData: async (confirmationCode) => {
-    const result = await rpc('reset_operational_data', { p_token: getToken(), p_confirmation_code: confirmationCode });
-    if (!result.success) throw new Error(result.error);
+    const { data } = await apiFetch('/api/v1/rpc/reset_operational_data', {
+      method: 'POST',
+      body: JSON.stringify({ p_token: getToken(), p_confirmation_code: confirmationCode }),
+    });
+    const result = data.reset_operational_data || data;
+    if (result.success === false) throw new Error(result.error);
     return result;
   },
 };
