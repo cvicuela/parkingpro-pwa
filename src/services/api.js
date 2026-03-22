@@ -6,6 +6,23 @@ const getToken = () => localStorage.getItem('pp_token') || '';
 // Wrap RPC result to match existing { data: { ... } } format used by AuthContext
 const wrap = (result) => ({ data: result });
 
+// REST helper for Express backend routes (not Supabase RPC)
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const apiFetch = async (path, options = {}) => {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getToken()}`,
+      ...options.headers,
+    },
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || json.message || res.statusText);
+  return wrap(json);
+};
+
 // Auth
 export const authAPI = {
   login: async ({ email, password }) => {
@@ -228,35 +245,18 @@ export const accessAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  history: async (params = {}) => {
-    const result = await rpc('access_history', {
-      p_token: getToken(),
-      p_limit: params?.limit || 50,
-      p_offset: params?.offset || 0
-    });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  activeSessions: async () => {
-    const result = await rpc('list_active_sessions', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  sessionByPlate: async (plate) => {
-    const result = await rpc('session_by_plate', { p_token: getToken(), p_plate: plate });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  endSession: async (id) => {
-    const result = await rpc('end_session', { p_token: getToken(), p_id: id });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  sessionPayment: async (id, data) => {
-    const result = await rpc('session_payment', { p_token: getToken(), p_id: id, p_data: data });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
+  // REST endpoints (no PG stored procedures for these)
+  history: (params = {}) => apiFetch(`/api/v1/access/history?limit=${params?.limit || 50}&offset=${params?.offset || 0}`),
+  activeSessions: () => apiFetch('/api/v1/access/sessions/active'),
+  sessionByPlate: (plate) => apiFetch(`/api/v1/access/sessions/${encodeURIComponent(plate)}`),
+  endSession: (id) => apiFetch(`/api/v1/access/sessions/${id}/end`, { method: 'POST' }),
+  sessionPayment: (id, data) => apiFetch(`/api/v1/access/sessions/${id}/payment`, {
+    method: 'POST', body: JSON.stringify(data),
+  }),
+  validateExit: (data) => apiFetch('/api/v1/access/validate', {
+    method: 'POST', body: JSON.stringify(data),
+  }),
+  // RPC functions (PG stored procedures exist)
   calculateFee: async (data) => {
     const result = await rpc('calculate_parking_fee', { p_token: getToken(), p_data: data });
     if (!result.success) throw new Error(result.error);
@@ -264,11 +264,6 @@ export const accessAPI = {
   },
   processPayment: async (data) => {
     const result = await rpc('process_parking_payment', { p_token: getToken(), p_data: data });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  validateExit: async (data) => {
-    const result = await rpc('validate_exit', { p_token: getToken(), p_data: data });
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
@@ -503,11 +498,7 @@ export const reportsAPI = {
 
 // Settings
 export const settingsAPI = {
-  list: async () => {
-    const result = await rpc('list_settings', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
+  list: () => apiFetch('/api/v1/settings'),
   get: async (key) => {
     const result = await rpc('get_setting', { p_token: getToken(), p_key: key });
     if (!result.success) throw new Error(result.error);
@@ -534,56 +525,47 @@ export const systemAPI = {
   },
 };
 
-// Cash Registers
+// Cash Registers — REST endpoints (not Supabase RPC)
 export const cashAPI = {
-  open: async (data) => {
-    const result = await rpc('open_cash_register', { p_token: getToken(), p_data: data });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  active: async () => {
-    const result = await rpc('get_active_register', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  close: async (id, data) => {
-    const result = await rpc('close_cash_register', { p_token: getToken(), p_id: id, p_data: data });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  approve: async (id, data) => {
-    const result = await rpc('approve_cash_register', { p_token: getToken(), p_id: id, p_data: data });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  transactions: async (id) => {
-    const result = await rpc('get_register_transactions', { p_token: getToken(), p_id: id });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  history: async (params = {}) => {
-    const result = await rpc('cash_register_history', { p_token: getToken(), p_limit: params?.limit || 50 });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  limits: async () => {
-    const result = await rpc('get_cash_limits', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
+  open: (data) => apiFetch('/api/v1/cash-registers/open', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  active: () => apiFetch('/api/v1/cash-registers/active'),
+  close: (id, data) => apiFetch(`/api/v1/cash-registers/${id}/close`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  approve: (id, data) => apiFetch(`/api/v1/cash-registers/${id}/approve`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  transactions: (id) => apiFetch(`/api/v1/cash-registers/${id}/transactions`),
+  history: (params = {}) => apiFetch(`/api/v1/cash-registers/history?limit=${params?.limit || 50}`),
+  limits: () => apiFetch('/api/v1/cash-registers/limits'),
 };
 
-// Operators
+// Operators — REST endpoints via /api/v1/users
 export const operatorsAPI = {
   list: async () => {
-    const result = await rpc('list_operators', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
+    const result = await apiFetch('/api/v1/users');
+    // Filter to only operators and admins who can operate a register
+    const all = result.data?.data || [];
+    const operators = all.filter(u => ['operator', 'admin', 'super_admin'].includes(u.role) && u.status === 'active');
+    return { data: { data: operators } };
   },
   create: async (data) => {
-    const result = await rpc('create_operator', { p_token: getToken(), p_data: data });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
+    return apiFetch('/api/v1/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: data.email,
+        phone: data.phone || '000-000-0000',
+        password: data.password || 'operator123',
+        role: 'operator',
+        firstName: data.first_name,
+        lastName: data.last_name,
+      }),
+    });
   },
 };
 
@@ -599,11 +581,7 @@ export const invoicesAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  stats: async (params = {}) => {
-    const result = await rpc('invoice_stats', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
+  stats: () => apiFetch('/api/v1/invoices/stats'),
   fromPayment: async (paymentId) => {
     const result = await rpc('create_invoice_from_payment', { p_token: getToken(), p_payment_id: paymentId });
     if (!result.success) throw new Error(result.error);
@@ -618,11 +596,7 @@ export const auditAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  actions: async () => {
-    const result = await rpc('list_audit_actions', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
+  actions: () => apiFetch('/api/v1/audit/actions'),
 };
 
 // Expenses (Gastos - feeds DGII 606)
@@ -829,23 +803,6 @@ export const incidentsAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-};
-
-// REST helper for Express backend routes (not Supabase RPC)
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
-const apiFetch = async (path, options = {}) => {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${getToken()}`,
-      ...options.headers,
-    },
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || json.message || res.statusText);
-  return wrap(json);
 };
 
 // User Management (RPC)
