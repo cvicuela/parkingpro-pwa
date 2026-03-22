@@ -302,7 +302,7 @@ export default function ControlAccesoPage() {
 
       const entryPlate = plate.trim() ? plate.toUpperCase().trim() : `SIN-${timeService.timestamp().toString(36).toUpperCase()}`;
       const { data } = await accessAPI.entry({ plateNumber: entryPlate });
-      const session = data.data;
+      const session = data?.data || data;
       toast.success('Entrada registrada');
 
       const ticketData = {
@@ -363,10 +363,10 @@ export default function ControlAccesoPage() {
     // Auto-calculate fee
     try {
       const { data } = await accessAPI.calculateFee({ sessionId: session.id });
-      const fee = data.data;
+      const fee = data?.data || data;
 
       // Handle alert responses (e.g., no_session from gate verify)
-      if (fee.action === 'alert' && fee.type === 'no_session') {
+      if (fee?.action === 'alert' && fee?.type === 'no_session') {
         setExitPopup(prev => prev ? {
           ...prev,
           step: 'no_session_alert',
@@ -462,7 +462,8 @@ export default function ControlAccesoPage() {
       }
 
       const { data } = await accessAPI.processPayment(paymentData);
-      const receipt = data.data.receipt;
+      const payResult = data?.data || data;
+      const receipt = payResult?.receipt || {};
       // Enrich receipt with payment details
       if (exitPopup.payMethod === 'cash' && cashPopup) {
         receipt.cashReceived = cashPopup.received;
@@ -572,7 +573,7 @@ export default function ControlAccesoPage() {
           // Try API
           try {
             const { data } = await accessAPI.sessionByPlate(p);
-            const sess = data.data;
+            const sess = data?.data || data;
             if (sess) openExitPopup(sess);
             else toast.warning('No hay sesión activa para esta placa');
           } catch {

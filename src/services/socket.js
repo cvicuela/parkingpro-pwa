@@ -10,7 +10,10 @@ export function getSocket() {
       autoConnect: false,
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 10
+      reconnectionAttempts: 10,
+      auth: {
+        token: localStorage.getItem('pp_token') || ''
+      }
     });
   }
   return socket;
@@ -18,6 +21,8 @@ export function getSocket() {
 
 export function connectSocket() {
   const s = getSocket();
+  // Update auth token before connecting (may have changed since socket was created)
+  s.auth = { token: localStorage.getItem('pp_token') || '' };
   if (!s.connected) {
     s.connect();
     s.emit('join_dashboard');
