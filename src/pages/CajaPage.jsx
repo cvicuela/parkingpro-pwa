@@ -139,7 +139,12 @@ export default function CajaPage() {
       });
       const data = res.data.data;
       if (data?.requires_approval) {
-        toast.warn('Cierre requiere aprobación del supervisor (diferencia alta)', { autoClose: 8000 });
+        const diff = parseFloat(data.difference || 0);
+        const diffStr = Math.abs(diff).toLocaleString('es-DO', { minimumFractionDigits: 2 });
+        toast.warn(
+          `Caja cerrada con ${diff < 0 ? 'faltante' : 'sobrante'} de RD$${diffStr}. Requiere aprobación del supervisor.`,
+          { autoClose: 10000 }
+        );
       } else {
         toast.success('Caja cerrada correctamente');
       }
