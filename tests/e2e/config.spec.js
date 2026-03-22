@@ -28,8 +28,29 @@ test.describe('Configuration Page', () => {
     await page.goto('/config');
     await page.waitForTimeout(2000);
 
-    // Check for at least some expected category labels
-    const categories = ['General', 'Caja', 'Facturación', 'Antifraude', 'Notificaciones'];
+    // Production has 20 settings categories — verify the full set exists in the DOM
+    const categories = [
+      'General',
+      'Caja',
+      'Facturación',
+      'Antifraude',
+      'Notificaciones',
+      'Acceso',
+      'Tarifas',
+      'Planes',
+      'Clientes',
+      'Vehículos',
+      'Reportes',
+      'Usuarios',
+      'Seguridad',
+      'Integraciones',
+      'Impresión',
+      'Alertas',
+      'Backup',
+      'Auditoría',
+      'Permisos',
+      'Apariencia',
+    ];
     for (const cat of categories) {
       const catElement = page.getByText(cat, { exact: false });
       // Categories might be collapsed, just check they exist in DOM
