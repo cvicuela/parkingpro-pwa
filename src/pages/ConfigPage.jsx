@@ -1707,13 +1707,13 @@ export default function ConfigPage() {
                         }
                         setResetLoading(true);
                         try {
-                          // Verify password by re-authenticating via Express REST
+                          // Verify password by re-authenticating via RPC
                           const userStr = localStorage.getItem('pp_user');
                           const user = userStr ? JSON.parse(userStr) : null;
                           if (!user?.email) throw new Error('No se encontro el usuario actual');
                           const { authAPI } = await import('../services/api');
                           const loginResp = await authAPI.login({ email: user.email, password: resetPassword });
-                          // Use the fresh Express token (guaranteed to be in sessions table)
+                          // Use the fresh token (guaranteed to be in sessions table)
                           const freshToken = loginResp.data?.data?.token || loginResp.data?.token;
                           if (freshToken) localStorage.setItem('pp_token', freshToken);
                           // Password verified, proceed with reset
