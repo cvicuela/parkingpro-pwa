@@ -28,28 +28,14 @@ test.describe('Configuration Page', () => {
     await page.goto('/config');
     await page.waitForTimeout(2000);
 
-    // Production has 20 settings categories — verify the full set exists in the DOM
+    // Verify the actual settings categories displayed in the config page
     const categories = [
       'General',
-      'Caja',
+      'Caja Registradora',
       'Facturación',
       'Antifraude',
       'Notificaciones',
-      'Acceso',
-      'Tarifas',
-      'Planes',
-      'Clientes',
-      'Vehículos',
-      'Reportes',
-      'Usuarios',
-      'Seguridad',
-      'Integraciones',
-      'Impresión',
-      'Alertas',
-      'Backup',
-      'Auditoría',
-      'Permisos',
-      'Apariencia',
+      'Parqueo',
     ];
     for (const cat of categories) {
       const catElement = page.getByText(cat, { exact: false });

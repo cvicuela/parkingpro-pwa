@@ -1,23 +1,35 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const isCI = !!process.env.CI;
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  forbidOnly: isCI,
+  retries: isCI ? 1 : 0,
+  workers: isCI ? 2 : undefined,
   reporter: [
     ['html', { open: 'never' }],
     ['list'],
   ],
   use: {
-    // Local dev: set BASE_URL=http://localhost:5173 (or rely on the webServer block below).
-    // CI: defaults to the production Netlify deployment when BASE_URL is not provided.
-    baseURL: process.env.BASE_URL || (process.env.CI ? 'https://parqueovicuela.netlify.app' : 'http://localhost:5173'),
+    baseURL: process.env.BASE_URL || (isCI ? 'https://parqueovicuela.netlify.app' : 'http://localhost:5173'),
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: process.env.CI ? 'off' : 'retain-on-failure',
+    video: isCI ? 'off' : 'retain-on-failure',
+    // Increase default timeouts for CI (Netlify can be slow on first load)
+    actionTimeout: isCI ? 15000 : 10000,
+    navigationTimeout: isCI ? 30000 : 15000,
   },
+  // Only start dev server locally — in CI we test against the deployed Netlify URL
+  ...(isCI ? {} : {
+    webServer: {
+      command: 'npm run dev',
+      url: 'http://localhost:5173',
+      reuseExistingServer: true,
+      timeout: 30000,
+    },
+  }),
   projects: [
     {
       name: 'chromium',
@@ -28,10 +40,4 @@ export default defineConfig({
       use: { ...devices['Pixel 5'] },
     },
   ],
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 30000,
-  },
 });

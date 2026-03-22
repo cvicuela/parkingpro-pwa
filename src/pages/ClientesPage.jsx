@@ -6,6 +6,7 @@ import EmptyState from '../components/EmptyState';
 import { Plus, Search, Edit2, Trash2, X, Building2, User, Users, History, Printer, Car, CreditCard, FileText, Clock } from 'lucide-react';
 import PrintPreviewModal from '../components/PrintPreviewModal';
 import Pagination from '../components/Pagination';
+import RncLookupInput from '../components/RncLookupInput';
 
 const GENERIC_CUSTOMER_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -87,8 +88,17 @@ function CustomerModal({ customer, onClose, onSave }) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">RNC</label>
-                <input value={form.rnc || ''} onChange={set('rnc')}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                <RncLookupInput
+                  value={form.rnc || ''}
+                  onChange={(val) => setForm({ ...form, rnc: val })}
+                  onSelect={(item) => {
+                    setForm(prev => ({
+                      ...prev,
+                      rnc: item.rnc,
+                      company_name: item.business_name || prev.company_name,
+                    }));
+                  }}
+                />
               </div>
             </div>
           )}
