@@ -52,6 +52,7 @@ export default function NotificacionesPage() {
   const [filterChannel, setFilterChannel] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [showSendModal, setShowSendModal] = useState(false);
+  const [expandedRow, setExpandedRow] = useState(null);
   const limit = 20;
 
   const loadData = useCallback(async () => {
@@ -158,30 +159,58 @@ export default function NotificacionesPage() {
                 const st = STATUS_CONFIG[n.status] || STATUS_CONFIG.pending;
                 const ChIcon = ch.icon;
                 const StIcon = st.icon;
+                const isExpanded = expandedRow === n.id;
+                const errorMsg = n.template_data?.error;
                 return (
-                  <tr key={n.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1.5 text-${ch.color}-600`}>
-                        <ChIcon size={14} /> {ch.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{n.recipient}</p>
-                      {n.customer_name && (
-                        <p className="text-xs text-gray-400">{n.customer_name}</p>
+                  <tr key={n.id} className="hover:bg-gray-50 cursor-pointer group"
+                    onClick={() => setExpandedRow(isExpanded ? null : n.id)}>
+                    <td className="px-4 py-3" colSpan={6}>
+                      <div className="flex items-center gap-0">
+                        <div className="w-[90px] shrink-0">
+                          <span className={`inline-flex items-center gap-1.5 text-${ch.color}-600`}>
+                            <ChIcon size={14} /> {ch.label}
+                          </span>
+                        </div>
+                        <div className="w-[180px] shrink-0">
+                          <p className="font-medium text-sm truncate">{n.recipient}</p>
+                          {n.customer_name && <p className="text-xs text-gray-400">{n.customer_name}</p>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate text-sm">{n.subject || n.body_preview || '-'}</p>
+                        </div>
+                        <div className="w-[80px] shrink-0 text-xs text-gray-500 capitalize">{n.type}</div>
+                        <div className="w-[100px] shrink-0">
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-${st.color}-100 text-${st.color}-700`}>
+                            <StIcon size={12} /> {st.label}
+                          </span>
+                        </div>
+                        <div className="w-[130px] shrink-0 text-xs text-gray-500 whitespace-nowrap text-right">
+                          {new Date(n.created_at).toLocaleString('es-DO', { dateStyle: 'short', timeStyle: 'short' })}
+                        </div>
+                      </div>
+                      {/* Expanded detail: show email body */}
+                      {isExpanded && (
+                        <div className="mt-3 border-t pt-3 space-y-2">
+                          {errorMsg && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                              <strong>Error:</strong> {errorMsg}
+                            </div>
+                          )}
+                          {n.body ? (
+                            <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-700">
+                              <p className="text-xs font-medium text-gray-500 mb-2">Contenido del mensaje:</p>
+                              <div dangerouslySetInnerHTML={{ __html: n.body }} className="prose prose-sm max-w-none [&_p]:my-1 [&_strong]:text-gray-800" />
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-400 italic">Sin contenido de mensaje</p>
+                          )}
+                          {n.template_data?.recipients && (
+                            <p className="text-xs text-gray-500">
+                              <strong>Enviado a:</strong> {n.template_data.recipients}
+                            </p>
+                          )}
+                        </div>
                       )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="truncate max-w-[200px]">{n.subject || n.body_preview || '-'}</p>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 capitalize">{n.type}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-${st.color}-100 text-${st.color}-700`}>
-                        <StIcon size={12} /> {st.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                      {new Date(n.created_at).toLocaleString('es-DO', { dateStyle: 'short', timeStyle: 'short' })}
                     </td>
                   </tr>
                 );
