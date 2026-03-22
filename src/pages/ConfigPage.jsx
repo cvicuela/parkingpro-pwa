@@ -418,7 +418,7 @@ function SystemUsersSection() {
         <div className="border-t p-5 space-y-4">
           <div className="bg-teal-50 border border-teal-200 rounded-lg p-3">
             <p className="text-sm text-teal-800 font-medium mb-1">Control de Acceso</p>
-            <p className="text-xs text-teal-600">Administra los usuarios que pueden acceder al sistema. Cada usuario tiene un rol que define sus permisos: <strong>Super Admin</strong> (acceso total), <strong>Administrador</strong> (gestion), <strong>Operador</strong> (cobros y acceso).</p>
+            <p className="text-xs text-teal-600">Administra los usuarios que pueden acceder al sistema. <strong>Personal:</strong> Super Admin (acceso total), Administrador (gestión), Operador (cobros). <strong>Clientes:</strong> usuarios registrados con planes mensuales o RFID.</p>
           </div>
 
           {/* Users table */}
@@ -432,68 +432,130 @@ function SystemUsersSection() {
               <p className="text-gray-500 text-sm">No hay usuarios del sistema</p>
               <p className="text-gray-400 text-xs">Crea el primer usuario para habilitar el acceso</p>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {users.map(u => (
-                <div key={u.id} className={`rounded-lg border p-3 ${u.status === 'active' ? 'border-gray-200' : 'border-gray-200 bg-gray-50 opacity-70'}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${u.status === 'active' ? 'bg-teal-100 text-teal-700' : 'bg-gray-200 text-gray-500'}`}>
-                        {(u.first_name || u.email || '?')[0].toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-800 text-sm flex items-center gap-2">
-                          {u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.email}
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${roleColors[u.role] || 'bg-gray-100 text-gray-600'}`}>
-                            {roleLabels[u.role] || u.role}
-                          </span>
-                          {u.status !== 'active' && (
-                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">Inactivo</span>
-                          )}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {u.email} {u.phone ? `· ${u.phone}` : ''}
-                          {u.last_login_at ? ` · Ultimo acceso: ${new Date(u.last_login_at).toLocaleDateString('es-DO')}` : ''}
-                        </p>
-                      </div>
+          ) : (() => {
+            const adminRoles = ['super_admin', 'admin', 'operator'];
+            const adminUsers = users.filter(u => adminRoles.includes(u.role));
+            const clientUsers = users.filter(u => !adminRoles.includes(u.role));
+
+            const renderUserCard = (u) => (
+              <div key={u.id} className={`rounded-lg border p-3 ${u.status === 'active' ? 'border-gray-200' : 'border-gray-200 bg-gray-50 opacity-70'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${u.status === 'active' ? (adminRoles.includes(u.role) ? 'bg-teal-100 text-teal-700' : 'bg-indigo-100 text-indigo-700') : 'bg-gray-200 text-gray-500'}`}>
+                      {(u.first_name || u.email || '?')[0].toUpperCase()}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => { setShowResetPw(showResetPw === u.id ? null : u.id); setResetPw({ password: '', confirmPassword: '' }); }}
-                        className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-amber-600" title="Cambiar contraseña">
-                        <Key size={14} />
-                      </button>
-                      <button onClick={() => handleToggleStatus(u)}
-                        className={`p-1.5 rounded hover:bg-gray-100 ${u.status === 'active' ? 'text-gray-400 hover:text-red-600' : 'text-gray-400 hover:text-green-600'}`}
-                        title={u.status === 'active' ? 'Desactivar' : 'Activar'}>
-                        {u.status === 'active' ? <Lock size={14} /> : <Unlock size={14} />}
+                    <div>
+                      <p className="font-medium text-gray-800 text-sm flex items-center gap-2">
+                        {u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.email}
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${roleColors[u.role] || 'bg-gray-100 text-gray-600'}`}>
+                          {roleLabels[u.role] || u.role}
+                        </span>
+                        {u.status !== 'active' && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">Inactivo</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {u.email} {u.phone ? `· ${u.phone}` : ''}
+                        {u.last_login_at ? ` · Ultimo acceso: ${new Date(u.last_login_at).toLocaleDateString('es-DO')}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => { setShowResetPw(showResetPw === u.id ? null : u.id); setResetPw({ password: '', confirmPassword: '' }); }}
+                      className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-amber-600" title="Cambiar contraseña">
+                      <Key size={14} />
+                    </button>
+                    <button onClick={() => handleToggleStatus(u)}
+                      className={`p-1.5 rounded hover:bg-gray-100 ${u.status === 'active' ? 'text-gray-400 hover:text-red-600' : 'text-gray-400 hover:text-green-600'}`}
+                      title={u.status === 'active' ? 'Desactivar' : 'Activar'}>
+                      {u.status === 'active' ? <Lock size={14} /> : <Unlock size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Reset password inline */}
+                {showResetPw === u.id && (
+                  <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
+                    <p className="text-xs font-medium text-gray-600 mb-2">Nueva contraseña para {u.email}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input type="password" placeholder="Nueva contraseña" value={resetPw.password}
+                        onChange={e => setResetPw(p => ({ ...p, password: e.target.value }))}
+                        className="px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
+                      <input type="password" placeholder="Confirmar contraseña" value={resetPw.confirmPassword}
+                        onChange={e => setResetPw(p => ({ ...p, confirmPassword: e.target.value }))}
+                        className="px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={() => setShowResetPw(null)} className="px-3 py-1 text-xs border rounded-lg text-gray-600 hover:bg-gray-50">Cancelar</button>
+                      <button onClick={() => handleResetPassword(u.id)} className="px-3 py-1 text-xs bg-amber-600 text-white rounded-lg hover:bg-amber-700 flex items-center gap-1">
+                        <Key size={12} /> Cambiar Contraseña
                       </button>
                     </div>
                   </div>
+                )}
+              </div>
+            );
 
-                  {/* Reset password inline */}
-                  {showResetPw === u.id && (
-                    <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
-                      <p className="text-xs font-medium text-gray-600 mb-2">Nueva contraseña para {u.email}</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <input type="password" placeholder="Nueva contraseña" value={resetPw.password}
-                          onChange={e => setResetPw(p => ({ ...p, password: e.target.value }))}
-                          className="px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
-                        <input type="password" placeholder="Confirmar contraseña" value={resetPw.confirmPassword}
-                          onChange={e => setResetPw(p => ({ ...p, confirmPassword: e.target.value }))}
-                          className="px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
-                      </div>
-                      <div className="flex gap-2 mt-2">
-                        <button onClick={() => setShowResetPw(null)} className="px-3 py-1 text-xs border rounded-lg text-gray-600 hover:bg-gray-50">Cancelar</button>
-                        <button onClick={() => handleResetPassword(u.id)} className="px-3 py-1 text-xs bg-amber-600 text-white rounded-lg hover:bg-amber-700 flex items-center gap-1">
-                          <Key size={12} /> Cambiar Contraseña
-                        </button>
-                      </div>
+            return (
+              <div className="space-y-5">
+                {/* ── Administrative Users ── */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-teal-100 flex items-center justify-center">
+                      <Shield size={14} className="text-teal-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">Personal Administrativo</p>
+                      <p className="text-[10px] text-gray-400">Super Admins, Administradores y Operadores — acceso al sistema</p>
+                    </div>
+                    <span className="ml-auto text-xs font-bold bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full">{adminUsers.length}</span>
+                  </div>
+                  {adminUsers.length === 0 ? (
+                    <div className="text-center py-4 bg-gray-50 rounded-lg">
+                      <p className="text-gray-400 text-xs">No hay usuarios administrativos</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {adminUsers.map(renderUserCard)}
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
+
+                {/* ── Divider ── */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+                  <div className="relative flex justify-center">
+                    <span className="bg-white px-3 text-[10px] text-gray-400 uppercase font-medium tracking-wider">Clientes</span>
+                  </div>
+                </div>
+
+                {/* ── Client Users ── */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
+                      <Users size={14} className="text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">Clientes</p>
+                      <p className="text-[10px] text-gray-400">Usuarios registrados del parqueo — planes mensuales, reservas, RFID</p>
+                    </div>
+                    <span className="ml-auto text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{clientUsers.length}</span>
+                  </div>
+                  {clientUsers.length === 0 ? (
+                    <div className="text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                      <Users size={28} className="mx-auto text-gray-300 mb-1" />
+                      <p className="text-gray-400 text-xs">No hay clientes registrados</p>
+                      <p className="text-[10px] text-gray-300">Los clientes se crean al registrarse o asignar planes mensuales</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {clientUsers.map(renderUserCard)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Add user form */}
           {showAdd ? (
