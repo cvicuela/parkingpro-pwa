@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Bell, BellOff, BellRing, Loader2 } from 'lucide-react';
 import {
   isPushSupported,
+  isPushBackendAvailable,
   getPermissionState,
   subscribeToPush,
   unsubscribeFromPush,
@@ -13,6 +14,7 @@ export default function PushNotificationToggle({ compact = false }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const supported = isPushSupported();
+  const backendAvailable = isPushBackendAvailable();
   const permission = getPermissionState();
 
   useEffect(() => {
@@ -49,12 +51,12 @@ export default function PushNotificationToggle({ compact = false }) {
     }
   };
 
-  if (!supported) {
+  if (!supported || !backendAvailable) {
     if (compact) return null;
     return (
       <div className="flex items-center gap-2 text-sm text-gray-400">
         <BellOff className="w-4 h-4" />
-        <span>Notificaciones push no soportadas</span>
+        <span>{!supported ? 'Notificaciones push no soportadas' : 'Push no disponible en modo cloud'}</span>
       </div>
     );
   }

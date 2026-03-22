@@ -49,6 +49,8 @@ const fieldConfig = {
   notification_email_5_enabled: { hidden: true },
   notification_email_5: { label: 'Email 5 (Extra)', type: 'email', placeholder: 'otro@empresa.com', hint: 'Email extra para notificaciones adicionales', toggleKey: 'notification_email_5_enabled' },
   email_enabled: { label: 'Notificaciones por Email', type: 'toggle', hint: 'Activar envío de notificaciones por correo electrónico' },
+  resend_api_key: { label: 'API Key de Resend', type: 'text', placeholder: 're_xxxxxxxx', hint: 'Gratis en resend.com (100 emails/día). Crea cuenta → API Keys → Copiar key' },
+  resend_from_email: { label: 'Remitente', type: 'text', placeholder: 'ParkingPro <onboarding@resend.dev>', hint: 'Cambia al verificar tu dominio en Resend' },
   sms_enabled: { label: 'Notificaciones por SMS', type: 'toggle', hint: 'Activar envío de notificaciones por mensajes de texto' },
   whatsapp_enabled: { label: 'Notificaciones por WhatsApp', type: 'toggle', hint: 'Activar envío de notificaciones por WhatsApp' },
   telegram_enabled: { label: 'Notificaciones por Telegram', type: 'toggle', hint: 'Activar envío de alertas a los números configurados' },
@@ -63,10 +65,19 @@ const fieldConfig = {
   tolerance_minutes: { label: 'Tolerancia (minutos)', type: 'number' },
   late_fee: { label: 'Cargo por Mora (RD$)', type: 'number' },
   payment_retry_attempts: { label: 'Reintentos de Pago', type: 'number' },
-  // System fields — hidden from config UI
+  // System/legacy fields — hidden from config UI
   setup_completed: { hidden: true },
   deployment_mode: { hidden: true },
   company_rnc: { hidden: true },
+  notification_events_enabled: { hidden: true },
+  smtp_host: { hidden: true },
+  smtp_port: { hidden: true },
+  smtp_user: { hidden: true },
+  smtp_pass: { hidden: true },
+  smtp_from_name: { hidden: true },
+  'notifications.email_enabled': { hidden: true },
+  'notifications.sms_enabled': { hidden: true },
+  'notifications.whatsapp_enabled': { hidden: true },
   alert_email: { label: 'Email de Alertas (legacy)', type: 'email', placeholder: 'admin@empresa.com', hint: 'Use los campos Email 1-5 arriba' },
   alert_email_2: { label: 'Email de Alertas 2 (legacy)', type: 'email', placeholder: 'gerente@empresa.com' },
 };
@@ -1041,6 +1052,34 @@ export default function ConfigPage() {
               {expanded && (
                 <div className="border-t divide-y divide-gray-50">
                   {catSettings.map(setting => renderField(setting))}
+                  {cat === 'notificaciones' && (
+                    <div className="px-5 py-4 bg-amber-50/50 border-t space-y-3">
+                      <div className="bg-white border border-amber-200 rounded-lg p-4">
+                        <p className="font-semibold text-gray-800 text-sm mb-2">📧 Configuración de Emails Automáticos</p>
+                        <ol className="text-xs text-gray-600 space-y-1.5 list-decimal list-inside">
+                          <li>Ve a <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="text-amber-700 underline font-medium">resend.com</a> y crea una cuenta gratis (con Google o GitHub)</li>
+                          <li>En el dashboard, copia tu <strong>API Key</strong> y pégala arriba</li>
+                          <li>Activa "Notificaciones por Email" y agrega tus emails</li>
+                          <li>Haz clic en "Enviar Prueba" para verificar</li>
+                        </ol>
+                        <p className="text-xs text-gray-400 mt-2">Plan gratis: 100 emails/día. Eventos: cierre de caja, pagos grandes, reset del sistema.</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const { notificationsAPI } = await import('../services/api');
+                            const res = await notificationsAPI.testEmail();
+                            toast.success(res.data?.data?.message || 'Email de prueba enviado');
+                          } catch (err) {
+                            toast.error(err.message || 'Error enviando prueba');
+                          }
+                        }}
+                        className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors flex items-center gap-2"
+                      >
+                        <Bell size={14} /> Enviar Email de Prueba
+                      </button>
+                    </div>
+                  )}
                   {cat === 'facturacion' && (
                     <div className="px-5 py-4 bg-blue-50/50 border-t">
                       <div className="flex items-center gap-3">

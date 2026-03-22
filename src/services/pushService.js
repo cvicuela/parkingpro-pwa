@@ -4,12 +4,23 @@
  */
 
 const API_URL = import.meta.env.VITE_API_URL || '';
+const DEPLOYMENT_MODE = import.meta.env.VITE_DEPLOYMENT_MODE || 'remote';
 
 function getToken() {
   return localStorage.getItem('pp_token') || '';
 }
 
+/**
+ * Check if push backend is available (requires Express server)
+ */
+export function isPushBackendAvailable() {
+  return DEPLOYMENT_MODE === 'local' || DEPLOYMENT_MODE === 'hybrid';
+}
+
 async function apiCall(path, options = {}) {
+  if (!isPushBackendAvailable()) {
+    return { success: false, error: 'Push requiere el servidor local (Express). No disponible en modo cloud.' };
+  }
   const res = await fetch(`${API_URL}/api/v1/notifications${path}`, {
     ...options,
     headers: {
