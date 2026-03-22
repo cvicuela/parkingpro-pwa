@@ -4,8 +4,8 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  retries: process.env.CI ? 1 : 0,
+  workers: process.env.CI ? 2 : undefined,
   reporter: [
     ['html', { open: 'never' }],
     ['list'],
@@ -16,7 +16,7 @@ export default defineConfig({
     baseURL: process.env.BASE_URL || (process.env.CI ? 'https://parqueovicuela.netlify.app' : 'http://localhost:5173'),
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: process.env.CI ? 'off' : 'retain-on-failure',
   },
   projects: [
     {
