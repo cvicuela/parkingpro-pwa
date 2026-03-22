@@ -23,31 +23,32 @@ const apiFetch = async (path, options = {}) => {
   return wrap(json);
 };
 
-// Auth — uses Express REST endpoints so tokens are compatible with all REST routes
+// Auth — uses RPC (works with both Supabase remote and Express local)
 export const authAPI = {
   login: async ({ email, password }) => {
-    return apiFetch('/api/v1/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
+    const result = await rpc('authenticate', { p_email: email, p_password: password });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   register: async (formData) => {
-    return apiFetch('/api/v1/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({
-        email: formData.email,
-        phone: formData.phone,
-        password: formData.password,
-        firstName: formData.firstName || null,
-        lastName: formData.lastName || null,
-      }),
+    const result = await rpc('register_user', {
+      p_email: formData.email,
+      p_phone: formData.phone,
+      p_password: formData.password,
+      p_first_name: formData.firstName || null,
+      p_last_name: formData.lastName || null
     });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   me: async () => {
-    return apiFetch('/api/v1/auth/me');
+    const result = await rpc('get_current_user_info', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
   logout: async () => {
-    return apiFetch('/api/v1/auth/logout', { method: 'POST' });
+    const result = await rpc('do_logout', { p_token: getToken() });
+    return wrap(result);
   },
 };
 
@@ -530,25 +531,23 @@ export const settingsAPI = {
   },
 };
 
-// System Reset — via Express RPC proxy (backend injects p_token from auth)
+// System Reset — via RPC (works with both Supabase remote and Express local)
 export const systemAPI = {
   resetPreview: async () => {
-    const { data } = await apiFetch('/api/v1/rpc/reset_data_preview', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-    const result = data.reset_data_preview || data;
+    const result = await rpc('reset_data_preview', { p_token: getToken() });
     if (result.success === false) throw new Error(result.error);
-    return result.data || result;
+    // Handle both direct result and nested format
+    const data = result.reset_data_preview || result;
+    return data.data || data;
   },
   resetData: async (confirmationCode) => {
-    const { data } = await apiFetch('/api/v1/rpc/reset_operational_data', {
-      method: 'POST',
-      body: JSON.stringify({ p_confirmation_code: confirmationCode }),
+    const result = await rpc('reset_operational_data', {
+      p_token: getToken(),
+      p_confirmation_code: confirmationCode,
     });
-    const result = data.reset_operational_data || data;
-    if (result.success === false) throw new Error(result.error);
-    return result;
+    const data = result.reset_operational_data || result;
+    if (data.success === false) throw new Error(data.error);
+    return data;
   },
 };
 
