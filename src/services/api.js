@@ -496,18 +496,38 @@ export const reportsAPI = {
   },
 };
 
-// Settings
+// Settings — RPC primary, REST fallback
 export const settingsAPI = {
-  list: () => apiFetch('/api/v1/settings'),
+  list: async () => {
+    try {
+      const result = await rpc('list_settings', { p_token: getToken() });
+      if (!result.success) throw new Error(result.error);
+      return wrap(result);
+    } catch {
+      // Fallback to REST endpoint (Express backend)
+      return apiFetch('/api/v1/settings');
+    }
+  },
   get: async (key) => {
-    const result = await rpc('get_setting', { p_token: getToken(), p_key: key });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
+    try {
+      const result = await rpc('get_setting', { p_token: getToken(), p_key: key });
+      if (!result.success) throw new Error(result.error);
+      return wrap(result);
+    } catch {
+      return apiFetch(`/api/v1/settings/${encodeURIComponent(key)}`);
+    }
   },
   update: async (key, value) => {
-    const result = await rpc('update_setting', { p_token: getToken(), p_key: key, p_value: value });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
+    try {
+      const result = await rpc('update_setting', { p_token: getToken(), p_key: key, p_value: typeof value === 'string' ? value : String(value) });
+      if (!result.success) throw new Error(result.error);
+      return wrap(result);
+    } catch {
+      return apiFetch(`/api/v1/settings/${encodeURIComponent(key)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ value }),
+      });
+    }
   },
 };
 

@@ -7,7 +7,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npx playwright test",
+    "test:e2e": "npx playwright test tests/e2e/",
+    "test:visual": "npx playwright test tests/visual/",
+    "test:update-snapshots": "npx playwright test --update-snapshots",
+    "test:ui": "npx playwright test --ui",
+    "test:report": "npx playwright show-report"
   },
   "repository": {
     "type": "git",
@@ -27,8 +33,10 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.2.1",
     "@vitejs/plugin-react": "^5.1.4",
+    "playwright": "^1.58.2",
     "tailwindcss": "^4.2.1",
     "vite": "^7.3.1"
   }
