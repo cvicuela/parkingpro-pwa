@@ -13,6 +13,7 @@ import { getPrinters, addPrinter, removePrinter, setDefaultPrinter, getDefaultPr
 import PrintPreviewModal from '../components/PrintPreviewModal';
 import RFIDPage from './RFIDPage';
 import DispositivosPage from './DispositivosPage';
+import SystemArchitecturePanel from '../components/SystemArchitecturePanel';
 
 const categoryConfig = {
   general: { label: 'General', icon: Building2, color: 'indigo', description: 'Datos del negocio y moneda' },
@@ -915,6 +916,9 @@ export default function ConfigPage() {
           </div>
         ))}
       </div>
+
+      {/* ─── SYSTEM ARCHITECTURE DIAGRAM ─── */}
+      <SystemArchitecturePanel />
 
       {/* ─── TIMEZONE & CLOCK ─── */}
       <TimezoneClockPanel />
