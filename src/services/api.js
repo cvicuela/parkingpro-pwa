@@ -545,27 +545,29 @@ export const cashAPI = {
   limits: () => apiFetch('/api/v1/cash-registers/limits'),
 };
 
-// Operators — REST endpoints via /api/v1/users
+// Operators — via RPC (same auth path as usersAPI)
 export const operatorsAPI = {
   list: async () => {
-    const result = await apiFetch('/api/v1/users');
-    // Filter to only operators and admins who can operate a register
-    const all = result.data?.data || [];
+    const result = await rpc('list_system_users', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    const all = result.data || [];
     const operators = all.filter(u => ['operator', 'admin', 'super_admin'].includes(u.role) && u.status === 'active');
-    return { data: { data: operators } };
+    return wrap({ success: true, data: operators });
   },
   create: async (data) => {
-    return apiFetch('/api/v1/users', {
-      method: 'POST',
-      body: JSON.stringify({
+    const result = await rpc('create_system_user', {
+      p_token: getToken(),
+      p_data: {
         email: data.email,
         phone: data.phone || '000-000-0000',
         password: data.password || 'operator123',
         role: 'operator',
-        firstName: data.first_name,
-        lastName: data.last_name,
-      }),
+        first_name: data.first_name,
+        last_name: data.last_name,
+      },
     });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
   },
 };
 
