@@ -840,6 +840,11 @@ export const notificationsAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
+  testEmail: async () => {
+    const result = await rpc('test_email_notification', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Incidents
