@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { expensesAPI } from '../services/api';
 import Pagination from '../components/Pagination';
+import RncLookupInput from '../components/RncLookupInput';
 
 const EXPENSE_TYPES = [
   { code: '01', label: 'Gastos de Personal' },
@@ -475,10 +476,17 @@ export default function GastosPage() {
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 mb-1 block">RNC / Cédula</label>
-                    <input type="text" value={form.supplier_rnc}
-                      onChange={e => setForm(f => ({ ...f, supplier_rnc: e.target.value.replace(/\D/g, '').slice(0, 11) }))}
-                      className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500"
-                      placeholder="Sin guiones" maxLength={11} />
+                    <RncLookupInput
+                      value={form.supplier_rnc}
+                      onChange={(val) => setForm(f => ({ ...f, supplier_rnc: val }))}
+                      onSelect={(item) => {
+                        setForm(f => ({
+                          ...f,
+                          supplier_rnc: item.rnc,
+                          supplier_name: item.business_name || f.supplier_name,
+                        }));
+                      }}
+                    />
                   </div>
                 </div>
               </div>
