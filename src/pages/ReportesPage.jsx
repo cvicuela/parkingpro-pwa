@@ -863,8 +863,8 @@ const TABS = [
 export default function ReportesPage() {
   const [activeTab, setActiveTab] = useState('resumen');
   const [period, setPeriod] = useState('month');
-  const [customFrom, setCustomFrom] = useState('');
-  const [customTo, setCustomTo] = useState('');
+  const [customFrom, setCustomFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; });
+  const [customTo, setCustomTo] = useState(() => new Date().toISOString().split('T')[0]);
   const [exporting, setExporting] = useState(false);
   const [pdfPreview, setPdfPreview] = useState(null);
 

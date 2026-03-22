@@ -54,7 +54,7 @@ const emptyExpense = {
   ncf: '',
   ncf_modified: '',
   expense_date: new Date().toISOString().split('T')[0],
-  payment_date: '',
+  payment_date: new Date().toISOString().split('T')[0],
   subtotal: '',
   itbis_amount: '',
   itbis_retenido: '0',
@@ -84,8 +84,8 @@ export default function GastosPage() {
   const [form, setForm] = useState({ ...emptyExpense });
   const [saving, setSaving] = useState(false);
   const [filterCategory, setFilterCategory] = useState('');
-  const [filterFrom, setFilterFrom] = useState('');
-  const [filterTo, setFilterTo] = useState('');
+  const [filterFrom, setFilterFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; });
+  const [filterTo, setFilterTo] = useState(() => new Date().toISOString().split('T')[0]);
   const [showFilters, setShowFilters] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [page, setPage] = useState(1);
