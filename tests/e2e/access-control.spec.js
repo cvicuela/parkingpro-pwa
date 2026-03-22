@@ -29,6 +29,7 @@ test.describe('Access Control - Vehicle Entry/Exit', () => {
     await page.goto('/acceso');
     await page.waitForTimeout(1000);
 
+    // Use production-style plate format (e.g. "SIN-MN0VVV39.I")
     const plateInput = page.getByPlaceholder(/placa|plate|matrícula/i);
     await plateInput.fill(testVehicles.car1.plate);
 

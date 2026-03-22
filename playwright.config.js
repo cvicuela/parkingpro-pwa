@@ -4,17 +4,19 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  retries: process.env.CI ? 1 : 0,
+  workers: process.env.CI ? 2 : undefined,
   reporter: [
     ['html', { open: 'never' }],
     ['list'],
   ],
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:5173',
+    // Local dev: set BASE_URL=http://localhost:5173 (or rely on the webServer block below).
+    // CI: defaults to the production Netlify deployment when BASE_URL is not provided.
+    baseURL: process.env.BASE_URL || (process.env.CI ? 'https://parqueovicuela.netlify.app' : 'http://localhost:5173'),
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: process.env.CI ? 'off' : 'retain-on-failure',
   },
   projects: [
     {
