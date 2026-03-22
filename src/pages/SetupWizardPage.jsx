@@ -6,12 +6,14 @@ import { settingsAPI, plansAPI } from '../services/api';
 import {
   Building2, Receipt, Car, Monitor, CreditCard, Bell, Shield, Wifi,
   ChevronRight, ChevronLeft, Check, Circle, Loader2, Sparkles,
-  AlertTriangle, Info, Plus, Trash2, ChevronDown, ChevronUp
+  AlertTriangle, Info, Plus, Trash2, ChevronDown, ChevronUp,
+  Cloud, Server, RefreshCw
 } from 'lucide-react';
 
 // ─── Step Definitions ───
 const STEPS = [
   { id: 'welcome', label: 'Bienvenida', icon: Sparkles, required: true },
+  { id: 'deployment', label: 'Modalidad', icon: Server, required: true },
   { id: 'business', label: 'Datos del Negocio', icon: Building2, required: true },
   { id: 'parking', label: 'Configuración Parqueo', icon: Car, required: true },
   { id: 'billing', label: 'Facturación', icon: Receipt, required: true },
@@ -106,6 +108,129 @@ function WelcomeStep() {
         </div>
       </div>
       <p className="text-sm text-gray-400">Los pasos opcionales se pueden configurar después en Configuración</p>
+    </div>
+  );
+}
+
+// ─── Deployment Mode Step ───
+const DEPLOYMENT_MODES = [
+  {
+    value: 'remote',
+    label: 'Remoto (Cloud)',
+    icon: Cloud,
+    color: 'blue',
+    description: 'Todo en la nube. Ideal para parqueos sin servidor local.',
+    details: [
+      'Base de datos en Supabase (cloud)',
+      'Backend en Railway o Vercel',
+      'Acceso desde cualquier dispositivo',
+      'Requiere internet constante',
+    ],
+  },
+  {
+    value: 'hybrid',
+    label: 'Híbrido (Recomendado)',
+    icon: RefreshCw,
+    color: 'indigo',
+    description: 'Servidor local como primario + backup en la nube.',
+    details: [
+      'Funciona con o sin internet',
+      'Datos sincronizados a la nube como respaldo',
+      'Si cae internet, sigue operando',
+      'Mejor opción para la mayoría',
+    ],
+    recommended: true,
+  },
+  {
+    value: 'local',
+    label: 'Local (On-Premise)',
+    icon: Server,
+    color: 'green',
+    description: 'Todo en su servidor. Sin dependencia de internet.',
+    details: [
+      'PostgreSQL local en su servidor',
+      'Backend en localhost',
+      'Cero dependencia de internet',
+      'Requiere mantenimiento del servidor',
+    ],
+  },
+];
+
+function DeploymentModeStep({ data, onChange }) {
+  const current = data.deployment_mode || 'hybrid';
+  const colorMap = { blue: 'border-blue-500 bg-blue-50', indigo: 'border-indigo-500 bg-indigo-50', green: 'border-green-500 bg-green-50' };
+  const iconColorMap = { blue: 'text-blue-600 bg-blue-100', indigo: 'text-indigo-600 bg-indigo-100', green: 'text-green-600 bg-green-100' };
+  const checkColorMap = { blue: 'text-blue-600', indigo: 'text-indigo-600', green: 'text-green-600' };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-2 mb-2">
+        <Server size={20} className="text-indigo-600" />
+        <h3 className="text-lg font-semibold">Modalidad de Operación</h3>
+      </div>
+      <p className="text-sm text-gray-500">
+        Seleccione cómo desea operar ParkingPro. Esta configuración determina dónde se almacenan los datos y cómo se conecta el sistema.
+      </p>
+
+      <div className="space-y-3">
+        {DEPLOYMENT_MODES.map((mode) => {
+          const Icon = mode.icon;
+          const isSelected = current === mode.value;
+          return (
+            <button
+              key={mode.value}
+              onClick={() => onChange({ ...data, deployment_mode: mode.value })}
+              className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                isSelected
+                  ? `${colorMap[mode.color]} shadow-sm`
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                  isSelected ? iconColorMap[mode.color] : 'bg-gray-100 text-gray-400'
+                }`}>
+                  <Icon size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-medium ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>
+                      {mode.label}
+                    </span>
+                    {mode.recommended && (
+                      <span className="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-medium">
+                        RECOMENDADO
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-0.5">{mode.description}</p>
+                  {isSelected && (
+                    <ul className="mt-2 space-y-1">
+                      {mode.details.map((detail, i) => (
+                        <li key={i} className="flex items-center gap-1.5 text-xs">
+                          <Check size={12} className={checkColorMap[mode.color]} />
+                          <span className="text-gray-600">{detail}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-1 ${
+                  isSelected ? `border-${mode.color}-600` : 'border-gray-300'
+                }`}>
+                  {isSelected && <div className={`w-2.5 h-2.5 rounded-full bg-${mode.color}-600`} />}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+        <p className="text-xs text-gray-500">
+          <strong>Nota:</strong> Esta configuración se puede cambiar después. El modo seleccionado se aplica al reiniciar el servidor con la variable <code className="bg-gray-200 px-1 rounded">DEPLOYMENT_MODE</code>.
+        </p>
+      </div>
     </div>
   );
 }
@@ -449,6 +574,7 @@ function FinishStep({ data, skippedOptional }) {
       <div className="max-w-md mx-auto text-left space-y-2">
         <p className="text-sm font-medium text-gray-700 mb-3">Resumen de configuración:</p>
         {[
+          { label: `Modalidad: ${data.deployment_mode === 'remote' ? 'Remoto' : data.deployment_mode === 'local' ? 'Local' : 'Híbrido'}`, ok: !!data.deployment_mode },
           { label: 'Negocio', ok: !!(data.business_name && data.business_rnc) },
           { label: 'Parqueo', ok: !!data.parking_spaces },
           { label: 'Facturación', ok: data.tax_rate != null },
@@ -481,6 +607,8 @@ export default function SetupWizardPage() {
   const [saving, setSaving] = useState(false);
   const [showOptional, setShowOptional] = useState(true);
   const [data, setData] = useState({
+    // Deployment
+    deployment_mode: 'hybrid',
     // Business
     business_name: '', business_rnc: '', business_address: '', business_phone: '', currency: 'DOP',
     // Parking
@@ -514,6 +642,7 @@ export default function SetupWizardPage() {
     if (!step) return false;
     switch (step.id) {
       case 'welcome': return true;
+      case 'deployment': return !!data.deployment_mode;
       case 'business': return data.business_name && data.business_rnc && data.business_address && data.business_phone;
       case 'parking': return data.parking_spaces;
       case 'billing': return data.tax_rate != null;
@@ -549,6 +678,7 @@ export default function SetupWizardPage() {
         refund_daily_multiplier: data.refund_daily_multiplier || 3,
       };
 
+      if (data.deployment_mode) settingsToSave.deployment_mode = data.deployment_mode;
       if (data.alert_email) settingsToSave.alert_email = data.alert_email;
       if (data.alert_email_2) settingsToSave.alert_email_2 = data.alert_email_2;
 
@@ -600,6 +730,7 @@ export default function SetupWizardPage() {
     if (!step) return null;
     switch (step.id) {
       case 'welcome': return <WelcomeStep />;
+      case 'deployment': return <DeploymentModeStep data={data} onChange={setData} />;
       case 'business': return <BusinessStep data={data} onChange={setData} />;
       case 'parking': return <ParkingStep data={data} onChange={setData} />;
       case 'billing': return <BillingStep data={data} onChange={setData} />;
