@@ -173,7 +173,7 @@ function TimezoneClockPanel() {
 // ─── RFID READERS SECTION ───
 function RFIDReadersSection() {
   const READERS_KEY = 'pp_rfid_readers';
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [readers, setReaders] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [newReader, setNewReader] = useState({ name: '', connection: 'usb', location: 'entry', ip: '', port: '', protocol: 'wiegand' });
@@ -339,7 +339,7 @@ function RFIDReadersSection() {
 
 // ─── SYSTEM USERS MANAGEMENT SECTION ───
 function SystemUsersSection() {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -588,10 +588,10 @@ export default function ConfigPage() {
   const [defaultPrinterId, setDefaultPrinterId] = useState(null);
   const [showAddPrinter, setShowAddPrinter] = useState(false);
   const [newPrinter, setNewPrinter] = useState({ name: '', type: 'thermal', paperSize: '80mm', location: '' });
-  const [showPrinterSection, setShowPrinterSection] = useState(true);
+  const [showPrinterSection, setShowPrinterSection] = useState(false);
   const [testingPrinter, setTestingPrinter] = useState(false);
   // Scanner / perimeter devices state
-  const [showScannerSection, setShowScannerSection] = useState(true);
+  const [showScannerSection, setShowScannerSection] = useState(false);
   const [scanners, setScanners] = useState([]);
   const [showAddScanner, setShowAddScanner] = useState(false);
   const [newScanner, setNewScanner] = useState({ name: '', type: 'qr_fixed', location: 'entry', ip: '', port: '' });
@@ -633,10 +633,8 @@ export default function ConfigPage() {
       setEditValues(vals);
       // Cache settings in localStorage for printService (company name, RNC, etc.)
       try { localStorage.setItem('pp_settings', JSON.stringify(vals)); } catch {}
-      // Expand all categories that have settings
-      const cats = {};
-      items.forEach(s => { cats[s.category || 'general'] = true; });
-      setExpandedCategories(cats);
+      // Start all categories collapsed for a clean view
+      setExpandedCategories({});
     } catch {
       toast.error('Error cargando configuraciones');
     } finally {

@@ -152,7 +152,7 @@ function DetailPanel({ title, icon: Icon, items, color = 'indigo' }) {
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════
 export default function SystemArchitecturePanel() {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [checking, setChecking] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
   const [health, setHealth] = useState(null);
