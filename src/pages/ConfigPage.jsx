@@ -1485,50 +1485,56 @@ export default function ConfigPage() {
 
       {/* ═══════════ ZONA DE PELIGRO: RESET DE DATOS ═══════════ */}
       <div className="bg-white rounded-xl shadow-sm border-2 border-red-200 overflow-hidden mt-8">
-        <div className="bg-red-50 p-5 border-b border-red-200">
+        <button
+          onClick={() => setExpandedCategories(prev => ({ ...prev, _danger: !prev._danger }))}
+          className="w-full flex items-center justify-between p-5 bg-red-50 hover:bg-red-100 transition-colors"
+        >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
               <Database size={20} className="text-red-600" />
             </div>
-            <div>
+            <div className="text-left">
               <h3 className="font-bold text-red-800 text-lg">Zona de Peligro</h3>
               <p className="text-xs text-red-500">Operaciones destructivas e irreversibles</p>
             </div>
           </div>
-        </div>
-        <div className="p-5 space-y-4">
-          <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-            <ShieldAlert size={24} className="text-red-500 mt-0.5 shrink-0" />
-            <div className="flex-1">
-              <h4 className="font-semibold text-gray-800">Resetear Datos Operacionales</h4>
-              <p className="text-sm text-gray-500 mt-1">
-                Elimina todas las sesiones de parqueo, pagos, facturas, cuadres de caja, incidentes,
-                notificaciones y registros de auditoría. <strong>Se preservan:</strong> usuarios, clientes,
-                vehículos, planes, suscripciones, configuración general, NCF (rangos), RNC, nombre de empresa y gastos.
-              </p>
-              <button
-                onClick={async () => {
-                  setResetStep(1);
-                  setResetLoading(true);
-                  setResetCode('');
-                  setResetPassword('');
-                  try {
-                    const preview = await systemAPI.resetPreview();
-                    setResetPreview(preview);
-                  } catch (err) {
-                    toast.error(err.message || 'Error obteniendo preview');
-                    setResetStep(0);
-                  } finally {
-                    setResetLoading(false);
-                  }
-                }}
-                className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-              >
-                Iniciar Reset de Datos
-              </button>
+          {expandedCategories._danger ? <ChevronDown size={20} className="text-red-400" /> : <ChevronRight size={20} className="text-red-400" />}
+        </button>
+        {expandedCategories._danger && (
+          <div className="border-t border-red-200 p-5 space-y-4">
+            <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+              <ShieldAlert size={24} className="text-red-500 mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-800">Resetear Datos Operacionales</h4>
+                <p className="text-sm text-gray-500 mt-1">
+                  Elimina todas las sesiones de parqueo, pagos, facturas, cuadres de caja, incidentes,
+                  notificaciones y registros de auditoría. <strong>Se preservan:</strong> usuarios, clientes,
+                  vehículos, planes, suscripciones, configuración general, NCF (rangos), RNC, nombre de empresa y gastos.
+                </p>
+                <button
+                  onClick={async () => {
+                    setResetStep(1);
+                    setResetLoading(true);
+                    setResetCode('');
+                    setResetPassword('');
+                    try {
+                      const preview = await systemAPI.resetPreview();
+                      setResetPreview(preview);
+                    } catch (err) {
+                      toast.error(err.message || 'Error obteniendo preview');
+                      setResetStep(0);
+                    } finally {
+                      setResetLoading(false);
+                    }
+                  }}
+                  className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                >
+                  Iniciar Reset de Datos
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ═══════════ MODAL: TRIPLE VERIFICACIÓN RESET ═══════════ */}
@@ -1701,12 +1707,15 @@ export default function ConfigPage() {
                         }
                         setResetLoading(true);
                         try {
-                          // Verify password by re-authenticating
+                          // Verify password by re-authenticating via Express REST
                           const userStr = localStorage.getItem('pp_user');
                           const user = userStr ? JSON.parse(userStr) : null;
                           if (!user?.email) throw new Error('No se encontro el usuario actual');
                           const { authAPI } = await import('../services/api');
-                          await authAPI.login({ email: user.email, password: resetPassword });
+                          const loginResp = await authAPI.login({ email: user.email, password: resetPassword });
+                          // Use the fresh Express token (guaranteed to be in sessions table)
+                          const freshToken = loginResp.data?.data?.token || loginResp.data?.token;
+                          if (freshToken) localStorage.setItem('pp_token', freshToken);
                           // Password verified, proceed with reset
                           const result = await systemAPI.resetData('RESETEAR-DATOS-OPERACIONALES');
                           toast.success(result.message || 'Datos reseteados exitosamente');
