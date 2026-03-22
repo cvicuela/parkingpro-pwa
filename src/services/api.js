@@ -534,56 +534,62 @@ export const systemAPI = {
   },
 };
 
-// Cash Registers
-export const cashAPI = {
-  open: async (data) => {
-    const result = await rpc('open_cash_register', { p_token: getToken(), p_data: data });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  active: async () => {
-    const result = await rpc('get_active_register', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  close: async (id, data) => {
-    const result = await rpc('close_cash_register', { p_token: getToken(), p_id: id, p_data: data });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  approve: async (id, data) => {
-    const result = await rpc('approve_cash_register', { p_token: getToken(), p_id: id, p_data: data });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  transactions: async (id) => {
-    const result = await rpc('get_register_transactions', { p_token: getToken(), p_id: id });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  history: async (params = {}) => {
-    const result = await rpc('cash_register_history', { p_token: getToken(), p_limit: params?.limit || 50 });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
-  limits: async () => {
-    const result = await rpc('get_cash_limits', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
+// Cash Registers — REST endpoints (not Supabase RPC)
+const CASH_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const cashFetch = async (path, options = {}) => {
+  const res = await fetch(`${CASH_BASE}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getToken()}`,
+      ...options.headers,
+    },
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || json.message || res.statusText);
+  return wrap(json);
 };
 
-// Operators
+export const cashAPI = {
+  open: (data) => cashFetch('/api/v1/cash-registers/open', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  active: () => cashFetch('/api/v1/cash-registers/active'),
+  close: (id, data) => cashFetch(`/api/v1/cash-registers/${id}/close`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  approve: (id, data) => cashFetch(`/api/v1/cash-registers/${id}/approve`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  transactions: (id) => cashFetch(`/api/v1/cash-registers/${id}/transactions`),
+  history: (params = {}) => cashFetch(`/api/v1/cash-registers/history?limit=${params?.limit || 50}`),
+  limits: () => cashFetch('/api/v1/cash-registers/limits'),
+};
+
+// Operators — REST endpoints via /api/v1/users
 export const operatorsAPI = {
   list: async () => {
-    const result = await rpc('list_operators', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
+    const result = await cashFetch('/api/v1/users');
+    // Filter to only operators and admins who can operate a register
+    const all = result.data?.data || [];
+    const operators = all.filter(u => ['operator', 'admin', 'super_admin'].includes(u.role) && u.status === 'active');
+    return { data: { data: operators } };
   },
   create: async (data) => {
-    const result = await rpc('create_operator', { p_token: getToken(), p_data: data });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
+    return cashFetch('/api/v1/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: data.email,
+        phone: data.phone || '000-000-0000',
+        password: data.password || 'operator123',
+        role: 'operator',
+        firstName: data.first_name,
+        lastName: data.last_name,
+      }),
+    });
   },
 };
 

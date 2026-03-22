@@ -589,7 +589,7 @@ function OpenCajaModal({ form, setForm, onSubmit, onClose, saving }) {
                 <option value="">Seleccionar encargado...</option>
                 {operators.map(op => (
                   <option key={op.id} value={op.id}>
-                    {op.display_name || op.email} ({op.role})
+                    {[op.first_name, op.last_name].filter(Boolean).join(' ') || op.display_name || op.email} ({op.role})
                   </option>
                 ))}
               </select>
