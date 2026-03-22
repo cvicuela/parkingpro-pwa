@@ -216,6 +216,7 @@ export default function SystemArchitecturePanel() {
           setupComplete: data.isSetupComplete,
           steps: data.steps,
           deploymentMode: data.deploymentMode,
+          hardware: data.hardware || {},
         });
       } else {
         newChecks.database = 'warning';
@@ -312,17 +313,27 @@ export default function SystemArchitecturePanel() {
     { label: 'Socket.IO', value: checks.socket === 'ok' ? 'Conectado' : 'Desconectado', status: checks.socket },
   ];
 
+  const hasHardware = dbInfo?.hardware?.terminalsInstalled;
   const databaseDetails = [
     { label: 'Tipo', value: mode === 'local' ? 'PostgreSQL Local' : mode === 'hybrid' ? 'PostgreSQL Local + Supabase Cloud' : 'Supabase PostgreSQL', status: checks.database },
     { label: 'Conexión', value: checks.database === 'ok' ? 'Operativa' : 'Sin respuesta', status: checks.database },
     { label: 'Latencia', value: latencies.database ? `${latencies.database}ms` : 'N/A', status: latencies.database < 300 ? 'ok' : latencies.database < 1500 ? 'warning' : 'error' },
-    { label: 'Setup completo', value: dbInfo?.setupComplete ? 'Sí' : 'No', status: dbInfo?.setupComplete ? 'ok' : 'warning' },
+    { label: 'Setup completo', value: dbInfo?.setupComplete ? 'Sí' : 'No (software)', status: dbInfo?.setupComplete ? 'ok' : 'warning' },
     ...(dbInfo?.steps ? [
       { label: 'Admin creado', value: dbInfo.steps.adminCreated ? 'Sí' : 'No', status: dbInfo.steps.adminCreated ? 'ok' : 'error' },
       { label: 'Negocio configurado', value: dbInfo.steps.businessConfigured ? 'Sí' : 'No', status: dbInfo.steps.businessConfigured ? 'ok' : 'warning' },
       { label: 'Planes configurados', value: dbInfo.steps.plansConfigured ? 'Sí' : 'No', status: dbInfo.steps.plansConfigured ? 'ok' : 'warning' },
-      { label: 'Terminales configuradas', value: dbInfo.steps.terminalsConfigured ? 'Sí' : 'No', status: dbInfo.steps.terminalsConfigured ? 'ok' : 'warning' },
+      { label: 'Terminales/Barreras', value: hasHardware ? `${dbInfo.hardware.terminalsCount} activas` : 'No instaladas', status: hasHardware ? 'ok' : 'na' },
     ] : []),
+  ];
+
+  const hardwareDetails = [
+    { label: 'Barreras/Terminales', value: hasHardware ? `${dbInfo?.hardware?.terminalsCount || 0} instaladas` : 'No instaladas', status: hasHardware ? 'ok' : 'na' },
+    { label: 'Relay / Controlador', value: 'No instalado', status: 'na' },
+    { label: 'Sensores de presencia', value: 'No instalados', status: 'na' },
+    { label: 'RFID / Lectores', value: 'No instalados', status: 'na' },
+    { label: 'Dispositivos de cobro', value: 'No instalados', status: 'na' },
+    { label: 'Caja registradora', value: 'No instalada', status: 'na' },
   ];
 
   const cloudDetails = [
@@ -387,7 +398,7 @@ export default function SystemArchitecturePanel() {
             <div className="flex items-center justify-center gap-3 mb-2">
               <ComponentNode icon={Smartphone} name="Operador" subtitle="Tablet/Móvil" status={checks.frontend} highlight={selectedNode === 'operator'} onClick={() => setSelectedNode(selectedNode === 'operator' ? null : 'operator')} />
               <ComponentNode icon={Monitor} name="Admin" subtitle="PC/Laptop" status={checks.frontend} highlight={selectedNode === 'admin'} onClick={() => setSelectedNode(selectedNode === 'admin' ? null : 'admin')} />
-              <ComponentNode icon={Router} name="Barrera" subtitle="ZKTeco/Arduino" status={checks.backend} highlight={selectedNode === 'barrier'} onClick={() => setSelectedNode(selectedNode === 'barrier' ? null : 'barrier')} badge="IoT" />
+              <ComponentNode icon={Router} name="Barrera" subtitle={dbInfo?.hardware?.terminalsInstalled ? 'ZKTeco/Arduino' : 'No instalada'} status={dbInfo?.hardware?.terminalsInstalled ? checks.backend : 'na'} highlight={selectedNode === 'barrier'} onClick={() => setSelectedNode(selectedNode === 'barrier' ? null : 'barrier')} badge="IoT" />
             </div>
 
             {/* Arrow down */}
@@ -467,6 +478,7 @@ export default function SystemArchitecturePanel() {
             <DetailPanel title="Backend (API)" icon={Server} items={backendDetails} color="green" />
             <DetailPanel title="Base de Datos" icon={Database} items={databaseDetails} color="purple" />
             <DetailPanel title="Cloud y Red" icon={Cloud} items={cloudDetails} color="indigo" />
+            <DetailPanel title="Hardware / Dispositivos" icon={Cpu} items={hardwareDetails} color="gray" />
           </div>
 
           {/* ── TROUBLESHOOTING GUIDE ── */}
