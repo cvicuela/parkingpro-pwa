@@ -330,6 +330,21 @@ export default function ControlAccesoPage() {
       setRfidUid('');
       fetchOccupancy();
     } catch (err) {
+      const msg = (err.message || '').toLowerCase();
+      // If vehicle already has active session, auto-switch to exit flow
+      if (msg.includes('already') || msg.includes('activ') || msg.includes('ya tiene') || msg.includes('already_inside')) {
+        const entryPlate = plate.trim().toUpperCase();
+        const existingSession = sessions.find(s => (s.vehicle_plate || '').toUpperCase() === entryPlate);
+        if (existingSession) {
+          toast.info('Vehículo ya está adentro — abriendo cobro de salida');
+          setAccessType('exit');
+          openExitPopup(existingSession);
+          setPlate('');
+          setRfidUid('');
+          setLoading(false);
+          return;
+        }
+      }
       toast.error(err.message || 'Error al registrar entrada');
     } finally {
       setLoading(false);
@@ -654,8 +669,9 @@ export default function ControlAccesoPage() {
     } finally { setLoading(false); }
   };
 
-  // ── Row click → open exit popup ──
+  // ── Row click → open exit popup (only from Salida tab) ──
   const handleRowClick = (session) => {
+    if (accessType !== 'exit') return; // Ignore clicks in Entrada mode
     openExitPopup(session);
   };
 
@@ -799,7 +815,7 @@ export default function ControlAccesoPage() {
                       return (
                         <tr key={s.id}
                           onClick={() => handleRowClick(s)}
-                          className={`border-b border-gray-100 cursor-pointer transition-colors ${isSelected ? 'bg-amber-50 border-l-4 border-l-amber-500' : 'hover:bg-indigo-50'}`}>
+                          className={`border-b border-gray-100 transition-colors ${accessType === 'exit' ? 'cursor-pointer' : 'cursor-default'} ${isSelected ? 'bg-amber-50 border-l-4 border-l-amber-500' : accessType === 'exit' ? 'hover:bg-indigo-50' : ''}`}>
                           <td className="py-3 px-4 font-mono font-bold text-indigo-700 text-lg flex items-center gap-1.5">
                             {displayPlate}
                             {s.access_method === 'rfid' && <Wifi size={12} className="text-indigo-500" title="RFID" />}
