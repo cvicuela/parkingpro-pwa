@@ -455,10 +455,17 @@ export default function ControlAccesoPage() {
 
     resetCountdown(); // keep alive
     const fee = exitPopup.feeData;
+    // Use sessionId from fee data, fallback to exitPopup.session.id
+    const resolvedSessionId = fee.sessionId || exitPopup.session?.id;
+    if (!resolvedSessionId) {
+      toast.error('Error: No se pudo determinar la sesión. Cierre y vuelva a seleccionar el vehículo.');
+      setExitPopup(prev => prev ? { ...prev, step: 'fee' } : null);
+      return;
+    }
     setExitPopup(prev => prev ? { ...prev, step: 'paying' } : null);
     try {
       const paymentData = {
-        sessionId: fee.sessionId,
+        sessionId: resolvedSessionId,
         paymentMethod: exitPopup.payMethod,
       };
       // Add method-specific metadata
