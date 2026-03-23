@@ -311,7 +311,7 @@ function BillingStep({ data, onChange }) {
               { value: 'fiscal', label: 'Fiscal (con NCF - DGII)' },
               { value: 'interno', label: 'Interno (sin NCF)' },
             ]}
-            value={data.invoice_mode || 'fiscal'}
+            value={data.invoice_mode || 'interno'}
             onChange={e => update('invoice_mode', e.target.value)}
           />
         </Field>
@@ -614,7 +614,7 @@ export default function SetupWizardPage() {
     // Parking
     parking_spaces: '', grace_period: '15', tolerance_minutes: '10', late_fee: '50',
     // Billing
-    tax_rate: 0.18, invoice_mode: 'fiscal', cash_diff_threshold: 200,
+    tax_rate: 0.18, invoice_mode: 'interno', cash_diff_threshold: 200,
     // Plans
     plans: [{ name: 'Por Hora', type: 'hourly', price: '', spaces: '' }],
     // Terminals
@@ -672,7 +672,7 @@ export default function SetupWizardPage() {
         tolerance_minutes: parseInt(data.tolerance_minutes) || 10,
         late_fee: parseFloat(data.late_fee) || 0,
         tax_rate: data.tax_rate,
-        invoice_mode: data.invoice_mode || 'fiscal',
+        invoice_mode: data.invoice_mode || 'interno',
         cash_diff_threshold: data.cash_diff_threshold || 200,
         refund_limit_operator: data.refund_limit_operator || 500,
         refund_daily_multiplier: data.refund_daily_multiplier || 3,
