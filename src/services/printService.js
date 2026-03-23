@@ -72,7 +72,7 @@ function openPrintWindow(html, title = 'ParkingPro') {
 
 // ─── HTML GENERATORS (for preview) ───
 
-export async function generateEntryTicketHTML({ plate, entryTime, type, planName, sessionId, qrUrl }) {
+export async function generateEntryTicketHTML({ plate, entryTime, type, planName, planType, basePrice, customerName, sessionId, qrUrl }) {
   const time = new Date(entryTime).toLocaleString('es-DO', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -94,11 +94,13 @@ export async function generateEntryTicketHTML({ plate, entryTime, type, planName
     <div class="line"></div>
     <div class="row"><span>Fecha/Hora:</span><span class="bold">${escapeHtml(time)}</span></div>
     <div class="row"><span>Tipo:</span><span>${type === 'subscriber' ? 'Suscriptor' : 'Por Hora'}</span></div>
-    ${planName ? `<div class="row"><span>Plan:</span><span>${escapeHtml(planName)}</span></div>` : ''}
+    ${planName ? `<div class="row"><span>Plan:</span><span class="bold">${escapeHtml(planName)}</span></div>` : ''}
+    ${basePrice ? `<div class="row"><span>Tarifa Base:</span><span>RD$ ${parseFloat(basePrice).toFixed(2)}</span></div>` : ''}
+    ${customerName ? `<div class="row"><span>Cliente:</span><span>${escapeHtml(customerName)}</span></div>` : ''}
     ${sessionId ? `<div class="row mt"><span class="small">ID: ${escapeHtml(sessionId.substring(0, 8))}</span></div>` : ''}
     <div class="line"></div>
     <div class="center small mt">Conserve este ticket para la salida</div>
-    <div class="center small">Tarifa por hora segun plan vigente</div>
+    <div class="center small">${planName ? escapeHtml(planName) : 'Tarifa segun plan vigente'}</div>
     <div class="center small mt mb">${escapeHtml(getCompanyInfo().name)} - Gracias por su visita</div>
   `;
 }
