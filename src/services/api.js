@@ -235,7 +235,11 @@ export const accessAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  entry: async (data) => apiFetch('/api/v1/access/quick-entry', { method: 'POST', body: JSON.stringify(data) }),
+  entry: async (data) => {
+    const result = await rpc('quick_entry', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
   exit: async (data) => {
     const result = await rpc('register_exit', { p_token: getToken(), p_data: data });
     if (!result.success) throw new Error(result.error);
@@ -282,7 +286,11 @@ export const accessAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  lostTicketCharge: (data) => apiFetch('/api/v1/access/lost-ticket-charge', { method: 'POST', body: JSON.stringify(data) }),
+  lostTicketCharge: async (data) => {
+    const result = await rpc('lost_ticket_charge', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
   nfcReplacementCharge: (data) => apiFetch('/api/v1/access/nfc-replacement-charge', { method: 'POST', body: JSON.stringify(data) }),
   gateVerify: async (data) => {
     const result = await rpc('gate_verify', { p_token: getToken(), p_data: data });
