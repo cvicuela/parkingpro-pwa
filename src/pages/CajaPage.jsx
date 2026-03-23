@@ -94,8 +94,8 @@ export default function CajaPage() {
   const cashOut = transactions
     .filter(t => t.direction === 'out' && (!t.payment_method || t.payment_method === 'cash'))
     .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
-  // Solo efectivo esperado en caja física
-  const expectedCash = cashIn - cashOut;
+  // Efectivo esperado en caja física = fondo inicial + cobros en efectivo - devoluciones en efectivo
+  const expectedCash = openingBal + cashIn - cashOut;
 
   const countedBalance = DENOMINATIONS.reduce((acc, d) =>
     acc + (d * (parseInt(denomCounts[d]) || 0)), 0);
