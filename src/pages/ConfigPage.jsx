@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { settingsAPI, usersAPI, systemAPI } from '../services/api';
+import { settingsAPI, usersAPI, systemAPI, terminalsAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import timeService from '../services/timeService';
 import {
@@ -7,7 +7,7 @@ import {
   Bell, Wallet, Globe, ChevronDown, ChevronRight, Plus, Trash2,
   Printer, Star, Eye, QrCode, Wifi, Radio, MapPin, Edit2, Clock, RefreshCw,
   Users, Lock, Unlock, Key, AlertTriangle, CreditCard, X, Check, Calendar,
-  Database, ShieldAlert, Loader2
+  Database, ShieldAlert, Loader2, Monitor, LogIn, LogOut, ArrowLeftRight
 } from 'lucide-react';
 import { getPrinters, addPrinter, removePrinter, setDefaultPrinter, getDefaultPrinter, generateEntryTicketHTML, generatePaymentReceiptHTML, generateCashReportHTML, generateDailySummaryHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
@@ -616,6 +616,182 @@ function SystemUsersSection() {
               className="w-full border border-dashed border-gray-300 rounded-lg py-3 text-sm text-gray-500 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50/50 flex items-center justify-center gap-2 transition-colors">
               <Plus size={16} /> Crear Usuario
             </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── TERMINALS MANAGEMENT SECTION ───
+function TerminalsSection() {
+  const [terminals, setTerminals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ name: '', code: '', type: 'bidirectional', location: '' });
+  const [saving, setSaving] = useState(false);
+
+  const fetchTerminals = async () => {
+    try {
+      const { data } = await terminalsAPI.list();
+      setTerminals(data.data || data || []);
+    } catch { setTerminals([]); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchTerminals(); }, []);
+
+  const resetForm = () => { setForm({ name: '', code: '', type: 'bidirectional', location: '' }); setEditingId(null); setShowForm(false); };
+
+  const handleEdit = (t) => {
+    setForm({ name: t.name, code: t.code, type: t.type, location: t.location || '' });
+    setEditingId(t.id);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name || !form.code || !form.type) { toast.error('Nombre, código y tipo son requeridos'); return; }
+    setSaving(true);
+    try {
+      if (editingId) {
+        await terminalsAPI.update(editingId, form);
+        toast.success('Terminal actualizada');
+      } else {
+        await terminalsAPI.create(form);
+        toast.success('Terminal creada');
+      }
+      resetForm();
+      fetchTerminals();
+    } catch (err) { toast.error(err.message || 'Error al guardar terminal'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('¿Desactivar esta terminal?')) return;
+    try {
+      await terminalsAPI.delete(id);
+      toast.success('Terminal desactivada');
+      fetchTerminals();
+    } catch (err) { toast.error(err.message || 'Error'); }
+  };
+
+  const typeIcon = (type) => {
+    if (type === 'entry') return <LogIn size={16} className="text-green-600" />;
+    if (type === 'exit') return <LogOut size={16} className="text-amber-600" />;
+    return <ArrowLeftRight size={16} className="text-blue-600" />;
+  };
+  const typeLabel = (type) => type === 'entry' ? 'Entrada' : type === 'exit' ? 'Salida' : 'Entrada/Salida';
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <button onClick={() => setExpanded(p => !p)}
+        className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+            <Monitor size={20} className="text-indigo-600" />
+          </div>
+          <div className="text-left">
+            <h3 className="font-semibold text-gray-800">Terminales</h3>
+            <p className="text-xs text-gray-400">Puntos de acceso donde operan los usuarios ({terminals.length} configuradas)</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{terminals.length}</span>
+          {expanded ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t p-5 space-y-4">
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+            <p className="text-sm text-indigo-800 font-medium mb-1">Gestión de Terminales</p>
+            <p className="text-xs text-indigo-600">Las terminales representan los puntos de acceso (entrada, salida o ambos) donde los operadores realizan cobros y controlan el acceso. Al iniciar sesión, cada operador selecciona su terminal activa.</p>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-6"><Loader2 size={24} className="animate-spin text-indigo-400" /></div>
+          ) : terminals.length === 0 && !showForm ? (
+            <div className="text-center py-6">
+              <Monitor size={36} className="mx-auto text-gray-300 mb-2" />
+              <p className="text-gray-500 text-sm">No hay terminales configuradas</p>
+              <button onClick={() => setShowForm(true)}
+                className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">
+                <Plus size={16} /> Crear Primera Terminal
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {terminals.map(t => (
+                  <div key={t.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-indigo-300 transition-colors">
+                    <div className="flex items-center gap-3">
+                      {typeIcon(t.type)}
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">{t.name}</p>
+                        <p className="text-xs text-gray-400">{t.code} · {typeLabel(t.type)}{t.location ? ` · ${t.location}` : ''}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleEdit(t)} className="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-600" title="Editar">
+                        <Edit2 size={14} />
+                      </button>
+                      <button onClick={() => handleDelete(t.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500" title="Eliminar">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {!showForm && (
+                <button onClick={() => { resetForm(); setShowForm(true); }}
+                  className="w-full border border-dashed border-gray-300 rounded-lg py-3 text-sm text-gray-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 flex items-center justify-center gap-2 transition-colors">
+                  <Plus size={16} /> Agregar Terminal
+                </button>
+              )}
+            </>
+          )}
+
+          {showForm && (
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3 border">
+              <p className="text-sm font-semibold text-gray-700">{editingId ? 'Editar Terminal' : 'Nueva Terminal'}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Nombre</label>
+                  <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                    placeholder="Ej: Entrada Principal" className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Código</label>
+                  <input type="text" value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value.toUpperCase() }))}
+                    placeholder="Ej: T-001" className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Tipo</label>
+                  <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="entry">Entrada</option>
+                    <option value="exit">Salida</option>
+                    <option value="bidirectional">Entrada/Salida</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Ubicación</label>
+                  <input type="text" value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))}
+                    placeholder="Ej: Nivel 1, Ala Norte" className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={resetForm} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancelar</button>
+                <button onClick={handleSave} disabled={saving}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  {editingId ? 'Actualizar' : 'Crear'}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -1434,6 +1610,9 @@ export default function ConfigPage() {
           </div>
         )}
       </div>
+
+      {/* ─── TERMINALS SECTION ─── */}
+      <TerminalsSection />
 
       {/* ─── RFID READERS SECTION ─── */}
       <RFIDReadersSection />
