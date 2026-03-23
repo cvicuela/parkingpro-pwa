@@ -22,6 +22,7 @@ const categoryConfig = {
   antifraude: { label: 'Antifraude', icon: Shield, color: 'red', description: 'Límites de reembolso y protección' },
   notificaciones: { label: 'Notificaciones', icon: Bell, color: 'amber', description: 'Email, Telegram y alertas' },
   parqueo: { label: 'Parqueo', icon: Globe, color: 'purple', description: 'Espacios, tolerancia y mora' },
+  charges: { label: 'Cargos Extras', icon: CreditCard, color: 'orange', description: 'Ticket perdido, reposición NFC' },
 };
 
 const fieldConfig = {
@@ -80,6 +81,8 @@ const fieldConfig = {
   'notifications.whatsapp_enabled': { hidden: true },
   alert_email: { label: 'Email de Alertas (legacy)', type: 'email', placeholder: 'admin@empresa.com', hint: 'Use los campos Email 1-5 arriba' },
   alert_email_2: { label: 'Email de Alertas 2 (legacy)', type: 'email', placeholder: 'gerente@empresa.com' },
+  'charges.lost_ticket': { label: 'Cargo por Ticket Perdido (RD$)', type: 'number', hint: 'Monto que se cobra cuando un cliente pierde su ticket' },
+  'charges.nfc_replacement': { label: 'Cargo por Reposición Tarjeta NFC/RFID (RD$)', type: 'number', hint: 'Monto que se cobra por reposición de tarjeta NFC/RFID' },
 };
 
 function TimezoneClockPanel() {
@@ -801,7 +804,7 @@ export default function ConfigPage() {
   });
 
   // Add uncategorized settings to 'parqueo' or 'general'
-  const categoryOrder = ['general', 'caja', 'facturacion', 'antifraude', 'notificaciones', 'parqueo'];
+  const categoryOrder = ['general', 'caja', 'facturacion', 'antifraude', 'notificaciones', 'parqueo', 'charges'];
 
   const changedCount = Object.values(hasChanges).filter(Boolean).length;
 

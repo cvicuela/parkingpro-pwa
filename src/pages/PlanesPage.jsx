@@ -207,7 +207,8 @@ function PlanModal({ plan, onClose, onSave }) {
   const [form, setForm] = useState(plan || {
     name: '', type: 'diurno', description: '', base_price: '',
     max_capacity: '', start_hour: '', end_hour: '', tolerance_minutes: 15,
-    daily_entry_limit: 5, overage_hourly_rate: 100
+    daily_entry_limit: 5, overage_hourly_rate: 100,
+    lost_ticket_fee: 500, nfc_replacement_fee: 150
   });
   const [saving, setSaving] = useState(false);
 
@@ -227,6 +228,8 @@ function PlanModal({ plan, onClose, onSave }) {
         tolerance_minutes: parseInt(form.tolerance_minutes),
         daily_entry_limit: parseInt(form.daily_entry_limit),
         overage_hourly_rate: parseFloat(form.overage_hourly_rate),
+        lost_ticket_fee: parseFloat(form.lost_ticket_fee),
+        nfc_replacement_fee: parseFloat(form.nfc_replacement_fee),
       };
       if (plan?.id) {
         await plansAPI.update(plan.id, payload);
@@ -339,6 +342,19 @@ function PlanModal({ plan, onClose, onSave }) {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Exceso/h (RD$) <span className="text-xs text-green-600 font-normal">ITBIS incl.</span></label>
                 <input type="number" value={form.overage_hourly_rate} onChange={set('overage_hourly_rate')} step="0.01"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ticket Perdido (RD$) <span className="text-xs text-green-600 font-normal">ITBIS incl.</span></label>
+                <input type="number" value={form.lost_ticket_fee} onChange={set('lost_ticket_fee')} step="0.01"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reposición Tarjeta NFC (RD$) <span className="text-xs text-green-600 font-normal">ITBIS incl.</span></label>
+                <input type="number" value={form.nfc_replacement_fee} onChange={set('nfc_replacement_fee')} step="0.01"
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
               </div>
             </div>
