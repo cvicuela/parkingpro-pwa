@@ -554,33 +554,36 @@ export default function ControlAccesoPage() {
     }
 
     const p = plate.toUpperCase().trim();
-    if (!p) { toast.warning('Ingresa una placa o ID'); return; }
+    if (!p) { toast.warning('Ingresa una placa, ticket # o ID'); return; }
     setLoading(true);
     try {
       // Check if it's a UUID
       if (p.match(/^[0-9a-f-]{36}$/i)) {
-        // Find session in current list or try direct
         const found = sessions.find(s => s.id === p);
         if (found) {
           openExitPopup(found);
         } else {
-          // Try to calculate fee directly
           openExitPopup({ id: p, vehicle_plate: '---', entry_time: timeService.nowISO() });
         }
       } else {
-        // Search by plate
-        const found = sessions.find(s => (s.vehicle_plate || '').toUpperCase() === p);
-        if (found) {
-          openExitPopup(found);
+        // Search by verification_code (ticket #) first, then by plate
+        const foundByTicket = sessions.find(s => s.verification_code && s.verification_code.toUpperCase() === p);
+        if (foundByTicket) {
+          openExitPopup(foundByTicket);
         } else {
-          // Try API
-          try {
-            const { data } = await accessAPI.sessionByPlate(p);
-            const sess = data?.data || data;
-            if (sess) openExitPopup(sess);
-            else toast.warning('No hay sesión activa para esta placa');
-          } catch {
-            toast.warning('No se encontró sesión activa');
+          const found = sessions.find(s => (s.vehicle_plate || '').toUpperCase() === p);
+          if (found) {
+            openExitPopup(found);
+          } else {
+            // Try API by plate
+            try {
+              const { data } = await accessAPI.sessionByPlate(p);
+              const sess = data?.data || data;
+              if (sess) openExitPopup(sess);
+              else toast.warning('No hay sesión activa para esta placa o ticket #');
+            } catch {
+              toast.warning('No se encontró sesión activa');
+            }
           }
         }
       }
@@ -592,10 +595,12 @@ export default function ControlAccesoPage() {
   // ── Lost ticket flow ──
   const handleLostTicket = async () => {
     const p = plate.toUpperCase().trim();
-    if (!p) { toast.warning('Ingresa la placa del vehículo con ticket perdido'); return; }
+    if (!p) { toast.warning('Ingresa la placa o ticket # del vehículo'); return; }
     setLoading(true);
     try {
-      const { data } = await accessAPI.lostTicketCharge({ plateNumber: p });
+      // If input looks like a ticket # (digits only, 4-8 chars), search by ticketNumber
+      const isTicketNumber = /^\d{4,8}$/.test(p);
+      const { data } = await accessAPI.lostTicketCharge(isTicketNumber ? { ticketNumber: p } : { plateNumber: p });
       const fee = data?.data || data;
       // Open exit popup with lost ticket fee data
       setExitPopup({
@@ -726,7 +731,7 @@ export default function ControlAccesoPage() {
                     <Car className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())}
                       onKeyDown={(e) => e.key === 'Enter' && (accessType === 'entry' ? handleEntry() : handleExitSearch())}
-                      placeholder={accessType === 'entry' ? 'Placa del vehículo (opcional)...' : 'Placa, ID de sesión o escanear QR...'}
+                      placeholder={accessType === 'entry' ? 'Placa del vehículo (opcional)...' : 'Placa, Ticket # o escanear QR...'}
                       autoFocus
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-lg font-mono uppercase" />
                   </>
@@ -777,11 +782,11 @@ export default function ControlAccesoPage() {
                   <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
                     <tr>
                       <th className="py-2 px-4">Placa</th>
+                      <th className="py-2 px-4">Ticket #</th>
                       <th className="py-2 px-4">Entrada</th>
                       <th className="py-2 px-4">Tiempo</th>
                       <th className="py-2 px-4">Estado</th>
                       <th className="py-2 px-4">Tipo</th>
-                      <th className="py-2 px-4">ID</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -800,6 +805,17 @@ export default function ControlAccesoPage() {
                             {s.access_method === 'rfid' && <Wifi size={12} className="text-indigo-500" title="RFID" />}
                             {s.access_method === 'qr' && <QrCode size={12} className="text-purple-500" title="QR" />}
                           </td>
+                          <td className="py-3 px-4">
+                            {s.verification_code ? (
+                              <span className="font-mono font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded text-sm cursor-pointer"
+                                title="Click para copiar"
+                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(s.verification_code); toast.info('Ticket # copiado'); }}>
+                                {s.verification_code}
+                              </span>
+                            ) : (
+                              <span className="text-xs font-mono text-gray-400">{shortId.substring(0, 6)}</span>
+                            )}
+                          </td>
                           <td className="py-3 px-4 text-sm">{fmtTime(s.entry_time)}</td>
                           <td className="py-3 px-4">
                             <span className={`text-xs px-2 py-1 rounded font-medium ${mins > 180 ? 'bg-red-100 text-red-700' : mins > 60 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
@@ -814,13 +830,6 @@ export default function ControlAccesoPage() {
                           <td className="py-3 px-4">
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isSub ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
                               {isSub ? 'Suscriptor' : 'Por hora'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="text-xs font-mono text-gray-400 hover:text-indigo-600 cursor-pointer"
-                              title={`Click para copiar: ${s.id}`}
-                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(s.id); toast.info('ID copiado'); }}>
-                              {shortId}...
                             </span>
                           </td>
                         </tr>
