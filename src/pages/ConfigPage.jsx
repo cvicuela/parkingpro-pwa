@@ -1260,19 +1260,312 @@ export default function ConfigPage() {
                     </div>
                   )}
                   {cat === 'facturacion' && (
-                    <div className="px-5 py-4 bg-blue-50/50 border-t">
-                      <div className="flex items-center gap-3">
-                        <Receipt size={18} className="text-blue-600" />
-                        <div className="flex-1">
-                          <p className="font-semibold text-gray-800 text-sm">Secuencias NCF (Comprobantes Fiscales)</p>
-                          <p className="text-xs text-gray-500">Las secuencias de comprobantes fiscales se gestionan desde la página de NCF, cumpliendo con los requisitos de la DGII.</p>
+                    <>
+                      {/* NCF link */}
+                      <div className="px-5 py-4 bg-blue-50/50 border-t">
+                        <div className="flex items-center gap-3">
+                          <Receipt size={18} className="text-blue-600" />
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-800 text-sm">Secuencias NCF (Comprobantes Fiscales)</p>
+                            <p className="text-xs text-gray-500">Las secuencias de comprobantes fiscales se gestionan desde la página de NCF, cumpliendo con los requisitos de la DGII.</p>
+                          </div>
+                          <a href="/ncf"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 whitespace-nowrap">
+                            <Receipt size={14} /> Gestionar NCF
+                          </a>
                         </div>
-                        <a href="/ncf"
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 whitespace-nowrap">
-                          <Receipt size={14} /> Gestionar NCF
-                        </a>
                       </div>
-                    </div>
+
+                      {/* ─── FACTURACIÓN AUTOMÁTICA DE SUSCRIPCIONES ─── */}
+                      <div className="border-t">
+                        {/* Section header */}
+                        <div className="px-5 py-4 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                            <Calendar size={18} className="text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-800 text-sm">Facturación Automática de Suscripciones</p>
+                            <p className="text-xs text-gray-500">Configura el ciclo de facturación automática, comprobantes y reintentos de cobro para clientes con suscripción mensual.</p>
+                          </div>
+                        </div>
+
+                        {/* ── Group 1: Comprobantes ── */}
+                        <div className="px-5 pt-4 pb-1">
+                          <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Comprobantes</p>
+                        </div>
+
+                        {/* billing.ncf_type_subscription */}
+                        <div className="flex items-center justify-between py-4 px-5 hover:bg-gray-50 rounded-lg transition-colors">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-800">Tipo de comprobante (Suscripciones)</p>
+                            <p className="text-xs text-gray-400 mt-0.5">NCF usado al facturar la mensualidad de la suscripción</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={editValues['billing.ncf_type_subscription'] ?? '02'}
+                              onChange={e => handleChange('billing.ncf_type_subscription', e.target.value)}
+                              className={`px-3 py-1.5 border rounded-lg text-sm w-52 focus:ring-2 focus:ring-indigo-500 outline-none ${hasChanges['billing.ncf_type_subscription'] ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300'}`}
+                            >
+                              <option value="02">02 - Consumo</option>
+                              <option value="01">01 - Crédito Fiscal</option>
+                              <option value="14">14 - Régimen Especial</option>
+                              <option value="15">15 - Gubernamental</option>
+                              <option value="internal">Numeración Interna</option>
+                            </select>
+                            {hasChanges['billing.ncf_type_subscription'] && (
+                              <button onClick={() => handleSave('billing.ncf_type_subscription')} disabled={saving['billing.ncf_type_subscription']}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1">
+                                {saving['billing.ncf_type_subscription'] ? <RotateCw size={12} className="animate-spin" /> : <Save size={12} />}
+                                Guardar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* billing.ncf_type_extras */}
+                        <div className="flex items-center justify-between py-4 px-5 hover:bg-gray-50 rounded-lg transition-colors">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-800">Tipo de comprobante (Extras)</p>
+                            <p className="text-xs text-gray-400 mt-0.5">NCF usado al facturar horas extras y cargos adicionales</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={editValues['billing.ncf_type_extras'] ?? '02'}
+                              onChange={e => handleChange('billing.ncf_type_extras', e.target.value)}
+                              className={`px-3 py-1.5 border rounded-lg text-sm w-52 focus:ring-2 focus:ring-indigo-500 outline-none ${hasChanges['billing.ncf_type_extras'] ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300'}`}
+                            >
+                              <option value="02">02 - Consumo</option>
+                              <option value="01">01 - Crédito Fiscal</option>
+                              <option value="14">14 - Régimen Especial</option>
+                              <option value="15">15 - Gubernamental</option>
+                              <option value="internal">Numeración Interna</option>
+                            </select>
+                            {hasChanges['billing.ncf_type_extras'] && (
+                              <button onClick={() => handleSave('billing.ncf_type_extras')} disabled={saving['billing.ncf_type_extras']}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1">
+                                {saving['billing.ncf_type_extras'] ? <RotateCw size={12} className="animate-spin" /> : <Save size={12} />}
+                                Guardar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* ── Group 2: Automatización ── */}
+                        <div className="px-5 pt-4 pb-1 border-t border-gray-50">
+                          <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Automatización</p>
+                        </div>
+
+                        {/* billing.auto_invoice */}
+                        <div className="flex items-center justify-between py-4 px-5 hover:bg-gray-50 rounded-lg transition-colors">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-800">Facturación automática</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => handleChange('billing.auto_invoice', editValues['billing.auto_invoice'] === 'true' ? 'false' : 'true')}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editValues['billing.auto_invoice'] === 'true' ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                            >
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editValues['billing.auto_invoice'] === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                            {hasChanges['billing.auto_invoice'] && (
+                              <button onClick={() => handleSave('billing.auto_invoice')} disabled={saving['billing.auto_invoice']}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1">
+                                {saving['billing.auto_invoice'] ? <RotateCw size={12} className="animate-spin" /> : <Save size={12} />}
+                                Guardar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* billing.include_extras_in_subscription */}
+                        <div className="flex items-center justify-between py-4 px-5 hover:bg-gray-50 rounded-lg transition-colors">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-800">Incluir extras en factura mensual</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Si está activo, horas extras y cargos pendientes se incluyen en la factura mensual</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => handleChange('billing.include_extras_in_subscription', editValues['billing.include_extras_in_subscription'] === 'true' ? 'false' : 'true')}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editValues['billing.include_extras_in_subscription'] === 'true' ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                            >
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editValues['billing.include_extras_in_subscription'] === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                            {hasChanges['billing.include_extras_in_subscription'] && (
+                              <button onClick={() => handleSave('billing.include_extras_in_subscription')} disabled={saving['billing.include_extras_in_subscription']}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1">
+                                {saving['billing.include_extras_in_subscription'] ? <RotateCw size={12} className="animate-spin" /> : <Save size={12} />}
+                                Guardar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* billing.invoice_day */}
+                        <div className="flex items-center justify-between py-4 px-5 hover:bg-gray-50 rounded-lg transition-colors">
+                          <div className="flex-1 mr-4">
+                            <p className="font-medium text-gray-800">Día de facturación</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Día del mes en que se genera la factura (1–28)</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={1}
+                              max={28}
+                              value={editValues['billing.invoice_day'] ?? ''}
+                              onChange={e => handleChange('billing.invoice_day', e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' && hasChanges['billing.invoice_day']) handleSave('billing.invoice_day'); }}
+                              className={`px-3 py-1.5 border rounded-lg text-sm w-28 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors ${hasChanges['billing.invoice_day'] ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300'}`}
+                            />
+                            {saving['billing.invoice_day'] ? (
+                              <RotateCw size={16} className="animate-spin text-indigo-500" />
+                            ) : hasChanges['billing.invoice_day'] ? (
+                              <button onClick={() => handleSave('billing.invoice_day')}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 flex items-center gap-1">
+                                <Save size={12} /> Guardar
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {/* billing.grace_period_days */}
+                        <div className="flex items-center justify-between py-4 px-5 hover:bg-gray-50 rounded-lg transition-colors">
+                          <div className="flex-1 mr-4">
+                            <p className="font-medium text-gray-800">Días de gracia</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Días adicionales antes de aplicar mora o suspender el servicio</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={0}
+                              value={editValues['billing.grace_period_days'] ?? ''}
+                              onChange={e => handleChange('billing.grace_period_days', e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' && hasChanges['billing.grace_period_days']) handleSave('billing.grace_period_days'); }}
+                              className={`px-3 py-1.5 border rounded-lg text-sm w-28 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors ${hasChanges['billing.grace_period_days'] ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300'}`}
+                            />
+                            {saving['billing.grace_period_days'] ? (
+                              <RotateCw size={16} className="animate-spin text-indigo-500" />
+                            ) : hasChanges['billing.grace_period_days'] ? (
+                              <button onClick={() => handleSave('billing.grace_period_days')}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 flex items-center gap-1">
+                                <Save size={12} /> Guardar
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {/* ── Group 3: Notificaciones ── */}
+                        <div className="px-5 pt-4 pb-1 border-t border-gray-50">
+                          <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Notificaciones</p>
+                        </div>
+
+                        {/* billing.send_email */}
+                        <div className="flex items-center justify-between py-4 px-5 hover:bg-gray-50 rounded-lg transition-colors">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-800">Enviar factura por email</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Envía automáticamente la factura al correo del cliente al generarse</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => handleChange('billing.send_email', editValues['billing.send_email'] === 'true' ? 'false' : 'true')}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editValues['billing.send_email'] === 'true' ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                            >
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editValues['billing.send_email'] === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                            {hasChanges['billing.send_email'] && (
+                              <button onClick={() => handleSave('billing.send_email')} disabled={saving['billing.send_email']}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1">
+                                {saving['billing.send_email'] ? <RotateCw size={12} className="animate-spin" /> : <Save size={12} />}
+                                Guardar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* billing.reminder_days_before */}
+                        <div className="flex items-center justify-between py-4 px-5 hover:bg-gray-50 rounded-lg transition-colors">
+                          <div className="flex-1 mr-4">
+                            <p className="font-medium text-gray-800">Días de recordatorio previo</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Días antes del vencimiento para enviar recordatorio de pago</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={0}
+                              value={editValues['billing.reminder_days_before'] ?? ''}
+                              onChange={e => handleChange('billing.reminder_days_before', e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' && hasChanges['billing.reminder_days_before']) handleSave('billing.reminder_days_before'); }}
+                              className={`px-3 py-1.5 border rounded-lg text-sm w-28 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors ${hasChanges['billing.reminder_days_before'] ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300'}`}
+                            />
+                            {saving['billing.reminder_days_before'] ? (
+                              <RotateCw size={16} className="animate-spin text-indigo-500" />
+                            ) : hasChanges['billing.reminder_days_before'] ? (
+                              <button onClick={() => handleSave('billing.reminder_days_before')}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 flex items-center gap-1">
+                                <Save size={12} /> Guardar
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {/* ── Group 4: Reintentos ── */}
+                        <div className="px-5 pt-4 pb-1 border-t border-gray-50">
+                          <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Reintentos</p>
+                        </div>
+
+                        {/* billing.retry_failed_days */}
+                        <div className="flex items-center justify-between py-4 px-5 hover:bg-gray-50 rounded-lg transition-colors">
+                          <div className="flex-1 mr-4">
+                            <p className="font-medium text-gray-800">Reintentar cobro cada (días)</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Intervalo en días entre reintentos de cobro fallido</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={1}
+                              value={editValues['billing.retry_failed_days'] ?? ''}
+                              onChange={e => handleChange('billing.retry_failed_days', e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' && hasChanges['billing.retry_failed_days']) handleSave('billing.retry_failed_days'); }}
+                              className={`px-3 py-1.5 border rounded-lg text-sm w-28 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors ${hasChanges['billing.retry_failed_days'] ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300'}`}
+                            />
+                            {saving['billing.retry_failed_days'] ? (
+                              <RotateCw size={16} className="animate-spin text-indigo-500" />
+                            ) : hasChanges['billing.retry_failed_days'] ? (
+                              <button onClick={() => handleSave('billing.retry_failed_days')}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 flex items-center gap-1">
+                                <Save size={12} /> Guardar
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {/* billing.max_retries */}
+                        <div className="flex items-center justify-between py-4 px-5 hover:bg-gray-50 rounded-lg transition-colors">
+                          <div className="flex-1 mr-4">
+                            <p className="font-medium text-gray-800">Máximo reintentos</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Número máximo de reintentos antes de marcar el cobro como fallido</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={0}
+                              value={editValues['billing.max_retries'] ?? ''}
+                              onChange={e => handleChange('billing.max_retries', e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' && hasChanges['billing.max_retries']) handleSave('billing.max_retries'); }}
+                              className={`px-3 py-1.5 border rounded-lg text-sm w-28 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors ${hasChanges['billing.max_retries'] ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300'}`}
+                            />
+                            {saving['billing.max_retries'] ? (
+                              <RotateCw size={16} className="animate-spin text-indigo-500" />
+                            ) : hasChanges['billing.max_retries'] ? (
+                              <button onClick={() => handleSave('billing.max_retries')}
+                                className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 flex items-center gap-1">
+                                <Save size={12} /> Guardar
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+
+                      </div>
+                    </>
                   )}
                 </div>
               )}
