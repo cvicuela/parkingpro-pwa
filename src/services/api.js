@@ -282,6 +282,8 @@ export const accessAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
+  lostTicketCharge: (data) => apiFetch('/api/v1/access/lost-ticket-charge', { method: 'POST', body: JSON.stringify(data) }),
+  nfcReplacementCharge: (data) => apiFetch('/api/v1/access/nfc-replacement-charge', { method: 'POST', body: JSON.stringify(data) }),
   gateVerify: async (data) => {
     const result = await rpc('gate_verify', { p_token: getToken(), p_data: data });
     if (!result.success) throw new Error(result.error);

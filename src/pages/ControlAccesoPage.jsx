@@ -589,6 +589,66 @@ export default function ControlAccesoPage() {
     } finally { setLoading(false); }
   };
 
+  // ── Lost ticket flow ──
+  const handleLostTicket = async () => {
+    const p = plate.toUpperCase().trim();
+    if (!p) { toast.warning('Ingresa la placa del vehículo con ticket perdido'); return; }
+    setLoading(true);
+    try {
+      const { data } = await accessAPI.lostTicketCharge({ plateNumber: p });
+      const fee = data?.data || data;
+      // Open exit popup with lost ticket fee data
+      setExitPopup({
+        session: {
+          id: fee.sessionId,
+          vehicle_plate: fee.plateNumber,
+          entry_time: fee.entryTime,
+        },
+        feeData: {
+          ...fee,
+          sessionId: fee.sessionId,
+        },
+        payMethod: 'cash',
+        step: 'fee',
+        paymentPending: true,
+        isLostTicket: true,
+      });
+      startExitCountdown();
+      setPlate('');
+    } catch (err) {
+      toast.error(err.message || 'Error al calcular cargo por ticket perdido');
+    } finally { setLoading(false); }
+  };
+
+  // ── NFC replacement charge flow ──
+  const handleNfcReplacement = async () => {
+    const p = plate.toUpperCase().trim();
+    setLoading(true);
+    try {
+      const { data } = await accessAPI.nfcReplacementCharge({ plateNumber: p || null });
+      const fee = data?.data || data;
+      setExitPopup({
+        session: {
+          id: null,
+          vehicle_plate: fee.plateNumber || p || '---',
+          entry_time: null,
+        },
+        feeData: {
+          ...fee,
+          sessionId: null,
+        },
+        payMethod: 'cash',
+        step: 'fee',
+        paymentPending: true,
+        isNfcReplacement: true,
+      });
+      startExitCountdown();
+      setPlate('');
+    } catch (err) {
+      toast.error(err.message || 'Error al calcular cargo de reposición NFC');
+    } finally { setLoading(false); }
+  };
+
   // ── Row click → open exit popup ──
   const handleRowClick = (session) => {
     openExitPopup(session);
@@ -685,9 +745,21 @@ export default function ControlAccesoPage() {
               )}
             </div>
             {accessType === 'exit' && (
-              <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                <QrCode size={12} /> También puedes hacer click en un vehículo de la tabla para abrir el cobro
-              </p>
+              <div className="mt-2 space-y-2">
+                <p className="text-xs text-gray-400 flex items-center gap-1">
+                  <QrCode size={12} /> También puedes hacer click en un vehículo de la tabla para abrir el cobro
+                </p>
+                <div className="flex gap-2">
+                  <button onClick={handleLostTicket} disabled={loading || !plate.trim()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-100 disabled:opacity-40 transition-colors">
+                    <AlertTriangle size={14} /> Ticket Perdido
+                  </button>
+                  <button onClick={handleNfcReplacement} disabled={loading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 text-violet-700 border border-violet-200 rounded-lg text-sm font-medium hover:bg-violet-100 disabled:opacity-40 transition-colors">
+                    <CreditCard size={14} /> Reposición Tarjeta NFC
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
@@ -885,8 +957,34 @@ export default function ControlAccesoPage() {
                   : null;
                 return (
                   <div className="space-y-4">
+                    {/* ── Special charge banners ── */}
+                    {exitPopup.isLostTicket && (
+                      <div className="bg-red-50 border-2 border-red-400 rounded-xl p-3 flex items-center gap-3">
+                        <AlertTriangle size={28} className="text-red-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-red-800 text-sm">Ticket Perdido</p>
+                          <p className="text-red-700 text-xl font-bold">{fmtMoney(fee.total)}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-red-600 font-medium">Penalidad aplicada</p>
+                          <p className="text-xs text-red-500">Cobrar para salir</p>
+                        </div>
+                      </div>
+                    )}
+                    {exitPopup.isNfcReplacement && (
+                      <div className="bg-violet-50 border-2 border-violet-400 rounded-xl p-3 flex items-center gap-3">
+                        <CreditCard size={28} className="text-violet-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-violet-800 text-sm">Reposicion Tarjeta NFC</p>
+                          <p className="text-violet-700 text-xl font-bold">{fmtMoney(fee.total)}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-violet-600 font-medium">Cargo de reposicion</p>
+                        </div>
+                      </div>
+                    )}
                     {/* ── Payment-pending banner ── */}
-                    {exitPopup.paymentPending && (
+                    {exitPopup.paymentPending && !exitPopup.isLostTicket && !exitPopup.isNfcReplacement && (
                       <div className="bg-amber-50 border-2 border-amber-400 rounded-xl p-3 flex items-center gap-3">
                         <div className="text-2xl">⏳</div>
                         <div className="flex-1 min-w-0">
@@ -916,25 +1014,45 @@ export default function ControlAccesoPage() {
                           <span>{fee.brand} {fee.model} {fee.color}</span>
                         </div>
                       )}
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Entrada</span>
-                        <span className="font-medium">{fmtDateTime(fee.entryTime || exitPopup.session.entry_time)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Ahora</span>
-                        <span className="font-medium">{fmtTime(fee.exitTime || timeService.nowISO())}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Tiempo</span>
-                        <span className="font-medium flex items-center gap-1">
-                          <Clock size={12} />
-                          {Math.floor((fee.minutes || 0) / 60)}h {(fee.minutes || 0) % 60}m ({fee.hours}h facturadas)
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Tarifa</span>
-                        <span>{fmtMoney(fee.ratePerHour)}/hora</span>
-                      </div>
+                      {fee.charge_reason && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Concepto</span>
+                          <span className="font-medium text-red-600">{fee.charge_reason}</span>
+                        </div>
+                      )}
+                      {fee.planName && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Plan</span>
+                          <span className="font-medium">{fee.planName}</span>
+                        </div>
+                      )}
+                      {(fee.entryTime || exitPopup.session.entry_time) && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Entrada</span>
+                          <span className="font-medium">{fmtDateTime(fee.entryTime || exitPopup.session.entry_time)}</span>
+                        </div>
+                      )}
+                      {!exitPopup.isNfcReplacement && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Ahora</span>
+                          <span className="font-medium">{fmtTime(fee.exitTime || timeService.nowISO())}</span>
+                        </div>
+                      )}
+                      {fee.minutes > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Tiempo</span>
+                          <span className="font-medium flex items-center gap-1">
+                            <Clock size={12} />
+                            {Math.floor((fee.minutes || 0) / 60)}h {(fee.minutes || 0) % 60}m ({fee.hours}h facturadas)
+                          </span>
+                        </div>
+                      )}
+                      {fee.ratePerHour > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Tarifa</span>
+                          <span>{fmtMoney(fee.ratePerHour)}/hora</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Totals */}
