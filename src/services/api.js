@@ -951,15 +951,14 @@ export const devicesAPI = {
   events: async () => wrap({ success: true, data: [] }),
 };
 
-// Terminals — requires local Express backend (hardware feature)
-const terminalUnavailable = () => { throw new Error('Terminales requieren el backend local (Express). No disponible en modo remoto.'); };
+// Terminals
 export const terminalsAPI = {
-  list: async () => wrap({ success: true, data: [] }),
-  create: terminalUnavailable,
-  update: terminalUnavailable,
-  delete: terminalUnavailable,
-  heartbeat: terminalUnavailable,
-  stats: async () => wrap({ success: true, data: { total: 0, online: 0, offline: 0 } }),
+  list: () => apiFetch('/api/v1/terminals'),
+  create: (data) => apiFetch('/api/v1/terminals', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => apiFetch(`/api/v1/terminals/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id) => apiFetch(`/api/v1/terminals/${id}`, { method: 'DELETE' }),
+  heartbeat: (code) => apiFetch(`/api/v1/terminals/${code}/heartbeat`, { method: 'POST' }),
+  stats: () => apiFetch('/api/v1/terminals/stats'),
 };
 
 // Default export for backward compatibility

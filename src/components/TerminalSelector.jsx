@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTerminal } from '../context/TerminalContext';
-import { Monitor, LogIn, LogOut, ArrowLeftRight, Wifi, WifiOff, X, ChevronDown } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Monitor, LogIn, LogOut, ArrowLeftRight, Wifi, WifiOff, X, ChevronDown, Settings, Plus } from 'lucide-react';
 
 export default function TerminalSelector({ compact = false }) {
   const { terminal, terminals, loading, selectTerminal, clearTerminal } = useTerminal();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [showList, setShowList] = useState(false);
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   useEffect(() => {
     if (!showList) return;
@@ -78,6 +83,12 @@ export default function TerminalSelector({ compact = false }) {
               {terminals.length === 0 && (
                 <p className="px-4 py-3 text-sm text-gray-500 text-center">No hay terminales configuradas</p>
               )}
+              {isAdmin && (
+                <button onClick={() => { setShowList(false); navigate('/config'); }}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-indigo-600 hover:bg-indigo-50 border-t mt-1 pt-2 text-sm">
+                  <Settings size={14} aria-hidden="true" /> Administrar terminales
+                </button>
+              )}
               {terminal && terminal.id && (
                 <button onClick={() => { clearTerminal(); setShowList(false); }}
                   className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 border-t mt-1 pt-2 text-sm">
@@ -106,7 +117,16 @@ export default function TerminalSelector({ compact = false }) {
         </div>
         <div className="p-5 space-y-2 max-h-80 overflow-y-auto" role="listbox" aria-label="Terminales disponibles">
           {terminals.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">No hay terminales configuradas</p>
+            <div className="text-center py-8">
+              <Monitor size={40} className="mx-auto text-gray-300 mb-3" />
+              <p className="text-gray-500 mb-4">No hay terminales configuradas</p>
+              {isAdmin && (
+                <button onClick={() => { selectTerminal({ id: null, name: 'Sin Terminal', code: 'NONE', type: 'both' }); navigate('/config'); }}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors">
+                  <Plus size={16} /> Crear Terminal en Configuración
+                </button>
+              )}
+            </div>
           ) : (
             terminals.map(t => (
               <button key={t.id} onClick={() => selectTerminal(t)}
@@ -133,11 +153,17 @@ export default function TerminalSelector({ compact = false }) {
             ))
           )}
         </div>
-        <div className="p-4 border-t">
+        <div className="p-4 border-t space-y-2">
           <button onClick={() => selectTerminal({ id: null, name: 'Sin Terminal', code: 'NONE', type: 'both' })}
             className="w-full text-center text-sm text-gray-600 hover:text-gray-800 py-2">
             Continuar sin terminal asignada
           </button>
+          {isAdmin && terminals.length > 0 && (
+            <button onClick={() => { selectTerminal({ id: null, name: 'Sin Terminal', code: 'NONE', type: 'both' }); navigate('/config'); }}
+              className="w-full flex items-center justify-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 py-1">
+              <Settings size={14} /> Administrar terminales
+            </button>
+          )}
         </div>
       </div>
     </div>
