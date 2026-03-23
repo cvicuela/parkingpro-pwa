@@ -309,7 +309,7 @@ function BillingStep({ data, onChange }) {
           <Select
             options={[
               { value: 'fiscal', label: 'Fiscal (con NCF - DGII)' },
-              { value: 'internal', label: 'Interno (sin NCF)' },
+              { value: 'interno', label: 'Interno (sin NCF)' },
             ]}
             value={data.invoice_mode || 'fiscal'}
             onChange={e => update('invoice_mode', e.target.value)}
