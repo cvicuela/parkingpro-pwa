@@ -235,11 +235,7 @@ export const accessAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  entry: async (data) => {
-    const result = await rpc('register_entry', { p_token: getToken(), p_data: data });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
-  },
+  entry: async (data) => apiFetch('/api/v1/access/quick-entry', { method: 'POST', body: JSON.stringify(data) }),
   exit: async (data) => {
     const result = await rpc('register_exit', { p_token: getToken(), p_data: data });
     if (!result.success) throw new Error(result.error);

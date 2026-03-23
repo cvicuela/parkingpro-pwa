@@ -309,7 +309,10 @@ export default function ControlAccesoPage() {
         plate: entryPlate,
         entryTime: session?.entry_time || timeService.nowISO(),
         type: session?.subscription_id ? 'subscriber' : 'hourly',
-        planName: session?.subscription_id ? 'Suscriptor' : 'Por Hora',
+        planName: session?.plan_name || (session?.subscription_id ? 'Suscriptor' : 'Por Hora'),
+        planType: session?.plan_type || (session?.subscription_id ? 'subscription' : 'hourly'),
+        basePrice: session?.base_price || null,
+        customerName: session?.customer_name || null,
         sessionId: session?.id,
         verificationCode: session?.verification_code || null,
         qrData: session?.verification_code || session?.id || entryPlate,
@@ -1152,7 +1155,16 @@ export default function ControlAccesoPage() {
               </div>
               <p className="text-2xl font-mono font-bold text-indigo-700">{entryTicket.plate}</p>
               <p className="text-sm text-gray-500">Entrada: {fmtTime(entryTicket.entryTime)}</p>
-              <p className="text-sm text-gray-500">{entryTicket.type === 'subscriber' ? 'Suscriptor' : 'Por Hora'}</p>
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+                <p className="text-sm font-semibold text-indigo-800">{entryTicket.planName}</p>
+                <p className="text-xs text-indigo-600">
+                  {entryTicket.type === 'subscriber' ? 'Suscriptor' : 'Por Hora'}
+                  {entryTicket.basePrice ? ` · Tarifa base: RD$ ${parseFloat(entryTicket.basePrice).toFixed(2)}` : ''}
+                </p>
+              </div>
+              {entryTicket.customerName && (
+                <p className="text-xs text-gray-500">Cliente: {entryTicket.customerName}</p>
+              )}
               {entryTicket.verificationCode && (
                 <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2">
                   <p className="text-xs text-indigo-500 mb-0.5">Código de Verificación</p>
