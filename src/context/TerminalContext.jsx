@@ -1,11 +1,9 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthContext';
+import { terminalsAPI } from '../services/api';
 
 const TerminalContext = createContext(null);
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-const getToken = () => localStorage.getItem('pp_token') || '';
 
 export function TerminalProvider({ children }) {
   const { user } = useAuth();
@@ -18,12 +16,8 @@ export function TerminalProvider({ children }) {
 
   const fetchTerminals = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/terminals`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      if (!res.ok) throw new Error('Error fetching terminals');
-      const json = await res.json();
-      setTerminals(json.data || []);
+      const { data } = await terminalsAPI.list();
+      setTerminals(data?.data || []);
     } catch {
       setTerminals([]);
     } finally {
@@ -63,10 +57,7 @@ export function TerminalProvider({ children }) {
     if (!terminal || !terminal.id) return;
     const sendHeartbeat = async () => {
       try {
-        await fetch(`${API_BASE}/api/v1/terminals/${terminal.code}/heartbeat`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' }
-        });
+        await terminalsAPI.heartbeat(terminal.code);
       } catch {}
     };
     sendHeartbeat();

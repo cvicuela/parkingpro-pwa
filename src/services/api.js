@@ -957,14 +957,34 @@ export const devicesAPI = {
   events: async () => wrap({ success: true, data: [] }),
 };
 
-// Terminals
+// Terminals (via Supabase RPC — Express backend uses different JWT secret)
 export const terminalsAPI = {
-  list: () => apiFetch('/api/v1/terminals'),
-  create: (data) => apiFetch('/api/v1/terminals', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id, data) => apiFetch(`/api/v1/terminals/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id) => apiFetch(`/api/v1/terminals/${id}`, { method: 'DELETE' }),
+  list: async () => {
+    const result = await rpc('list_terminals', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_terminal', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  update: async (id, data) => {
+    const result = await rpc('update_terminal', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  delete: async (id) => {
+    const result = await rpc('delete_terminal', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
   heartbeat: (code) => apiFetch(`/api/v1/terminals/${code}/heartbeat`, { method: 'POST' }),
-  stats: () => apiFetch('/api/v1/terminals/stats'),
+  stats: async () => {
+    const result = await rpc('list_terminals', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Default export for backward compatibility
