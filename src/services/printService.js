@@ -72,7 +72,7 @@ function openPrintWindow(html, title = 'ParkingPro') {
 
 // ─── HTML GENERATORS (for preview) ───
 
-export async function generateEntryTicketHTML({ plate, entryTime, type, planName, planType, basePrice, customerName, sessionId, qrUrl }) {
+export async function generateEntryTicketHTML({ plate, entryTime, type, planName, planType, basePrice, customerName, sessionId, verificationCode, qrUrl }) {
   const time = new Date(entryTime).toLocaleString('es-DO', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -91,6 +91,7 @@ export async function generateEntryTicketHTML({ plate, entryTime, type, planName
       <div class="plate">${escapeHtml(plate)}</div>
     </div>
     <img class="qr" src="${escapeHtml(qrSrc)}" alt="QR" />
+    ${verificationCode ? `<div class="center bold big mt">Ticket # ${escapeHtml(verificationCode)}</div>` : ''}
     <div class="line"></div>
     <div class="row"><span>Fecha/Hora:</span><span class="bold">${escapeHtml(time)}</span></div>
     <div class="row"><span>Tipo:</span><span>${type === 'subscriber' ? 'Suscriptor' : 'Por Hora'}</span></div>
