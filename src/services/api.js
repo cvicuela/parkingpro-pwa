@@ -987,5 +987,24 @@ export const terminalsAPI = {
   },
 };
 
+// Billing Automation
+export const billingAPI = {
+  runCycle: async () => {
+    const result = await rpc('run_billing_cycle', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  generateInvoice: async (subscriptionId) => {
+    const result = await rpc('generate_subscription_invoice', { p_token: getToken(), p_subscription_id: subscriptionId });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  listRuns: async (limit = 20) => {
+    const result = await rpc('list_billing_runs', { p_token: getToken(), p_limit: limit });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
 // Default export for backward compatibility
 export default { interceptors: { request: { use: () => {} }, response: { use: () => {} } } };

@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { subscriptionsAPI, customersAPI, vehiclesAPI, plansAPI } from '../services/api';
+import { subscriptionsAPI, customersAPI, vehiclesAPI, plansAPI, billingAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import { Plus, Search, X, Pause, Play, Trash2, AlertTriangle, Eye, FileText, User, Phone, Mail, Car, CreditCard, Calendar, Building2, ExternalLink } from 'lucide-react';
+import { Plus, Search, X, Pause, Play, Trash2, AlertTriangle, Eye, FileText, User, Phone, Mail, Car, CreditCard, Calendar, Building2, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 
@@ -334,6 +334,9 @@ export default function SuscripcionesPage() {
   const [detailSub, setDetailSub] = useState(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 15;
+  const [billingRuns, setBillingRuns] = useState([]);
+  const [showBilling, setShowBilling] = useState(false);
+  const [runningBilling, setRunningBilling] = useState(false);
 
   const navigate = useNavigate();
 
@@ -342,6 +345,26 @@ export default function SuscripcionesPage() {
       const { data } = await subscriptionsAPI.list({ search });
       setSubs(data.data || data || []);
     } catch {} finally { setLoading(false); }
+  };
+
+  const fetchBillingRuns = async () => {
+    try {
+      const { data } = await billingAPI.listRuns();
+      setBillingRuns(data.data || data || []);
+    } catch {}
+  };
+
+  const handleRunBilling = async () => {
+    setRunningBilling(true);
+    try {
+      await billingAPI.runCycle();
+      toast.success('Ciclo de facturación ejecutado correctamente');
+      fetchBillingRuns();
+    } catch (err) {
+      toast.error(err.message || 'Error al ejecutar la facturación');
+    } finally {
+      setRunningBilling(false);
+    }
   };
 
   useEffect(() => { setPage(1); fetchSubs(); }, [search]);
@@ -498,6 +521,84 @@ export default function SuscripcionesPage() {
           subscription={detailSub}
           onClose={() => setDetailSub(null)}
         />
+      )}
+
+      {/* Billing Automation Section */}
+      {isAdmin && (
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <button
+            onClick={() => { setShowBilling(v => !v); if (!showBilling) fetchBillingRuns(); }}
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+          >
+            <span className="text-base font-semibold text-gray-800 flex items-center gap-2">
+              <CreditCard size={18} className="text-indigo-600" />
+              Facturación Automática
+            </span>
+            {showBilling ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+          </button>
+
+          {showBilling && (
+            <div className="border-t px-5 py-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleRunBilling}
+                  disabled={runningBilling}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium"
+                >
+                  {runningBilling ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  ) : (
+                    <Play size={15} />
+                  )}
+                  {runningBilling ? 'Ejecutando...' : 'Ejecutar Facturación'}
+                </button>
+              </div>
+
+              {billingRuns.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">No hay ejecuciones recientes</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-50 text-xs text-gray-500">
+                      <tr>
+                        <th className="py-2 px-3">Fecha</th>
+                        <th className="py-2 px-3">Estado</th>
+                        <th className="py-2 px-3 text-right">Procesadas</th>
+                        <th className="py-2 px-3 text-right">Facturadas</th>
+                        <th className="py-2 px-3 text-right">Fallidas</th>
+                        <th className="py-2 px-3 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {billingRuns.map((run, idx) => {
+                        const runStatusBadge =
+                          run.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          run.status === 'running'   ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700';
+                        const runStatusLabel =
+                          run.status === 'completed' ? 'Completado' :
+                          run.status === 'running'   ? 'En curso' :
+                          run.status === 'failed'    ? 'Fallido' : run.status;
+                        return (
+                          <tr key={run.id || idx} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-2 px-3 text-gray-600">{fmtDate(run.run_at || run.created_at)}</td>
+                            <td className="py-2 px-3">
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${runStatusBadge}`}>{runStatusLabel}</span>
+                            </td>
+                            <td className="py-2 px-3 text-right text-gray-700">{run.processed ?? '-'}</td>
+                            <td className="py-2 px-3 text-right text-gray-700">{run.invoiced ?? '-'}</td>
+                            <td className="py-2 px-3 text-right text-red-600">{run.failed ?? '-'}</td>
+                            <td className="py-2 px-3 text-right font-medium">{fmtMoney(run.total_amount)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Cancel Reason Modal */}
