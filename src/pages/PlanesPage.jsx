@@ -99,6 +99,8 @@ function HourlyRatesEditor({ planId }) {
       }
 
       await plansAPI.updateHourlyRates(planId, finalRates);
+      // Sync local state with what was saved so the table doesn't show stale values
+      setRates(finalRates);
       toast.success('Tarifas por hora guardadas correctamente');
       setDirty(false);
     } catch (err) {
