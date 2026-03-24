@@ -526,14 +526,15 @@ export const reportsAPI = {
     const generatedAt = new Date().toLocaleString('es-DO');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
     <style>
-      @media print { body { margin: 0; } @page { size: landscape; margin: 1cm; } }
-      body { font-family: Arial, sans-serif; font-size: 11px; margin: 0; padding: 20px; }
-      h1 { text-align: center; color: #333; font-size: 18px; margin-bottom: 4px; }
-      .meta { text-align: center; color: #666; margin-bottom: 12px; font-size: 10px; }
-      table { width: 100%; border-collapse: collapse; }
-      th { background: #4472C4; color: white; padding: 6px 8px; text-align: left; font-size: 10px; }
-      td { padding: 5px 8px; border-bottom: 1px solid #ddd; font-size: 10px; }
-      tr:nth-child(even) { background: #f8f9fa; }
+      @media print { body { margin: 0; } @page { size: landscape; margin: 1.5cm; } }
+      body { font-family: Arial, sans-serif; font-size: 14px; margin: 0; padding: 24px; color: #222; }
+      h1 { text-align: center; color: #1a1a1a; font-size: 22px; margin-bottom: 6px; font-weight: bold; }
+      .meta { text-align: center; color: #555; margin-bottom: 16px; font-size: 13px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+      th { background: #4472C4; color: white; padding: 10px 12px; text-align: left; font-size: 13px; font-weight: 600; }
+      td { padding: 8px 12px; border-bottom: 1px solid #ccc; font-size: 13px; }
+      tr:nth-child(even) { background: #f0f4fa; }
+      tr:hover { background: #e8ecf4; }
     </style></head><body>
     <h1>${title}</h1>
     <div class="meta">Generado: ${generatedAt} | Registros: ${rows.length}</div>
