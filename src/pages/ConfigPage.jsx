@@ -7,13 +7,15 @@ import {
   Bell, Wallet, Globe, ChevronDown, ChevronRight, Plus, Trash2,
   Printer, Star, Eye, QrCode, Wifi, Radio, MapPin, Edit2, Clock, RefreshCw,
   Users, Lock, Unlock, Key, AlertTriangle, CreditCard, X, Check, Calendar,
-  Database, ShieldAlert, Loader2, Monitor, LogIn, LogOut, ArrowLeftRight
+  Database, ShieldAlert, Loader2, Monitor, LogIn, LogOut, ArrowLeftRight,
+  PlugZap, Zap, Activity, Cable
 } from 'lucide-react';
 import { getPrinters, addPrinter, removePrinter, setDefaultPrinter, getDefaultPrinter, generateEntryTicketHTML, generatePaymentReceiptHTML, generateCashReportHTML, generateDailySummaryHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
 import RFIDPage from './RFIDPage';
 import DispositivosPage from './DispositivosPage';
 import SystemArchitecturePanel from '../components/SystemArchitecturePanel';
+import usbRelayService from '../services/usbRelayService';
 
 const categoryConfig = {
   general: { label: 'General', icon: Building2, color: 'indigo', description: 'Datos del negocio y moneda' },
@@ -799,6 +801,248 @@ function TerminalsSection() {
   );
 }
 
+// ─── USB RELAY / BARRERA SUBSECTION ───
+function UsbRelaySubsection() {
+  const [showRelay, setShowRelay] = useState(false);
+  const [relayStatus, setRelayStatus] = useState(() => usbRelayService.getStatus());
+  const [pairedPorts, setPairedPorts] = useState([]);
+  const [baudRate, setBaudRate] = useState(9600);
+  const [autoClose, setAutoClose] = useState(3);
+  const [relayAssign, setRelayAssign] = useState({ 1: 'entry', 2: 'exit' });
+  const [testFeedback, setTestFeedback] = useState({});
+  const supported = usbRelayService.isSupported();
+
+  useEffect(() => {
+    usbRelayService.onStatusChange((s) => setRelayStatus({ ...s }));
+    if (supported) {
+      usbRelayService.listPorts().then(ports => setPairedPorts(ports));
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem('pp_relay_config') || '{}');
+      if (saved.baudRate) setBaudRate(saved.baudRate);
+      if (saved.autoClose) setAutoClose(saved.autoClose);
+      if (saved.relayAssign) setRelayAssign(saved.relayAssign);
+    } catch {}
+    return () => usbRelayService.onStatusChange(null);
+  }, [supported]);
+
+  const saveConfig = (updates = {}) => {
+    const cfg = { baudRate, autoClose, relayAssign, ...updates };
+    localStorage.setItem('pp_relay_config', JSON.stringify(cfg));
+  };
+
+  const handleDetect = async () => {
+    try {
+      const port = await usbRelayService.requestPort();
+      const ports = await usbRelayService.listPorts();
+      setPairedPorts(ports);
+      toast.success('Dispositivo USB detectado');
+      await usbRelayService.connect(port, { baudRate, autoCloseTimeout: autoClose });
+      toast.success('Relay USB conectado');
+    } catch (err) {
+      toast.error(err.message || 'Error al detectar dispositivo USB');
+    }
+  };
+
+  const handleConnect = async (port) => {
+    try {
+      await usbRelayService.connect(port, { baudRate, autoCloseTimeout: autoClose });
+      toast.success('Relay USB conectado');
+    } catch (err) {
+      toast.error(err.message || 'Error al conectar');
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await usbRelayService.disconnect();
+      toast.info('Relay USB desconectado');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleTestRelay = async (channel, action) => {
+    try {
+      if (action === 'open') await usbRelayService.openRelay(channel);
+      else await usbRelayService.closeRelay(channel);
+      setTestFeedback(p => ({ ...p, [`${channel}-${action}`]: true }));
+      setTimeout(() => setTestFeedback(p => ({ ...p, [`${channel}-${action}`]: false })), 1200);
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const getPortLabel = (port, idx) => {
+    try {
+      const info = port.getInfo();
+      if (info.usbVendorId) return `USB (VID: 0x${info.usbVendorId.toString(16).toUpperCase()}, PID: 0x${info.usbProductId.toString(16).toUpperCase()})`;
+    } catch {}
+    return `Puerto Serial ${idx + 1}`;
+  };
+
+  return (
+    <div className="border-t pt-4 mt-2">
+      <button onClick={() => setShowRelay(p => !p)}
+        className="w-full flex items-center justify-between py-2 text-left hover:opacity-80 transition-opacity">
+        <p className="font-medium text-gray-700 text-sm flex items-center gap-2">
+          <PlugZap size={14} className="text-amber-500" /> Relay USB / Control de Barrera
+          {relayStatus.connected && (
+            <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" /> Conectado
+            </span>
+          )}
+        </p>
+        {showRelay ? <ChevronDown size={16} className="text-gray-400" /> : <ChevronRight size={16} className="text-gray-400" />}
+      </button>
+
+      {showRelay && (
+        <div className="mt-3 space-y-3">
+          {!supported && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+              <AlertTriangle size={16} className="text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-red-800">Navegador no compatible</p>
+                <p className="text-xs text-red-600">Web Serial API no disponible. Usa <strong>Google Chrome</strong> o <strong>Microsoft Edge</strong> para conectar dispositivos USB.</p>
+              </div>
+            </div>
+          )}
+
+          {supported && (
+            <>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                <p className="text-xs text-amber-700">
+                  Conecta el módulo relay USB al computador, luego haz clic en "Detectar" para vincularlo. Compatible con módulos LCUS, CH340, FTDI.
+                </p>
+                <button onClick={handleDetect}
+                  className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors">
+                  <Cable size={16} /> Detectar Dispositivo USB
+                </button>
+              </div>
+
+              {pairedPorts.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-600 uppercase">Dispositivos vinculados</p>
+                  {pairedPorts.map((port, idx) => {
+                    const isThisConnected = relayStatus.connected && relayStatus.port &&
+                      (() => { try { const a = port.getInfo(); const b = relayStatus.port; return a.usbVendorId === b.vendorId && a.usbProductId === b.productId; } catch { return false; } })();
+                    return (
+                      <div key={idx} className={`p-3 rounded-lg border ${isThisConnected ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <PlugZap size={16} className={isThisConnected ? 'text-green-600' : 'text-gray-400'} />
+                            <div>
+                              <p className="text-sm font-medium text-gray-800">{getPortLabel(port, idx)}</p>
+                              <p className="text-xs text-gray-500">{isThisConnected ? 'Conectado' : 'Desconectado'}</p>
+                            </div>
+                          </div>
+                          {isThisConnected ? (
+                            <button onClick={handleDisconnect}
+                              className="px-3 py-1.5 text-xs bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium">Desconectar</button>
+                          ) : (
+                            <button onClick={() => handleConnect(port)}
+                              className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">Conectar</button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {relayStatus.connected && (
+                <div className="border border-green-200 rounded-lg p-4 bg-green-50/50 space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Baud Rate</label>
+                      <select value={baudRate}
+                        onChange={e => { const v = parseInt(e.target.value); setBaudRate(v); saveConfig({ baudRate: v }); }}
+                        className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                        {[9600, 19200, 38400, 57600, 115200].map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Auto-cierre (seg)</label>
+                      <input type="number" min="1" max="30" value={autoClose}
+                        onChange={e => {
+                          const v = parseInt(e.target.value) || 3;
+                          setAutoClose(v);
+                          usbRelayService.updateConfig({ autoCloseTimeout: v });
+                          saveConfig({ autoClose: v });
+                        }}
+                        className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 mb-2">Asignación de canales</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[1, 2].map(ch => (
+                        <div key={ch} className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Relay {ch}:</span>
+                          <select value={relayAssign[ch]}
+                            onChange={e => {
+                              const updated = { ...relayAssign, [ch]: e.target.value };
+                              setRelayAssign(updated);
+                              saveConfig({ relayAssign: updated });
+                            }}
+                            className="flex-1 px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                            <option value="entry">Entrada</option>
+                            <option value="exit">Salida</option>
+                            <option value="both">Ambos</option>
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 mb-2">Probar relays</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[1, 2].map(ch => (
+                        <div key={ch} className="space-y-1.5">
+                          <p className="text-xs text-gray-500 font-medium">
+                            Relay {ch} ({relayAssign[ch] === 'entry' ? 'Entrada' : relayAssign[ch] === 'exit' ? 'Salida' : 'Ambos'})
+                          </p>
+                          <div className="flex gap-1.5">
+                            <button onClick={() => handleTestRelay(ch, 'open')}
+                              className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-bold transition-all ${
+                                testFeedback[`${ch}-open`] ? 'bg-green-500 text-white scale-105'
+                                : relayStatus.relayStates[ch] ? 'bg-green-200 text-green-800'
+                                : 'bg-white border border-green-300 text-green-700 hover:bg-green-50'
+                              }`}>
+                              <Zap size={12} /> Abrir
+                            </button>
+                            <button onClick={() => handleTestRelay(ch, 'close')}
+                              className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-bold transition-all ${
+                                testFeedback[`${ch}-close`] ? 'bg-red-500 text-white scale-105'
+                                : !relayStatus.relayStates[ch] ? 'bg-gray-200 text-gray-600'
+                                : 'bg-white border border-red-300 text-red-700 hover:bg-red-50'
+                              }`}>
+                              <Activity size={12} /> Cerrar
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs text-gray-500 pt-1 border-t flex-wrap">
+                    <span>Relay 1: <strong className={relayStatus.relayStates[1] ? 'text-green-600' : 'text-gray-600'}>{relayStatus.relayStates[1] ? 'ABIERTO' : 'CERRADO'}</strong></span>
+                    <span>Relay 2: <strong className={relayStatus.relayStates[2] ? 'text-green-600' : 'text-gray-600'}>{relayStatus.relayStates[2] ? 'ABIERTO' : 'CERRADO'}</strong></span>
+                    <span>Baud: {relayStatus.baudRate}</span>
+                    <span>Auto-cierre: {relayStatus.autoCloseTimeout}s</span>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── COLLAPSIBLE SECTION WRAPPER (for embedding pages) ───
 function CollapsibleSection({ icon: Icon, iconColor, title, subtitle, children }) {
   const [expanded, setExpanded] = useState(false);
@@ -821,6 +1065,417 @@ function CollapsibleSection({ icon: Icon, iconColor, title, subtitle, children }
       {expanded && (
         <div className="border-t">
           {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── RELAY USB / BARRERA SUBSECTION ───
+// Subsección dentro de Dispositivos Perimetrales para controlar barreras vía relay USB
+function UsbRelaySubsection({ scanners, saveScanners }) {
+  const [expanded, setExpanded] = useState(false);
+  const [supported] = useState(() => usbRelayService.isSupported());
+  const [relayStatus, setRelayStatus] = useState(() => usbRelayService.getStatus());
+  const [pairedPorts, setPairedPorts] = useState([]);
+  const [selectedPort, setSelectedPort] = useState(null);
+  const [baudRate, setBaudRate] = useState(9600);
+  const [autoCloseTimeout, setAutoCloseTimeout] = useState(3);
+  const [channelAssignment, setChannelAssignment] = useState({ 1: 'entry', 2: 'exit' });
+  const [testFeedback, setTestFeedback] = useState({}); // { "open_1": true, ... } para feedback visual
+  const [connecting, setConnecting] = useState(false);
+
+  // Suscribirse a cambios de estado del relay
+  useEffect(() => {
+    usbRelayService.onStatusChange((status) => {
+      setRelayStatus(status);
+    });
+    // Cargar puertos previamente autorizados
+    loadPorts();
+    // Cargar configuración guardada de relay desde scanners
+    const relayConfig = scanners.find(s => s.type === 'usb_relay');
+    if (relayConfig) {
+      if (relayConfig.baudRate) setBaudRate(relayConfig.baudRate);
+      if (relayConfig.autoCloseTimeout) setAutoCloseTimeout(relayConfig.autoCloseTimeout);
+      if (relayConfig.channelAssignment) setChannelAssignment(relayConfig.channelAssignment);
+    }
+    return () => {
+      usbRelayService.onStatusChange(null);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cargar puertos previamente autorizados por el navegador
+  const loadPorts = async () => {
+    const ports = await usbRelayService.listPorts();
+    setPairedPorts(ports);
+  };
+
+  // Solicitar nuevo puerto USB (requiere gesto del usuario)
+  const handleRequestPort = async () => {
+    try {
+      const port = await usbRelayService.requestPort();
+      setSelectedPort(port);
+      await loadPorts();
+      toast.success('Dispositivo USB detectado correctamente');
+    } catch (err) {
+      toast.error(err.message || 'Error al detectar dispositivo USB');
+    }
+  };
+
+  // Conectar al puerto seleccionado
+  const handleConnect = async (port) => {
+    setConnecting(true);
+    try {
+      await usbRelayService.connect(port, {
+        baudRate,
+        protocol: 'lcus',
+        autoCloseTimeout,
+      });
+      setSelectedPort(port);
+      // Guardar configuración en scanners
+      saveRelayConfig();
+      toast.success('Relay USB conectado');
+    } catch (err) {
+      toast.error(err.message || 'Error al conectar');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  // Desconectar
+  const handleDisconnect = async () => {
+    try {
+      await usbRelayService.disconnect();
+      setSelectedPort(null);
+      toast.info('Relay USB desconectado');
+    } catch (err) {
+      toast.error(err.message || 'Error al desconectar');
+    }
+  };
+
+  // Abrir relay con feedback visual
+  const handleOpenRelay = async (channel) => {
+    try {
+      await usbRelayService.openRelay(channel);
+      const key = `open_${channel}`;
+      setTestFeedback(prev => ({ ...prev, [key]: true }));
+      setTimeout(() => setTestFeedback(prev => ({ ...prev, [key]: false })), 1000);
+    } catch (err) {
+      toast.error(err.message || `Error al abrir relay ${channel}`);
+    }
+  };
+
+  // Cerrar relay con feedback visual
+  const handleCloseRelay = async (channel) => {
+    try {
+      await usbRelayService.closeRelay(channel);
+      const key = `close_${channel}`;
+      setTestFeedback(prev => ({ ...prev, [key]: true }));
+      setTimeout(() => setTestFeedback(prev => ({ ...prev, [key]: false })), 1000);
+    } catch (err) {
+      toast.error(err.message || `Error al cerrar relay ${channel}`);
+    }
+  };
+
+  // Guardar configuración del relay en el array de scanners
+  const saveRelayConfig = () => {
+    const existing = scanners.filter(s => s.type !== 'usb_relay');
+    const relayDevice = {
+      id: 'usb_relay_1',
+      name: 'Relay USB - Barrera',
+      type: 'usb_relay',
+      location: 'both',
+      enabled: true,
+      baudRate,
+      autoCloseTimeout,
+      channelAssignment,
+      createdAt: new Date().toISOString(),
+    };
+    saveScanners([...existing, relayDevice]);
+  };
+
+  // Actualizar configuración en tiempo real
+  const handleBaudRateChange = (value) => {
+    setBaudRate(Number(value));
+  };
+
+  const handleAutoCloseChange = (value) => {
+    const val = Math.max(1, Math.min(30, Number(value)));
+    setAutoCloseTimeout(val);
+    usbRelayService.updateConfig({ autoCloseTimeout: val });
+  };
+
+  const handleChannelAssignmentChange = (channel, value) => {
+    setChannelAssignment(prev => ({ ...prev, [channel]: value }));
+  };
+
+  // Guardar al cambiar configuración
+  useEffect(() => {
+    // Solo guardar si hay config relevante que haya cambiado
+    const relayConfig = scanners.find(s => s.type === 'usb_relay');
+    if (relayConfig) {
+      saveRelayConfig();
+    }
+  }, [baudRate, autoCloseTimeout, channelAssignment]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Obtener info de un puerto
+  const getPortInfo = (port) => {
+    try {
+      const info = port.getInfo();
+      return {
+        vendorId: info.usbVendorId ? `0x${info.usbVendorId.toString(16).toUpperCase().padStart(4, '0')}` : 'N/A',
+        productId: info.usbProductId ? `0x${info.usbProductId.toString(16).toUpperCase().padStart(4, '0')}` : 'N/A',
+      };
+    } catch {
+      return { vendorId: 'N/A', productId: 'N/A' };
+    }
+  };
+
+  return (
+    <div className="border-t pt-4 mt-2">
+      {/* Encabezado colapsable */}
+      <button
+        onClick={() => setExpanded(p => !p)}
+        className="w-full flex items-center justify-between mb-3 group"
+      >
+        <p className="font-medium text-gray-700 text-sm flex items-center gap-2">
+          <PlugZap size={14} className="text-emerald-500" />
+          Relay USB / Barrera
+          {relayStatus.connected && (
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+            </span>
+          )}
+        </p>
+        {expanded
+          ? <ChevronDown size={16} className="text-gray-400 group-hover:text-emerald-500 transition-colors" />
+          : <ChevronRight size={16} className="text-gray-400 group-hover:text-emerald-500 transition-colors" />}
+      </button>
+
+      {expanded && (
+        <div className="space-y-4">
+          {/* Banner de compatibilidad */}
+          {!supported && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+              <AlertTriangle size={16} className="text-amber-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-amber-800 font-medium">Tu navegador no soporta Web Serial API</p>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  Usa Google Chrome o Microsoft Edge para conectar dispositivos USB.
+                  Requiere HTTPS o localhost.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {supported && (
+            <>
+              {/* Info del protocolo */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                <p className="text-xs text-emerald-700">
+                  <Cable size={12} className="inline mr-1" />
+                  Compatible con módulos LCUS-type HID relay y CH340/FTDI. Conecta tu módulo relay USB al computador
+                  y presiona el botón para detectarlo.
+                </p>
+              </div>
+
+              {/* Botón detectar dispositivos */}
+              <button
+                onClick={handleRequestPort}
+                className="w-full border border-dashed border-emerald-300 rounded-lg py-3 text-sm text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors"
+              >
+                <PlugZap size={16} /> Detectar Dispositivos USB
+              </button>
+
+              {/* Lista de puertos detectados */}
+              {pairedPorts.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Puertos USB Autorizados ({pairedPorts.length})
+                  </p>
+                  {pairedPorts.map((port, idx) => {
+                    const info = getPortInfo(port);
+                    const isConnected = relayStatus.connected && selectedPort === port;
+                    return (
+                      <div key={idx} className={`rounded-lg border p-3 space-y-3 transition-colors ${isConnected ? 'border-green-300 bg-green-50/50' : 'border-gray-200 bg-gray-50/50'}`}>
+                        {/* Info del puerto */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Cable size={16} className={isConnected ? 'text-green-600' : 'text-gray-400'} />
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">
+                                Puerto Serial USB #{idx + 1}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                Vendor: {info.vendorId} · Product: {info.productId}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {/* Indicador de estado */}
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isConnected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {isConnected ? 'Conectado' : 'Desconectado'}
+                            </span>
+                            {/* Botón conectar/desconectar */}
+                            {isConnected ? (
+                              <button
+                                onClick={handleDisconnect}
+                                className="px-3 py-1.5 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                              >
+                                Desconectar
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleConnect(port)}
+                                disabled={connecting || relayStatus.connected}
+                                className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center gap-1"
+                              >
+                                {connecting ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+                                Conectar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Controles cuando está conectado */}
+                        {isConnected && (
+                          <div className="space-y-3 pt-2 border-t border-green-200">
+                            {/* Estado de relays */}
+                            <div className="grid grid-cols-2 gap-2">
+                              {[1, 2].map(ch => (
+                                <div key={ch} className={`rounded-lg p-2 border text-center ${relayStatus.relayStates[ch] ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                                  <p className="text-xs text-gray-500 mb-1">
+                                    Relay {ch} ({channelAssignment[ch] === 'entry' ? 'Entrada' : 'Salida'})
+                                  </p>
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Activity size={12} className={relayStatus.relayStates[ch] ? 'text-green-600' : 'text-gray-400'} />
+                                    <span className={`text-xs font-medium ${relayStatus.relayStates[ch] ? 'text-green-700' : 'text-gray-500'}`}>
+                                      {relayStatus.relayStates[ch] ? 'ABIERTO' : 'CERRADO'}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Botones de prueba */}
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 mb-2">Prueba de Relays</p>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {[1, 2].map(ch => (
+                                  <div key={ch} className="contents">
+                                    <button
+                                      onClick={() => handleOpenRelay(ch)}
+                                      className={`px-2 py-2 text-xs rounded-lg border transition-all duration-300 flex items-center justify-center gap-1 ${
+                                        testFeedback[`open_${ch}`]
+                                          ? 'bg-green-500 text-white border-green-500'
+                                          : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                                      }`}
+                                    >
+                                      <Zap size={12} /> Abrir Relay {ch}
+                                    </button>
+                                    <button
+                                      onClick={() => handleCloseRelay(ch)}
+                                      className={`px-2 py-2 text-xs rounded-lg border transition-all duration-300 flex items-center justify-center gap-1 ${
+                                        testFeedback[`close_${ch}`]
+                                          ? 'bg-green-500 text-white border-green-500'
+                                          : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <X size={12} /> Cerrar Relay {ch}
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Configuración */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Configuración del Relay</p>
+
+                {/* Baud Rate */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Velocidad (Baud Rate)</label>
+                    <select
+                      value={baudRate}
+                      onChange={e => handleBaudRateChange(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                    >
+                      {[9600, 19200, 38400, 57600, 115200].map(rate => (
+                        <option key={rate} value={rate}>{rate}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Auto-close timeout */}
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Auto-cierre (segundos)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={autoCloseTimeout}
+                      onChange={e => handleAutoCloseChange(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                    />
+                    <p className="text-xs text-gray-400 mt-0.5">1-30 seg. La barrera se cierra automáticamente.</p>
+                  </div>
+
+                  {/* Protocolo */}
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Protocolo</label>
+                    <select
+                      value="lcus"
+                      disabled
+                      className="w-full px-3 py-2 border rounded-lg text-sm bg-gray-100 text-gray-500"
+                    >
+                      <option value="lcus">LCUS (HID Relay)</option>
+                      <option value="ch340">CH340/FTDI</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Asignación de canales */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Asignación de Canales</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[1, 2].map(ch => (
+                      <div key={ch} className="flex items-center gap-2">
+                        <span className="text-xs text-gray-600 font-medium w-16">Relay {ch}:</span>
+                        <select
+                          value={channelAssignment[ch]}
+                          onChange={e => handleChannelAssignmentChange(ch, e.target.value)}
+                          className="flex-1 px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                        >
+                          <option value="entry">Entrada</option>
+                          <option value="exit">Salida</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Botón guardar configuración */}
+                <button
+                  onClick={() => {
+                    saveRelayConfig();
+                    toast.success('Configuración de relay guardada');
+                  }}
+                  className="w-full mt-2 bg-emerald-600 text-white rounded-lg py-2 text-sm hover:bg-emerald-700 flex items-center justify-center gap-1 transition-colors"
+                >
+                  <Save size={14} /> Guardar Configuración de Relay
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -1926,6 +2581,9 @@ export default function ConfigPage() {
                 ))}
               </div>
             </div>
+
+            {/* ─── RELAY USB / BARRERA ─── */}
+            <UsbRelaySubsection scanners={scanners} saveScanners={saveScanners} />
           </div>
         )}
       </div>
