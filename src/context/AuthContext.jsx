@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -32,7 +32,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     const { data } = await authAPI.login({ email, password });
     const userData = data.data?.user || data.user;
     const token = data.data?.token || data.token;
@@ -40,9 +40,9 @@ export function AuthProvider({ children }) {
     localStorage.setItem('pp_user', JSON.stringify(userData));
     setUser(userData);
     return userData;
-  };
+  }, []);
 
-  const register = async (formData) => {
+  const register = useCallback(async (formData) => {
     const { data } = await authAPI.register(formData);
     const userData = data.data?.user || data.user;
     const token = data.data?.token || data.token;
@@ -52,18 +52,20 @@ export function AuthProvider({ children }) {
       setUser(userData);
     }
     return userData;
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     authAPI.logout().catch(() => {});
     localStorage.removeItem('pp_token');
     localStorage.removeItem('pp_user');
     localStorage.removeItem('pp_terminal');
     setUser(null);
-  };
+  }, []);
+
+  const value = useMemo(() => ({ user, loading, login, register, logout }), [user, loading, login, register, logout]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
