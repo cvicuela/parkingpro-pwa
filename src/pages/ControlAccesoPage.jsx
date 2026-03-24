@@ -3,7 +3,7 @@ import { accessAPI, plansAPI, rfidAPI, cashAPI } from '../services/api';
 import { connectSocket, disconnectSocket } from '../services/socket';
 import { printEntryTicket, printPaymentReceipt, generateEntryTicketHTML, generatePaymentReceiptHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
-import CardPaymentForm from '../components/CardPaymentForm';
+// CardPaymentForm removed — card payments use external POS terminal
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
 import timeService from '../services/timeService';
@@ -139,10 +139,7 @@ export default function ControlAccesoPage() {
   // ── Card type state ──
   const [cardType, setCardType] = useState('visa');
 
-  // ── Card payment form state ──
-  const [showCardForm, setShowCardForm] = useState(false);
-  const [cardPaymentError, setCardPaymentError] = useState(null);
-  const [cardDetails, setCardDetails] = useState(null);
+  // Card payment form state removed — external POS terminal
 
   // ── Transfer reference state ──
   const [transferRef, setTransferRef] = useState('');
@@ -270,9 +267,6 @@ export default function ControlAccesoPage() {
   const closeExitPopup = useCallback(() => {
     setExitPopup(null);
     setManualExitConfirm(false);
-    setShowCardForm(false);
-    setCardPaymentError(null);
-    setCardDetails(null);
     stopExitCountdown();
   }, [stopExitCountdown]);
 
@@ -458,12 +452,7 @@ export default function ControlAccesoPage() {
       return;
     }
 
-    // For card: show CardPaymentForm first if not yet submitted
-    if (exitPopup.payMethod === 'card' && !cardData) {
-      setShowCardForm(true);
-      setCardPaymentError(null);
-      return;
-    }
+    // Card payments go straight through (external POS terminal)
 
     resetCountdown(); // keep alive
     const fee = exitPopup.feeData;
@@ -486,13 +475,9 @@ export default function ControlAccesoPage() {
         paymentData.cashChange = cashPopup.received - cashPopup.total;
         paymentData.cashDenominations = cashPopup.denominations;
       }
-      if (exitPopup.payMethod === 'card' && cardData) {
-        paymentData.cardNumber = cardData.cardNumber;
-        paymentData.cardExpMonth = cardData.cardExpMonth;
-        paymentData.cardExpYear = cardData.cardExpYear;
-        paymentData.cardCvv = cardData.cardCvv;
-        paymentData.cardHolderName = cardData.cardHolderName;
-        paymentData.metadata = { card: cardData };
+      if (exitPopup.payMethod === 'card') {
+        paymentData.cardType = cardType;
+        paymentData.metadata = { cardType };
       }
       if (exitPopup.payMethod === 'transfer') {
         paymentData.transferReference = transferRef;
@@ -506,9 +491,8 @@ export default function ControlAccesoPage() {
         receipt.cashReceived = cashPopup.received;
         receipt.cashChange = cashPopup.received - cashPopup.total;
       }
-      if (exitPopup.payMethod === 'card' && cardData) {
-        receipt.cardHolderName = cardData.cardHolderName;
-        receipt.cardLastFour = cardData.cardNumber.slice(-4);
+      if (exitPopup.payMethod === 'card') {
+        receipt.cardType = cardType;
       }
       if (exitPopup.payMethod === 'transfer') receipt.transferReference = transferRef;
 
@@ -521,9 +505,6 @@ export default function ControlAccesoPage() {
 
       setExitPopup(prev => prev ? { ...prev, step: 'receipt', receiptData: receipt } : null);
       setCashPopup(null);
-      setShowCardForm(false);
-      setCardPaymentError(null);
-      setCardDetails(null);
       setCardType('visa');
       setTransferRef('');
       toast.success('Pago procesado');
@@ -532,9 +513,9 @@ export default function ControlAccesoPage() {
       // Restart countdown for receipt auto-dismiss
       startExitCountdown();
     } catch (err) {
-      // For card payments, show error in the card form instead of dismissing it
-      if (exitPopup.payMethod === 'card' && cardData) {
-        setCardPaymentError(err.message || 'Pago con tarjeta rechazado');
+      // For card payments, show error toast
+      if (exitPopup.payMethod === 'card') {
+        toast.error(err.message || 'Error procesando pago con tarjeta');
         setExitPopup(prev => prev ? { ...prev, step: 'fee' } : null);
       } else {
         toast.error(err.message || 'Error al procesar pago');
@@ -1162,11 +1143,28 @@ export default function ControlAccesoPage() {
                       </div>
                     </div>
 
-                    {/* Card payment indicator */}
+                    {/* Card type selector */}
                     {exitPopup.payMethod === 'card' && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
-                        <CreditCard size={16} className="text-blue-600 shrink-0" />
-                        <p className="text-xs text-blue-800 font-medium">Se solicitarán los datos de la tarjeta al confirmar</p>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                        <p className="text-xs font-semibold text-blue-800">Tipo de Tarjeta</p>
+                        <div className="flex gap-2">
+                          {[
+                            { id: 'visa', label: 'Visa', color: 'bg-blue-700 text-white' },
+                            { id: 'mastercard', label: 'MasterCard', color: 'bg-red-600 text-white' },
+                            { id: 'amex', label: 'Amex', color: 'bg-blue-500 text-white' },
+                          ].map(({ id, label, color }) => (
+                            <button key={id} type="button"
+                              onClick={() => setCardType(id)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                cardType === id
+                                  ? `${color} ring-2 ring-offset-1 ring-blue-400 scale-105`
+                                  : 'bg-white border border-gray-300 text-gray-600 hover:border-blue-300'
+                              }`}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-blue-600">Procese el cobro en el dispositivo externo</p>
                       </div>
                     )}
 
@@ -1461,41 +1459,7 @@ export default function ControlAccesoPage() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════
-          CARD PAYMENT FORM OVERLAY
-          Shows when payMethod === 'card' and user clicks Cobrar
-         ════════════════════════════════════════════════════════ */}
-      {showCardForm && exitPopup?.feeData && (
-        <div className="fixed inset-0 bg-black/70 z-[80] flex items-center justify-center p-4"
-          onClick={() => { setShowCardForm(false); setCardPaymentError(null); }}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
-            onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3 text-white">
-                <CreditCard size={22} />
-                <div>
-                  <h3 className="font-bold">Pago con Tarjeta</h3>
-                  <p className="text-indigo-200 text-sm font-mono">{exitPopup.session.vehicle_plate}</p>
-                </div>
-              </div>
-              <button onClick={() => { setShowCardForm(false); setCardPaymentError(null); }}
-                className="text-white/80 hover:text-white"><X size={20} /></button>
-            </div>
-            <div className="p-5">
-              <CardPaymentForm
-                amount={parseFloat(exitPopup.feeData.total)}
-                onSubmit={(cardData) => {
-                  setShowCardForm(false);
-                  handlePopupPayment(cardData);
-                }}
-                onCancel={() => { setShowCardForm(false); setCardPaymentError(null); }}
-                isLoading={exitPopup.step === 'paying'}
-                error={cardPaymentError}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Card payment form overlay removed — card payments use external POS terminal */}
 
       {/* ════════════════════════════════════════════════════════
           OPEN CASH REGISTER MODAL
