@@ -291,7 +291,11 @@ export const accessAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  nfcReplacementCharge: (data) => apiFetch('/api/v1/access/nfc-replacement-charge', { method: 'POST', body: JSON.stringify(data) }),
+  nfcReplacementCharge: async (data) => {
+    const result = await rpc('nfc_replacement_charge', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
   gateVerify: async (data) => {
     const result = await rpc('gate_verify', { p_token: getToken(), p_data: data });
     if (!result.success) throw new Error(result.error);
