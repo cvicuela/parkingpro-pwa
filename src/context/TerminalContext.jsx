@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthContext';
 import { terminalsAPI } from '../services/api';
@@ -63,10 +63,12 @@ export function TerminalProvider({ children }) {
     sendHeartbeat();
     const interval = setInterval(sendHeartbeat, 120000);
     return () => clearInterval(interval);
-  }, [terminal]);
+  }, [terminal?.id, terminal?.code]);
+
+  const value = useMemo(() => ({ terminal, terminals, loading, selectTerminal, clearTerminal, fetchTerminals }), [terminal, terminals, loading, selectTerminal, clearTerminal, fetchTerminals]);
 
   return (
-    <TerminalContext.Provider value={{ terminal, terminals, loading, selectTerminal, clearTerminal, fetchTerminals }}>
+    <TerminalContext.Provider value={value}>
       {children}
     </TerminalContext.Provider>
   );

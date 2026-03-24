@@ -190,7 +190,17 @@ export default function ControlAccesoPage() {
 
   useEffect(() => {
     fetchOccupancy();
-    const interval = setInterval(fetchOccupancy, 5000);
+    let interval = setInterval(fetchOccupancy, 5000);
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        clearInterval(interval);
+      } else {
+        fetchOccupancy();
+        interval = setInterval(fetchOccupancy, 5000);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
 
     const socket = connectSocket();
     socket.on('occupancy_update', (data) => {
@@ -211,6 +221,7 @@ export default function ControlAccesoPage() {
 
     return () => {
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
       socket.off('occupancy_update');
       socket.off('vehicle_entry');
       socket.off('vehicle_exit');
@@ -280,6 +291,7 @@ export default function ControlAccesoPage() {
     setLoading(true);
     try {
       // If RFID mode, resolve card first
+      let resolvedPlate = null;
       if (accessMethod === 'rfid' && rfidUid) {
         try {
           const { data: rfidResult } = await rfidAPI.resolve(rfidUid);
@@ -290,7 +302,7 @@ export default function ControlAccesoPage() {
             return;
           }
           // Use the resolved plate for the rest of the flow
-          const resolvedPlate = resolution.subscription?.vehicle_plate || resolution.card?.metadata?.vehicle_plate || plate;
+          resolvedPlate = resolution.subscription?.vehicle_plate || resolution.card?.metadata?.vehicle_plate || plate;
           if (resolvedPlate) setPlate(resolvedPlate);
           // Continue with normal flow using resolved plate
         } catch (err) {
@@ -300,7 +312,7 @@ export default function ControlAccesoPage() {
         }
       }
 
-      const entryPlate = plate.trim() ? plate.toUpperCase().trim() : `SIN-${timeService.timestamp().toString(36).toUpperCase()}`;
+      const entryPlate = (resolvedPlate || plate).trim() ? (resolvedPlate || plate).toUpperCase().trim() : `SIN-${timeService.timestamp().toString(36).toUpperCase()}`;
       const { data } = await accessAPI.entry({ plateNumber: entryPlate });
       const session = data?.data || data;
       toast.success('Entrada registrada');
@@ -400,7 +412,7 @@ export default function ControlAccesoPage() {
       if (isFreeExit) {
         try {
           await accessAPI.exit({ sessionId: session.id });
-        } catch {}
+        } catch (e) { console.error('Error registering exit:', e); }
         setExitPopup(prev => prev ? {
           ...prev,
           step: 'auto_exit',
@@ -504,7 +516,7 @@ export default function ControlAccesoPage() {
       if (exitPopup.paymentPending) {
         try {
           await accessAPI.exit({ sessionId: fee.sessionId, payment: { paid: true } });
-        } catch {}
+        } catch (e) { console.error('Error registering exit:', e); }
       }
 
       setExitPopup(prev => prev ? { ...prev, step: 'receipt', receiptData: receipt } : null);
@@ -556,6 +568,7 @@ export default function ControlAccesoPage() {
   // ── Open exit popup from plate/ID input ──
   const handleExitSearch = async () => {
     // If RFID mode, resolve card first
+    let resolvedPlate = null;
     if (accessMethod === 'rfid' && rfidUid) {
       setLoading(true);
       try {
@@ -566,7 +579,7 @@ export default function ControlAccesoPage() {
           setLoading(false);
           return;
         }
-        const resolvedPlate = resolution.subscription?.vehicle_plate || resolution.card?.metadata?.vehicle_plate || plate;
+        resolvedPlate = resolution.subscription?.vehicle_plate || resolution.card?.metadata?.vehicle_plate || plate;
         if (resolvedPlate) setPlate(resolvedPlate);
       } catch (err) {
         toast.error('Error al resolver tarjeta RFID');
@@ -575,7 +588,7 @@ export default function ControlAccesoPage() {
       }
     }
 
-    const p = plate.toUpperCase().trim();
+    const p = (resolvedPlate || plate).toUpperCase().trim();
     if (!p) { toast.warning('Ingresa una placa, ticket # o ID'); return; }
     setLoading(true);
     try {
@@ -601,7 +614,7 @@ export default function ControlAccesoPage() {
             try {
               const { data } = await accessAPI.sessionByPlate(p);
               const sess = data?.data || data;
-              if (sess) openExitPopup(sess);
+              if (sess && (!Array.isArray(sess) || sess.length > 0)) openExitPopup(Array.isArray(sess) ? sess[0] : sess);
               else toast.warning('No hay sesión activa para esta placa o ticket #');
             } catch {
               toast.warning('No se encontró sesión activa');

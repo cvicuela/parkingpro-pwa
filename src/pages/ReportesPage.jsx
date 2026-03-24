@@ -123,7 +123,7 @@ function TabResumen({ period, customFrom, customTo }) {
 
   useEffect(() => {
     setLoading(true);
-    reportsAPI.executiveSummary()
+    reportsAPI.executiveSummary(period, customFrom, customTo)
       .then(r => setData(r.data?.data || r.data))
       .catch(() => {})
       .finally(() => setLoading(false));

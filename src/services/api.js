@@ -343,8 +343,13 @@ export const reportsAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
-  executiveSummary: async () => {
-    const result = await rpc('report_executive_summary', { p_token: getToken() });
+  executiveSummary: async (period, from, to) => {
+    const result = await rpc('report_executive_summary', {
+      p_token: getToken(),
+      p_period: period || 'month',
+      p_from: from || null,
+      p_to: to || null
+    });
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
