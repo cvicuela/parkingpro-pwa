@@ -172,8 +172,8 @@ function TabResumen({ period, customFrom, customTo }) {
           <div>
             <h4 className="font-medium text-gray-600 mb-3">Ingresos</h4>
             <div className="space-y-2">
-              <div className="flex justify-between"><span className="text-gray-500">Suscripciones</span><span className="font-medium">{fmtMoney(rev.currentMonth - sess.hourlyRevenue)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Parqueo por hora</span><span className="font-medium">{fmtMoney(sess.hourlyRevenue)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Suscripciones</span><span className="font-medium">{fmtMoney(rev.subscriptionRevenue || 0)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Parqueo por hora</span><span className="font-medium">{fmtMoney(rev.hourlyRevenue || sess.hourlyRevenue)}</span></div>
               <div className="flex justify-between border-t pt-2"><span className="font-semibold">Total Bruto</span><span className="font-bold text-green-600">{fmtMoney(rev.currentMonth)}</span></div>
               <div className="flex justify-between text-red-600"><span>(-) Reembolsos</span><span>{fmtMoney(ref.total)}</span></div>
               <div className="flex justify-between border-t pt-2"><span className="font-semibold">Total Neto</span><span className="font-bold">{fmtMoney(rev.currentMonth - ref.total)}</span></div>
