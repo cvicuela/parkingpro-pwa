@@ -3,6 +3,7 @@ import { plansAPI } from '../services/api';
 import { toast } from 'react-toastify';
 import { Plus, Edit2, Trash2, X, Clock, Sun, Moon, Timer, DollarSign, Save, RefreshCw, AlertTriangle, Layers } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import { fmtMoney } from '../utils/formatters';
 
 const planIcons = { diurno: Sun, nocturno: Moon, '24h': Clock, hourly: Timer };
 const planColors = {
@@ -304,7 +305,7 @@ function PlanModal({ plan, onClose, onSave }) {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                 {form.base_price > 0 && (
                   <p className="text-xs text-gray-400 mt-1">
-                    Subtotal: RD$ {(parseFloat(form.base_price) / 1.18).toFixed(2)} + ITBIS: RD$ {(parseFloat(form.base_price) - parseFloat(form.base_price) / 1.18).toFixed(2)}
+                    Subtotal: {fmtMoney(parseFloat(form.base_price) / 1.18)} + ITBIS: {fmtMoney(parseFloat(form.base_price) - parseFloat(form.base_price) / 1.18)}
                   </p>
                 )}
               </div>
@@ -465,14 +466,14 @@ export default function PlanesPage() {
               <p className="text-sm text-gray-500 mb-3">{plan.description}</p>
               <div className="mb-3">
                 <div className="text-xl font-bold text-indigo-600">
-                  RD$ {parseFloat(plan.base_price).toLocaleString()}
+                  {fmtMoney(plan.base_price)}
                   <span className="text-xs font-normal text-gray-400">
                     {plan.type === 'hourly' ? '/hora' : '/mes'}
                   </span>
                 </div>
                 {plan.tax_breakdown && (
                   <div className="text-xs text-gray-400 mt-0.5">
-                    Subtotal: RD$ {plan.tax_breakdown.subtotal?.toLocaleString()} + ITBIS: RD$ {plan.tax_breakdown.tax_amount?.toLocaleString()}
+                    Subtotal: {fmtMoney(plan.tax_breakdown.subtotal)} + ITBIS: {fmtMoney(plan.tax_breakdown.tax_amount)}
                   </div>
                 )}
               </div>

@@ -5,8 +5,7 @@ import { toast } from 'react-toastify';
 import { Search, RotateCcw, DollarSign, CheckCircle, XCircle, Clock, FileText, RefreshCw, X } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
-
-const fmtMoney = (v) => { const p = Number(v || 0).toFixed(2).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
+import { fmtMoney } from '../utils/formatters';
 
 const statusConfig = {
   paid: { icon: CheckCircle, label: 'Pagado', class: 'bg-green-100 text-green-700' },

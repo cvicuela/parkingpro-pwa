@@ -15,6 +15,7 @@ import {
   Hash, Timer, Copy, AlertTriangle, Wifi, Radio,
   Wallet, ChevronDown, Send, FileText
 } from 'lucide-react';
+import { fmtMoney } from '../utils/formatters';
 
 /* ─── Dominican Peso denominations ─── */
 const DENOMINATIONS = [
@@ -73,11 +74,6 @@ function CountdownBar({ seconds, total }) {
 /* ─── Helpers ─── */
 const fmtTime = (iso) => timeService.fmtTime(iso);
 const fmtDateTime = (iso) => timeService.fmtDateTime(iso);
-const fmtMoney = (n) => {
-  const parts = Number(n || 0).toFixed(2).split('.');
-  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `RD$ ${parts.join('.')}`;
-};
 const elapsed = (iso) => {
   const mins = Math.round((timeService.timestamp() - new Date(iso).getTime()) / 60000);
   return { mins, text: `${Math.floor(mins / 60)}h ${mins % 60}m` };
@@ -1320,7 +1316,7 @@ export default function ControlAccesoPage() {
                 <p className="text-sm font-semibold text-indigo-800">{entryTicket.planName}</p>
                 <p className="text-xs text-indigo-600">
                   {entryTicket.type === 'subscriber' ? 'Suscriptor' : 'Por Hora'}
-                  {entryTicket.basePrice ? ` · Tarifa base: RD$ ${parseFloat(entryTicket.basePrice).toFixed(2)}` : ''}
+                  {entryTicket.basePrice ? ` · Tarifa base: ${fmtMoney(entryTicket.basePrice)}` : ''}
                 </p>
               </div>
               {entryTicket.customerName && (

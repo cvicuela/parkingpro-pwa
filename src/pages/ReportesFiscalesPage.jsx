@@ -6,6 +6,7 @@ import {
   CheckCircle, RefreshCw, Clock
 } from 'lucide-react';
 import { fiscalAPI, settingsAPI } from '../services/api';
+import { fmtMoney } from '../utils/formatters';
 
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -25,9 +26,6 @@ const PAYMENT_METHOD_LABELS = {
   '04': 'Crédito', '05': 'Permuta', '06': 'Nota de Crédito', '07': 'Mixto'
 };
 
-function formatCurrency(v) {
-  return new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' }).format(v || 0);
-}
 
 function formatDGIIDate(yyyymmdd) {
   if (!yyyymmdd || yyyymmdd.length < 8) return '-';
@@ -565,11 +563,11 @@ export default function ReportesFiscalesPage() {
             </div>
             <div className="bg-white rounded-xl shadow-sm border p-4">
               <p className="text-xs text-gray-500">Monto Total</p>
-              <p className="text-lg font-bold">{formatCurrency(totals.total_amount)}</p>
+              <p className="text-lg font-bold">{fmtMoney(totals.total_amount)}</p>
             </div>
             <div className="bg-white rounded-xl shadow-sm border p-4">
               <p className="text-xs text-gray-500">ITBIS Total</p>
-              <p className="text-lg font-bold">{formatCurrency(totals.total_itbis)}</p>
+              <p className="text-lg font-bold">{fmtMoney(totals.total_itbis)}</p>
             </div>
           </div>
 
@@ -696,9 +694,9 @@ export default function ReportesFiscalesPage() {
                           />
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">{formatDGIIDate(r.invoice_date)}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(r.subtotal)}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(r.itbis)}</td>
-                        <td className="px-3 py-2 text-right font-semibold">{formatCurrency(r.total_amount)}</td>
+                        <td className="px-3 py-2 text-right">{fmtMoney(r.subtotal)}</td>
+                        <td className="px-3 py-2 text-right">{fmtMoney(r.itbis)}</td>
+                        <td className="px-3 py-2 text-right font-semibold">{fmtMoney(r.total_amount)}</td>
                         <td className="px-3 py-2 text-xs">
                           {r.payment_method === 'cash' && 'Efectivo'}
                           {r.payment_method === 'card' && 'Tarjeta'}
@@ -712,9 +710,9 @@ export default function ReportesFiscalesPage() {
                   <tfoot>
                     <tr className="bg-gray-50 border-t-2 font-semibold">
                       <td colSpan={5} className="px-3 py-2 text-right">Totales:</td>
-                      <td className="px-3 py-2 text-right">{formatCurrency(totals.total_subtotal)}</td>
-                      <td className="px-3 py-2 text-right">{formatCurrency(totals.total_itbis)}</td>
-                      <td className="px-3 py-2 text-right">{formatCurrency(totals.total_amount)}</td>
+                      <td className="px-3 py-2 text-right">{fmtMoney(totals.total_subtotal)}</td>
+                      <td className="px-3 py-2 text-right">{fmtMoney(totals.total_itbis)}</td>
+                      <td className="px-3 py-2 text-right">{fmtMoney(totals.total_amount)}</td>
                       <td></td>
                     </tr>
                   </tfoot>
@@ -754,9 +752,9 @@ export default function ReportesFiscalesPage() {
                         </td>
                         <td className="px-3 py-2 text-xs">{EXPENSE_TYPE_LABELS[r.expense_type] || r.expense_type}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{formatDGIIDate(r.invoice_date)}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(r.goods_amount)}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(r.itbis)}</td>
-                        <td className="px-3 py-2 text-right font-semibold">{formatCurrency(r.total)}</td>
+                        <td className="px-3 py-2 text-right">{fmtMoney(r.goods_amount)}</td>
+                        <td className="px-3 py-2 text-right">{fmtMoney(r.itbis)}</td>
+                        <td className="px-3 py-2 text-right font-semibold">{fmtMoney(r.total)}</td>
                         <td className="px-3 py-2 text-xs">{PAYMENT_METHOD_LABELS[r.payment_method] || r.payment_method}</td>
                       </tr>
                     ))}
@@ -764,9 +762,9 @@ export default function ReportesFiscalesPage() {
                   <tfoot>
                     <tr className="bg-gray-50 border-t-2 font-semibold">
                       <td colSpan={7} className="px-3 py-2 text-right">Totales:</td>
-                      <td className="px-3 py-2 text-right">{formatCurrency(totals.total_subtotal)}</td>
-                      <td className="px-3 py-2 text-right">{formatCurrency(totals.total_itbis)}</td>
-                      <td className="px-3 py-2 text-right">{formatCurrency(totals.total_amount)}</td>
+                      <td className="px-3 py-2 text-right">{fmtMoney(totals.total_subtotal)}</td>
+                      <td className="px-3 py-2 text-right">{fmtMoney(totals.total_itbis)}</td>
+                      <td className="px-3 py-2 text-right">{fmtMoney(totals.total_amount)}</td>
                       <td></td>
                     </tr>
                   </tfoot>

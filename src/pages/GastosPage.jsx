@@ -8,6 +8,7 @@ import {
 import { expensesAPI } from '../services/api';
 import Pagination from '../components/Pagination';
 import RncLookupInput from '../components/RncLookupInput';
+import { fmtMoney } from '../utils/formatters';
 
 const EXPENSE_TYPES = [
   { code: '01', label: 'Gastos de Personal' },
@@ -65,9 +66,6 @@ const emptyExpense = {
   description: '',
 };
 
-function formatCurrency(v) {
-  return new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' }).format(v || 0);
-}
 
 function formatDate(d) {
   if (!d) return '-';
@@ -254,7 +252,7 @@ export default function GastosPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Gastos</p>
-                <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.total_amount)}</p>
+                <p className="text-xl font-bold text-gray-900">{fmtMoney(stats.total_amount)}</p>
               </div>
             </div>
           </div>
@@ -265,7 +263,7 @@ export default function GastosPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">ITBIS Pagado</p>
-                <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.total_itbis)}</p>
+                <p className="text-xl font-bold text-gray-900">{fmtMoney(stats.total_itbis)}</p>
               </div>
             </div>
           </div>
@@ -384,9 +382,9 @@ export default function GastosPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{getExpenseTypeLabel(exp.expense_type)}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(exp.subtotal)}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(exp.itbis_amount)}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{formatCurrency(exp.total)}</td>
+                    <td className="px-4 py-3 text-right text-gray-700">{fmtMoney(exp.subtotal)}</td>
+                    <td className="px-4 py-3 text-right text-gray-700">{fmtMoney(exp.itbis_amount)}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{fmtMoney(exp.total)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => handleOpen(exp)}
@@ -407,9 +405,9 @@ export default function GastosPage() {
               <tfoot>
                 <tr className="bg-gray-50 border-t-2 font-semibold">
                   <td colSpan={6} className="px-4 py-3 text-right text-gray-600">Totales:</td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(filtered.reduce((s, e) => s + (parseFloat(e.subtotal) || 0), 0))}</td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(filtered.reduce((s, e) => s + (parseFloat(e.itbis_amount) || 0), 0))}</td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(filtered.reduce((s, e) => s + (parseFloat(e.total) || 0), 0))}</td>
+                  <td className="px-4 py-3 text-right">{fmtMoney(filtered.reduce((s, e) => s + (parseFloat(e.subtotal) || 0), 0))}</td>
+                  <td className="px-4 py-3 text-right">{fmtMoney(filtered.reduce((s, e) => s + (parseFloat(e.itbis_amount) || 0), 0))}</td>
+                  <td className="px-4 py-3 text-right">{fmtMoney(filtered.reduce((s, e) => s + (parseFloat(e.total) || 0), 0))}</td>
                   <td></td>
                 </tr>
               </tfoot>

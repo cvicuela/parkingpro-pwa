@@ -6,8 +6,7 @@ import { toast } from 'react-toastify';
 import { offlineQueue } from '../services/offlineQueue';
 import { DollarSign, Users, Car, AlertTriangle, TrendingUp, TrendingDown, Shield, Receipt, ArrowUpRight, ArrowDownRight, LogIn, LogOut, Wallet, CheckCircle } from 'lucide-react';
 import PushNotificationToggle from '../components/PushNotificationToggle';
-
-const fmtRD = (n) => { const p = Number(n || 0).toFixed(0).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
+import { fmtMoney } from '../utils/formatters';
 
 const DAY_LABELS_ES = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
 function generateMockTrend() {
@@ -175,7 +174,7 @@ function PaymentDonut({ methods }) {
               />
             ))}
             <text x={CX} y={CY - 5} textAnchor="middle" fontSize={10} fill="#374151" fontWeight="600">
-              {fmtRD(total).replace('RD$ ', '')}
+              {fmtMoney(total).replace('RD$ ', '')}
             </text>
             <text x={CX} y={CY + 9} textAnchor="middle" fontSize={8} fill="#9ca3af">
               total
@@ -271,7 +270,7 @@ function ActiveSessionRow({ session }) {
         </span>
       </td>
       <td className="py-3 px-4 text-sm font-medium text-green-600">
-        RD$ {amount.toFixed(2)}
+        {fmtMoney(amount)}
       </td>
     </tr>
   );
@@ -463,7 +462,7 @@ export default function DashboardPage() {
       fetchData();
     });
     socket.on('payment_received', (data) => {
-      toast.success(`Pago recibido: RD$${parseFloat(data.amount).toLocaleString()}`, { autoClose: 3000 });
+      toast.success(`Pago recibido: ${fmtMoney(data.amount)}`, { autoClose: 3000 });
     });
     socket.on('incident_created', (data) => {
       toast.warn(`Nuevo incidente: ${data.description}`, { autoClose: 5000 });
@@ -526,16 +525,16 @@ export default function DashboardPage() {
         <StatCard
           icon={DollarSign}
           label="Ingresos del Mes"
-          value={fmtRD(dashboard?.revenue)}
+          value={fmtMoney(dashboard?.revenue)}
           color="green"
           subtext={<span className="flex items-center gap-0.5 text-green-600"><ArrowUpRight size={10} />Ventas</span>}
         />
         <StatCard
           icon={TrendingDown}
           label="Gastos del Mes"
-          value={fmtRD(parseFloat(expenseStats?.total_amount))}
+          value={fmtMoney(parseFloat(expenseStats?.total_amount))}
           color="amber"
-          subtext={`ITBIS: ${fmtRD(parseFloat(expenseStats?.total_itbis))}`}
+          subtext={`ITBIS: ${fmtMoney(parseFloat(expenseStats?.total_itbis))}`}
         />
         <StatCard
           icon={Car}
@@ -570,7 +569,7 @@ export default function DashboardPage() {
           </span>
           <span className="flex items-center gap-1.5 text-gray-700">
             <DollarSign size={14} className="text-green-500" />
-            <strong>{fmtRD(todayStats.revenue)}</strong> recaudado
+            <strong>{fmtMoney(todayStats.revenue)}</strong> recaudado
           </span>
         </div>
       )}
@@ -590,7 +589,7 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs text-gray-500">Utilidad Neta (Mes)</p>
             <p className={`text-xl font-bold ${(dashboard?.revenue || 0) - (parseFloat(expenseStats?.total_amount) || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {fmtRD((dashboard?.revenue || 0) - (parseFloat(expenseStats?.total_amount) || 0))}
+              {fmtMoney((dashboard?.revenue || 0) - (parseFloat(expenseStats?.total_amount) || 0))}
             </p>
           </div>
         </div>
