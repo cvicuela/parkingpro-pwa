@@ -106,7 +106,7 @@ export async function generateEntryTicketHTML({ plate, entryTime, type, planName
   `;
 }
 
-export async function generatePaymentReceiptHTML({ receipt, showQr = true }) {
+export async function generatePaymentReceiptHTML({ receipt, showQr = false }) {
   const r = receipt;
   const entryTime = new Date(r.entryTime).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Santo_Domingo' });
   const exitTime = new Date(r.exitTime || r.paidAt).toLocaleString('es-DO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Santo_Domingo' });
@@ -134,7 +134,7 @@ export async function generatePaymentReceiptHTML({ receipt, showQr = true }) {
     <div class="line"></div>
     ${showQr && qrSrc ? `<img class="qr" src="${qrSrc}" alt="QR" />` : ''}
     ${r.code ? `<div class="center small">Codigo: ${escapeHtml(r.code)}</div>` : ''}
-    <div class="center small mt">Presente este recibo para salir</div>
+    <div class="center small mt">Conserve su ticket de entrada para salir</div>
     <div class="center small mt mb">Gracias por su preferencia</div>
   `;
 }

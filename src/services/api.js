@@ -301,6 +301,8 @@ export const accessAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
+  lostTicketReplacement: (data) => apiFetch('/access/lost-ticket-replacement', { method: 'POST', body: JSON.stringify(data) }),
+  nfcLostReplacement: (data) => apiFetch('/access/nfc-lost-replacement', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // Payments
