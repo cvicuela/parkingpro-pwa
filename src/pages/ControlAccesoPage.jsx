@@ -1248,11 +1248,9 @@ export default function ControlAccesoPage() {
                       {r.code && <div className="flex justify-between"><span className="text-gray-500">Código</span><span className="font-mono">{r.code}</span></div>}
                       {r.verification_code && <div className="flex justify-between"><span className="text-gray-500">Verificación</span><span className="font-mono font-bold text-indigo-700">{r.verification_code}</span></div>}
                     </div>
-                    <div className="text-center">
-                      <div className="mx-auto w-36 h-36 flex items-center justify-center">
-                        <QRCodeSVG value={r.code || r.invoiceNumber || 'N/A'} size={140} level="M" />
-                      </div>
-                      <p className="text-xs text-gray-400 mt-1">Presente este QR para salir</p>
+                    <div className="text-center bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-sm text-blue-800 font-medium">Utilice su ticket de entrada para salir</p>
+                      <p className="text-xs text-blue-600 mt-1">El ticket QR de entrada es necesario para abrir la barrera</p>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={async () => {
@@ -1267,6 +1265,44 @@ export default function ControlAccesoPage() {
                         <Printer size={16} /> Imprimir
                       </button>
                     </div>
+                    {(exitPopup.isLostTicket || exitPopup.isNfcReplacement) && (
+                      <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 space-y-2">
+                        <p className="text-sm font-bold text-amber-800 text-center">
+                          Ticket de Reemplazo Requerido
+                        </p>
+                        <p className="text-xs text-amber-700 text-center">
+                          {exitPopup.isLostTicket
+                            ? 'Imprima el ticket de reemplazo para que el cliente pueda salir'
+                            : 'Imprima el ticket temporal para que el cliente pueda salir sin tarjeta NFC'}
+                        </p>
+                        <button onClick={async () => {
+                          try {
+                            const apiCall = exitPopup.isLostTicket
+                              ? accessAPI.lostTicketReplacement({ sessionId: exitPopup.session?.id, plateNumber: r.plateNumber })
+                              : accessAPI.nfcLostReplacement({ plateNumber: r.plateNumber });
+                            const { data } = await apiCall;
+                            const replacement = data?.data || data;
+                            const qrUrl = data?.qrCode || '';
+                            // Print entry-style ticket with replacement data
+                            await printEntryTicket({
+                              plate: replacement.vehiclePlate || r.plateNumber,
+                              entryTime: replacement.entryTime || exitPopup.session?.entry_time,
+                              type: 'hourly',
+                              planName: replacement.planName || '',
+                              verificationCode: replacement.verificationCode,
+                              qrUrl,
+                              sessionId: replacement.sessionId,
+                            });
+                            toast.success('Ticket de reemplazo impreso');
+                          } catch (err) {
+                            toast.error(err.message || 'Error al generar ticket de reemplazo');
+                          }
+                        }}
+                          className="w-full flex items-center justify-center gap-2 bg-amber-500 text-white rounded-lg py-2.5 hover:bg-amber-600 font-bold text-sm">
+                          <Printer size={16} /> Imprimir Ticket de Reemplazo
+                        </button>
+                      </div>
+                    )}
                     <button onClick={closeExitPopup}
                       className="w-full flex items-center justify-center gap-2 bg-green-600 text-white rounded-lg py-2.5 hover:bg-green-700 font-medium">
                       <ArrowRight size={18} /> Siguiente Vehiculo
