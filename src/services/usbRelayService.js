@@ -1,3 +1,5 @@
+import tauriSerialService from './tauriSerialService';
+
 /**
  * usbRelayService.js
  * Servicio para controlar módulos de relay USB (barreras de estacionamiento)
@@ -325,4 +327,9 @@ const usbRelayService = {
   },
 };
 
-export default usbRelayService;
+// --- Auto-detect: Tauri native vs Web Serial API ---
+const isTauri = !!window.__TAURI__;
+const relayService = isTauri ? tauriSerialService : usbRelayService;
+
+export default relayService;
+export { usbRelayService, tauriSerialService };
