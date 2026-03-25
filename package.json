@@ -13,7 +13,11 @@
     "test:visual": "npx playwright test tests/visual/",
     "test:update-snapshots": "npx playwright test --update-snapshots",
     "test:ui": "npx playwright test --ui",
-    "test:report": "npx playwright show-report"
+    "test:report": "npx playwright show-report",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build-debug": "tauri build --debug"
   },
   "repository": {
     "type": "git",
@@ -21,6 +25,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
+    "@tauri-apps/api": "^2",
     "axios": "^1.13.6",
     "lucide-react": "^0.577.0",
     "qrcode": "^1.5.4",
@@ -35,6 +40,7 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.2.1",
+    "@tauri-apps/cli": "^2",
     "@vitejs/plugin-react": "^5.1.4",
     "playwright": "^1.58.2",
     "tailwindcss": "^4.2.1",

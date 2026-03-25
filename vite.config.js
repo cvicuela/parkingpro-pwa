@@ -2,10 +2,14 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
+const isTauri = !!process.env.TAURI_ENV_PLATFORM;
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  clearScreen: false,
   server: {
     port: 5173,
+    strictPort: true,
     proxy: {
       '/api': 'http://localhost:3000',
       '/socket.io': {
@@ -14,8 +18,11 @@ export default defineConfig({
       }
     }
   },
+  envPrefix: ['VITE_', 'TAURI_ENV_'],
   build: {
     outDir: 'dist',
-    sourcemap: false
+    sourcemap: false,
+    target: isTauri ? 'chrome105' : 'modules',
+    minify: !isTauri ? 'esbuild' : 'terser',
   }
 });
