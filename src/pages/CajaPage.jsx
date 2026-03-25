@@ -10,6 +10,7 @@ import { generateCashReportHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
 import { useAuth } from '../context/AuthContext';
 import timeService from '../services/timeService';
+import { fmtMoney } from '../utils/formatters';
 
 const DENOMINATIONS = [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1];
 
@@ -140,9 +141,8 @@ export default function CajaPage() {
       const data = res.data.data;
       if (data?.requires_approval) {
         const diff = parseFloat(data.difference || 0);
-        const diffStr = Math.abs(diff).toLocaleString('es-DO', { minimumFractionDigits: 2 });
         toast.warn(
-          `Caja cerrada con ${diff < 0 ? 'faltante' : 'sobrante'} de RD$${diffStr}. Requiere aprobación del supervisor.`,
+          `Caja cerrada con ${diff < 0 ? 'faltante' : 'sobrante'} de ${fmtMoney(Math.abs(diff))}. Requiere aprobación del supervisor.`,
           { autoClose: 10000 }
         );
       } else {
@@ -178,7 +178,6 @@ export default function CajaPage() {
       : 'Operador'
   });
 
-  const fmtMoney = (v) => { const p = Number(v || 0).toFixed(2).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
   const fmtTime = (iso) => {
     if (!iso) return '—';
     return new Date(iso).toLocaleString('es-DO', {

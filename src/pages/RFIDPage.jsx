@@ -6,6 +6,7 @@ import {
   Users, Zap, ChevronRight
 } from 'lucide-react';
 import { rfidAPI, subscriptionsAPI, devicesAPI, customersAPI } from '../services/api';
+import { fmtMoney } from '../utils/formatters';
 import io from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -646,7 +647,7 @@ export default function RFIDPage() {
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-bold text-indigo-600">RD$ {parseFloat(sub.price_per_period || 0).toLocaleString()}</p>
+                            <p className="text-sm font-bold text-indigo-600">{fmtMoney(sub.price_per_period)}</p>
                             <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">Activa</span>
                           </div>
                         </div>

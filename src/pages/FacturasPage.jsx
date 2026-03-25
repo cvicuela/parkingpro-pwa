@@ -4,8 +4,7 @@ import { FileText, Search, Printer, RefreshCw, X, Eye } from 'lucide-react';
 import { invoicesAPI } from '../services/api';
 import PrintPreviewModal from '../components/PrintPreviewModal';
 import Pagination from '../components/Pagination';
-
-const fmtMoney = (v) => { const p = Number(v || 0).toFixed(2).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
+import { fmtMoney } from '../utils/formatters';
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '-';
 const fmtDateTime = (iso) => iso ? new Date(iso).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
 

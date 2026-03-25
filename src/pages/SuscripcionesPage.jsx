@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import { Plus, Search, X, Pause, Play, Trash2, AlertTriangle, Eye, FileText, User, Phone, Mail, Car, CreditCard, Calendar, Building2, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
+import { fmtMoney } from '../utils/formatters';
 
 const statusBadge = {
   active: 'bg-green-100 text-green-700',
@@ -30,7 +31,6 @@ const billingLabel = {
   annual: 'Anual',
 };
 
-const fmtMoney = (v) => { if (v == null) return '-'; const p = Number(v).toFixed(2).split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); return `RD$ ${p.join('.')}`; };
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '-';
 
 /* ─── Customer Detail Popup ─── */
@@ -277,7 +277,7 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
               <option value="">Seleccionar...</option>
               {plans.filter(p => p.type !== 'hourly').map((p) => (
-                <option key={p.id} value={p.id}>{p.name} - RD$ {parseFloat(p.base_price).toLocaleString()}/mes (ITBIS incl.)</option>
+                <option key={p.id} value={p.id}>{p.name} - {fmtMoney(p.base_price)}/mes (ITBIS incl.)</option>
               ))}
             </select>
           </div>
