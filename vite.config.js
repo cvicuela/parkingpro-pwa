@@ -22,7 +22,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    target: isTauri ? 'chrome105' : 'modules',
+    target: isTauri ? 'chrome105' : 'es2020',
     minify: !isTauri ? 'esbuild' : 'terser',
   }
 });
