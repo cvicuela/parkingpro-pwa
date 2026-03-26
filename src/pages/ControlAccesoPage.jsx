@@ -981,16 +981,24 @@ export default function ControlAccesoPage() {
                   <div className="space-y-4">
                     {/* ── Special charge banners ── */}
                     {exitPopup.isLostTicket && (
-                      <div className="bg-red-50 border-2 border-red-400 rounded-xl p-3 flex items-center gap-3">
-                        <AlertTriangle size={28} className="text-red-500 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-red-800 text-sm">Ticket Perdido</p>
-                          <p className="text-red-700 text-xl font-bold">{fmtMoney(fee.total)}</p>
+                      <div className="bg-red-50 border-2 border-red-400 rounded-xl p-3 space-y-2">
+                        <div className="flex items-center gap-3">
+                          <AlertTriangle size={28} className="text-red-500 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-red-800 text-sm">Ticket Perdido</p>
+                            <p className="text-red-700 text-xl font-bold">{fmtMoney(fee.total)}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs text-red-600 font-medium">Penalidad aplicada</p>
+                            <p className="text-xs text-red-500">Cobrar para salir</p>
+                          </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-xs text-red-600 font-medium">Penalidad aplicada</p>
-                          <p className="text-xs text-red-500">Cobrar para salir</p>
-                        </div>
+                        {fee.days_parked && fee.daily_rate && (
+                          <div className="bg-red-100/60 rounded-lg px-3 py-1.5 text-xs text-red-800">
+                            <span className="font-bold">{fee.days_parked} día{fee.days_parked > 1 ? 's' : ''}</span> × {fmtMoney(fee.daily_rate)}/día = {fmtMoney(fee.lost_ticket_fee || fee.subtotal)}
+                            {fee.days_parked > 1 && <span className="ml-1 text-red-600">(entrada: {new Date(fee.entryTime || exitPopup.session?.entry_time).toLocaleDateString('es-DO')})</span>}
+                          </div>
+                        )}
                       </div>
                     )}
                     {exitPopup.isNfcReplacement && (
