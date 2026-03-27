@@ -1016,6 +1016,71 @@ export const billingAPI = {
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
+  calculatePrepaid: async (subscriptionId, months, discountId = null) => {
+    const result = await rpc('calculate_prepaid_invoice', {
+      p_token: getToken(),
+      p_subscription_id: subscriptionId,
+      p_months: months,
+      p_discount_id: discountId,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  generatePrepaid: async (subscriptionId, months, discountId = null, paymentMethod = 'cash', notes = null) => {
+    const result = await rpc('generate_prepaid_invoice', {
+      p_token: getToken(),
+      p_subscription_id: subscriptionId,
+      p_months: months,
+      p_discount_id: discountId,
+      p_payment_method: paymentMethod,
+      p_notes: notes,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  forecast: async (days = 30) => {
+    const result = await rpc('get_billing_forecast', { p_token: getToken(), p_days: days });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  autoSuspend: async () => {
+    const result = await rpc('auto_suspend_expired', { p_token: getToken() });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
+// Discounts
+export const discountsAPI = {
+  list: async (params = {}) => {
+    const result = await rpc('list_discounts', {
+      p_token: getToken(),
+      p_active: params.active ?? null,
+      p_plan_id: params.planId || null,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  get: async (id) => {
+    const result = await rpc('get_discount', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  create: async (data) => {
+    const result = await rpc('create_discount', { p_token: getToken(), p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  update: async (id, data) => {
+    const result = await rpc('update_discount', { p_token: getToken(), p_id: id, p_data: data });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+  delete: async (id) => {
+    const result = await rpc('delete_discount', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Default export for backward compatibility

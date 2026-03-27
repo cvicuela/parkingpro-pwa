@@ -33,6 +33,7 @@ const ReportesFiscalesPage = lazy(() => import('./pages/ReportesFiscalesPage'));
 const NCFPage = lazy(() => import('./pages/NCFPage'));
 const NotificacionesPage = lazy(() => import('./pages/NotificacionesPage'));
 const IncidentesPage = lazy(() => import('./pages/IncidentesPage'));
+const DescuentosPage = lazy(() => import('./pages/DescuentosPage'));
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -76,6 +77,7 @@ function AppRoutes() {
         <Route path="facturas" element={<FacturasPage />} />
         <Route path="caja/historial" element={<ProtectedRoute roles={['admin','super_admin']}><CajaHistorialPage /></ProtectedRoute>} />
         <Route path="gastos" element={<ProtectedRoute roles={['admin','super_admin']}><GastosPage /></ProtectedRoute>} />
+        <Route path="descuentos" element={<ProtectedRoute roles={['admin','super_admin']}><DescuentosPage /></ProtectedRoute>} />
         <Route path="reportes" element={<ProtectedRoute roles={['admin','super_admin']}><ReportesPage /></ProtectedRoute>} />
         <Route path="fiscal" element={<ProtectedRoute roles={['admin','super_admin']}><ReportesFiscalesPage /></ProtectedRoute>} />
         <Route path="ncf" element={<ProtectedRoute roles={['admin','super_admin']}><NCFPage /></ProtectedRoute>} />
