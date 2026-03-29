@@ -334,12 +334,14 @@ function PrepaidBillingModal({ subscription, onClose, onSuccess }) {
 
   useEffect(() => {
     setDiscountsLoading(true);
-    discountsAPI.list({ active: true })
+    discountsAPI.list()
       .then(({ data }) => {
-        const list = data.data || data || [];
-        setDiscounts(Array.isArray(list) ? list : []);
+        const raw = data.data || data || [];
+        const list = Array.isArray(raw) ? raw : [];
+        setDiscounts(list.filter(d => d.is_active));
       })
       .catch((err) => {
+        toast.error('Error cargando descuentos');
         console.warn('Error cargando descuentos:', err.message);
         setDiscounts([]);
       })
