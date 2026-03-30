@@ -20,6 +20,12 @@ function DiscountModal({ discount, plans, onClose, onSave }) {
   });
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
   const set = (field) => (e) => {
     const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setForm({ ...form, [field]: val });
@@ -84,7 +90,7 @@ function DiscountModal({ discount, plans, onClose, onSave }) {
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
               <select value={form.type} onChange={set('type')}
@@ -110,7 +116,7 @@ function DiscountModal({ discount, plans, onClose, onSave }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Aplica a</label>
               <select value={form.applies_to} onChange={set('applies_to')}
@@ -134,7 +140,7 @@ function DiscountModal({ discount, plans, onClose, onSave }) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Meses mínimos</label>
               <input type="number" min="1" value={form.min_months} onChange={set('min_months')}
@@ -148,7 +154,7 @@ function DiscountModal({ discount, plans, onClose, onSave }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Válido desde</label>
               <input type="date" value={form.valid_from || ''} onChange={set('valid_from')} required
@@ -195,14 +201,14 @@ export default function DescuentosPage() {
     try {
       const { data } = await discountsAPI.list();
       setDiscounts(data.data || data || []);
-    } catch { /* empty */ } finally { setLoading(false); }
+    } catch { toast.error('Error cargando descuentos'); } finally { setLoading(false); }
   };
 
   const fetchPlans = async () => {
     try {
       const { data } = await plansAPI.list();
       setPlans(data.data || data || []);
-    } catch { /* empty */ }
+    } catch {}
   };
 
   useEffect(() => { fetchDiscounts(); fetchPlans(); }, []);
@@ -343,9 +349,9 @@ export default function DescuentosPage() {
                   <th className="px-4 py-3">Tipo</th>
                   <th className="px-4 py-3">Valor</th>
                   <th className="px-4 py-3">Aplica a</th>
-                  <th className="px-4 py-3">Meses mín.</th>
-                  <th className="px-4 py-3">Usos</th>
-                  <th className="px-4 py-3">Vigencia</th>
+                  <th className="px-4 py-3 hidden sm:table-cell">Meses mín.</th>
+                  <th className="px-4 py-3 hidden sm:table-cell">Usos</th>
+                  <th className="px-4 py-3 hidden sm:table-cell">Vigencia</th>
                   <th className="px-4 py-3">Estado</th>
                   <th className="px-4 py-3">Acciones</th>
                 </tr>
@@ -378,12 +384,12 @@ export default function DescuentosPage() {
                           )}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center">{d.min_months || 1}</td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 text-center hidden sm:table-cell">{d.min_months || 1}</td>
+                      <td className="px-4 py-3 text-center hidden sm:table-cell">
                         {(d.current_uses || d.uses_count || 0)}
                         {d.max_uses ? ` / ${d.max_uses}` : ' / ∞'}
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500">{formatVigencia(d)}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500 hidden sm:table-cell">{formatVigencia(d)}</td>
                       <td className="px-4 py-3">
                         {isExpired ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Expirado</span>
@@ -396,13 +402,13 @@ export default function DescuentosPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <button onClick={() => { setEditing(d); setShowModal(true); }}
-                            className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
-                            title="Editar">
+                            className="p-2 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                            title="Editar" aria-label="Editar">
                             <Edit2 size={14} />
                           </button>
                           <button onClick={() => handleDelete(d.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                            title="Eliminar">
+                            className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Eliminar" aria-label="Eliminar">
                             <Trash2 size={14} />
                           </button>
                         </div>
