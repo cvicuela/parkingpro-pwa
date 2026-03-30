@@ -321,6 +321,8 @@ function SubscriptionModal({ subscription, onClose, onSave }) {
 }
 
 /* ─── Prepaid Billing Modal ─── */
+const presetMonths = [1, 3, 6, 12];
+
 function PrepaidBillingModal({ subscription, onClose, onSuccess }) {
   const [months, setMonths] = useState(1);
   const [discounts, setDiscounts] = useState([]);
@@ -331,6 +333,12 @@ function PrepaidBillingModal({ subscription, onClose, onSuccess }) {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
 
   useEffect(() => {
     setDiscountsLoading(true);
@@ -351,14 +359,14 @@ function PrepaidBillingModal({ subscription, onClose, onSuccess }) {
   useEffect(() => {
     if (!subscription?.id || months < 1) return;
     setLoading(true);
-    const discId = selectedDiscount || null;
-    billingAPI.calculatePrepaid(subscription.id, months, discId)
-      .then(({ data }) => setPreview(data))
-      .catch((err) => {
-        console.warn('Error calculando preview:', err.message);
-        setPreview(null);
-      })
-      .finally(() => setLoading(false));
+    const timer = setTimeout(() => {
+      const discId = selectedDiscount || null;
+      billingAPI.calculatePrepaid(subscription.id, months, discId)
+        .then(({ data }) => setPreview(data))
+        .catch(() => setPreview(null))
+        .finally(() => setLoading(false));
+    }, 350);
+    return () => { clearTimeout(timer); setLoading(false); };
   }, [subscription?.id, months, selectedDiscount]);
 
   const handleGenerate = async () => {
@@ -381,12 +389,11 @@ function PrepaidBillingModal({ subscription, onClose, onSuccess }) {
   const netPrice = Math.round((grossPrice / (1 + taxRate)) * 100) / 100;
   const itbisPrice = Math.round((grossPrice - netPrice) * 100) / 100;
 
-  const presetMonths = [1, 3, 6, 12];
-  const availableDiscounts = discounts.filter(d => {
+  const availableDiscounts = useMemo(() => discounts.filter(d => {
     if (d.min_months && months < d.min_months) return false;
     if (d.max_uses && d.current_uses >= d.max_uses) return false;
     return true;
-  });
+  }), [discounts, months]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -570,7 +577,7 @@ export default function SuscripcionesPage() {
     try {
       const { data } = await subscriptionsAPI.list({ search });
       setSubs(data.data || data || []);
-    } catch {} finally { setLoading(false); }
+    } catch (err) { toast.error('Error cargando suscripciones'); } finally { setLoading(false); }
   };
 
   const fetchBillingRuns = async () => {
@@ -737,22 +744,22 @@ export default function SuscripcionesPage() {
                     <td className="py-3 px-4 text-right">
                       <div className="flex justify-end gap-1">
                         {(s.status === 'active' || s.status === 'past_due') && isAdmin && (
-                          <button onClick={() => setBillingModalSub(s)} title="Generar Factura"
-                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"><Receipt size={14} /></button>
+                          <button onClick={() => setBillingModalSub(s)} title="Generar Factura" aria-label="Generar factura"
+                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"><Receipt size={14} /></button>
                         )}
-                        <button onClick={() => setDetailSub(s)} title="Ver detalle"
-                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"><Eye size={14} /></button>
+                        <button onClick={() => setDetailSub(s)} title="Ver detalle" aria-label="Ver detalle"
+                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"><Eye size={14} /></button>
                         {s.status === 'active' && isAdmin && (
-                          <button onClick={() => handleSuspend(s.id)} title="Suspender"
-                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded"><Pause size={14} /></button>
+                          <button onClick={() => handleSuspend(s.id)} title="Suspender" aria-label="Suspender"
+                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded"><Pause size={14} /></button>
                         )}
                         {(s.status === 'suspended' || s.status === 'past_due') && isAdmin && (
-                          <button onClick={() => handleReactivate(s.id)} title="Reactivar"
-                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"><Play size={14} /></button>
+                          <button onClick={() => handleReactivate(s.id)} title="Reactivar" aria-label="Reactivar"
+                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"><Play size={14} /></button>
                         )}
                         {s.status !== 'cancelled' && isAdmin && (
-                          <button onClick={() => openCancelModal(s.id)} title="Cancelar"
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+                          <button onClick={() => openCancelModal(s.id)} title="Cancelar" aria-label="Cancelar suscripción"
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                         )}
                       </div>
                     </td>
