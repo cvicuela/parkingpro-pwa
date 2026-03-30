@@ -19,6 +19,7 @@ import usbRelayService from '../services/usbRelayService';
 
 const categoryConfig = {
   general: { label: 'General', icon: Building2, color: 'indigo', description: 'Datos del negocio y moneda' },
+  billing: { label: 'Facturación Automática', icon: Calendar, color: 'cyan', description: 'Ciclo de facturación, NCF y reintentos' },
   caja: { label: 'Caja Registradora', icon: Wallet, color: 'green', description: 'Umbrales y configuración de caja' },
   facturacion: { label: 'Facturación', icon: Receipt, color: 'blue', description: 'ITBIS y numeración interna' },
   antifraude: { label: 'Antifraude', icon: Shield, color: 'red', description: 'Límites de reembolso y protección' },
@@ -85,6 +86,17 @@ const fieldConfig = {
   alert_email_2: { label: 'Email de Alertas 2 (legacy)', type: 'email', placeholder: 'gerente@empresa.com' },
   'charges.lost_ticket': { label: 'Cargo por Ticket Perdido (RD$)', type: 'number', hint: 'Monto que se cobra cuando un cliente pierde su ticket' },
   'charges.nfc_replacement': { label: 'Cargo por Reposición Tarjeta NFC/RFID (RD$)', type: 'number', hint: 'Monto que se cobra por reposición de tarjeta NFC/RFID' },
+  // Billing automation settings
+  'billing.auto_invoice': { label: 'Facturación automática', type: 'toggle', hint: 'Genera facturas automáticamente al ejecutar el ciclo de facturación' },
+  'billing.ncf_type_subscription': { label: 'Tipo NCF para suscripciones', type: 'select', options: ['02', '01', 'internal'], hint: '01 = Crédito Fiscal (RNC) | 02 = Consumidor | internal = Sin NCF' },
+  'billing.ncf_type_extras': { label: 'Tipo NCF para cargos extras', type: 'select', options: ['02', '01', 'internal'], hint: '01 = Crédito Fiscal | 02 = Consumidor | internal = Sin NCF' },
+  'billing.include_extras_in_subscription': { label: 'Incluir cargos extras en factura', type: 'toggle', hint: 'Agrupa cargos por mora, ticket perdido, etc. en la factura de suscripción' },
+  'billing.invoice_day': { label: 'Día de facturación', type: 'number', hint: 'Día del mes en que se generan las facturas (1-28)' },
+  'billing.grace_period_days': { label: 'Días de gracia', type: 'number', hint: 'Días después del vencimiento antes de suspender la suscripción' },
+  'billing.send_email': { label: 'Enviar email al facturar', type: 'toggle', hint: 'Envía notificación por email cuando se genera una factura' },
+  'billing.reminder_days_before': { label: 'Recordatorio (días antes)', type: 'number', hint: 'Días antes del vencimiento para enviar recordatorio de pago' },
+  'billing.retry_failed_days': { label: 'Reintentar cada (días)', type: 'number', hint: 'Días entre reintentos automáticos de facturación fallida' },
+  'billing.max_retries': { label: 'Máximo de reintentos', type: 'number', hint: 'Número máximo de intentos de facturación por suscripción' },
 };
 
 function TimezoneClockPanel() {
@@ -1419,7 +1431,7 @@ export default function ConfigPage() {
   }
 
   // Add uncategorized settings to 'parqueo' or 'general'
-  const categoryOrder = ['general', 'caja', 'facturacion', 'antifraude', 'notificaciones', 'parqueo', 'charges'];
+  const categoryOrder = ['general', 'billing', 'caja', 'facturacion', 'antifraude', 'notificaciones', 'parqueo', 'charges'];
 
   const changedCount = Object.values(hasChanges).filter(Boolean).length;
 
