@@ -9,6 +9,7 @@ import { expensesAPI } from '../services/api';
 import Pagination from '../components/Pagination';
 import RncLookupInput from '../components/RncLookupInput';
 import { fmtMoney } from '../utils/formatters';
+import { formatRNC } from '../utils/validators';
 
 const EXPENSE_TYPES = [
   { code: '01', label: 'Gastos de Personal' },
@@ -374,7 +375,13 @@ export default function GastosPage() {
                       <div className="font-medium text-gray-900">{exp.supplier_name}</div>
                       {exp.description && <div className="text-xs text-gray-400 truncate max-w-[200px]">{exp.description}</div>}
                     </td>
-                    <td className="px-4 py-3 text-gray-600 font-mono text-xs">{exp.supplier_rnc || '-'}</td>
+                    <td className="px-4 py-3 font-mono text-xs">
+                      {exp.supplier_rnc ? (
+                        <span className="text-indigo-700 font-medium">{formatRNC(exp.supplier_rnc)}</span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-600 font-mono text-xs">{exp.ncf || '-'}</td>
                     <td className="px-4 py-3">
                       {exp.category && (
