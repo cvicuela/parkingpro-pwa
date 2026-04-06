@@ -50,6 +50,15 @@ export const authAPI = {
     const result = await rpc('do_logout', { p_token: getToken() });
     return wrap(result);
   },
+  updateProfile: async (data) => {
+    const result = await rpc('update_user_profile', {
+      p_token: getToken(),
+      p_first_name: data.firstName,
+      p_last_name: data.lastName,
+    });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
 };
 
 // Customers
@@ -1078,6 +1087,15 @@ export const discountsAPI = {
   },
   delete: async (id) => {
     const result = await rpc('delete_discount', { p_token: getToken(), p_id: id });
+    if (!result.success) throw new Error(result.error);
+    return wrap(result);
+  },
+};
+
+// RPC (generic)
+export const rpcAPI = {
+  call: async (fn, params = {}) => {
+    const result = await rpc(fn, { p_token: getToken(), ...params });
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
