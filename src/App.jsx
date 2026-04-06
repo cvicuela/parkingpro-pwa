@@ -50,8 +50,8 @@ function ProfileCompletionGuard({ children }) {
   return children;
 }
 
-function ProtectedRoute({ children, roles, allowIncompleteProfile }) {
-  const { user, loading, profileComplete } = useAuth();
+function ProtectedRoute({ children, roles }) {
+  const { user, loading } = useAuth();
   const { terminal, loading: terminalLoading } = useTerminal();
   const { needsSetup, loading: setupLoading } = useSetup();
 
@@ -64,11 +64,6 @@ function ProtectedRoute({ children, roles, allowIncompleteProfile }) {
   }
 
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
-
-  // Redirect to config if profile is incomplete (unless we're already on config)
-  if (!profileComplete && !allowIncompleteProfile) {
-    return <Navigate to="/config" replace />;
-  }
 
   // Show terminal selector if user is authenticated but no terminal is selected yet
   if (!terminalLoading && terminal === null) {
@@ -104,7 +99,7 @@ function AppRoutes() {
         <Route path="notificaciones" element={<ProtectedRoute roles={['admin','super_admin']}><NotificacionesPage /></ProtectedRoute>} />
         <Route path="incidentes" element={<ProtectedRoute><IncidentesPage /></ProtectedRoute>} />
         <Route path="auditoria" element={<ProtectedRoute roles={['admin','super_admin']}><AuditPage /></ProtectedRoute>} />
-        <Route path="config" element={<ProtectedRoute roles={['admin','super_admin']} allowIncompleteProfile><ConfigPage /></ProtectedRoute>} />
+        <Route path="config" element={<ProtectedRoute roles={['admin','super_admin']}><ConfigPage /></ProtectedRoute>} />
         <Route path="rfid" element={<ProtectedRoute roles={['admin','super_admin']}><RFIDPage /></ProtectedRoute>} />
         <Route path="dispositivos" element={<ProtectedRoute roles={['admin','super_admin']}><DispositivosPage /></ProtectedRoute>} />
       </Route>
