@@ -1,6 +1,6 @@
 import { useEffect, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ToastContainer } from 'react-toastify';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { TerminalProvider, useTerminal } from './context/TerminalContext';
@@ -35,8 +35,23 @@ const NotificacionesPage = lazy(() => import('./pages/NotificacionesPage'));
 const IncidentesPage = lazy(() => import('./pages/IncidentesPage'));
 const DescuentosPage = lazy(() => import('./pages/DescuentosPage'));
 
-function ProtectedRoute({ children, roles }) {
-  const { user, loading } = useAuth();
+function ProfileCompletionGuard({ children }) {
+  const { user, isProfileIncomplete } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (user && isProfileIncomplete() && location.pathname !== '/config') {
+      toast.warn('Completa tu perfil para continuar', { toastId: 'profile-incomplete', autoClose: 6000 });
+      navigate('/config', { replace: true });
+    }
+  }, [user, location.pathname]);
+
+  return children;
+}
+
+function ProtectedRoute({ children, roles, allowIncompleteProfile }) {
+  const { user, loading, profileComplete } = useAuth();
   const { terminal, loading: terminalLoading } = useTerminal();
   const { needsSetup, loading: setupLoading } = useSetup();
 
@@ -49,6 +64,11 @@ function ProtectedRoute({ children, roles }) {
   }
 
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
+
+  // Redirect to config if profile is incomplete (unless we're already on config)
+  if (!profileComplete && !allowIncompleteProfile) {
+    return <Navigate to="/config" replace />;
+  }
 
   // Show terminal selector if user is authenticated but no terminal is selected yet
   if (!terminalLoading && terminal === null) {
@@ -65,7 +85,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
       <Route path="/setup" element={user ? <SetupWizardPage /> : <Navigate to="/login" replace />} />
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+      <Route path="/" element={<ProtectedRoute><ProfileCompletionGuard><Layout /></ProfileCompletionGuard></ProtectedRoute>}>
         <Route index element={<DashboardPage />} />
         <Route path="clientes" element={<ClientesPage />} />
         <Route path="vehiculos" element={<VehiculosPage />} />
@@ -84,7 +104,7 @@ function AppRoutes() {
         <Route path="notificaciones" element={<ProtectedRoute roles={['admin','super_admin']}><NotificacionesPage /></ProtectedRoute>} />
         <Route path="incidentes" element={<ProtectedRoute><IncidentesPage /></ProtectedRoute>} />
         <Route path="auditoria" element={<ProtectedRoute roles={['admin','super_admin']}><AuditPage /></ProtectedRoute>} />
-        <Route path="config" element={<ProtectedRoute roles={['admin','super_admin']}><ConfigPage /></ProtectedRoute>} />
+        <Route path="config" element={<ProtectedRoute roles={['admin','super_admin']} allowIncompleteProfile><ConfigPage /></ProtectedRoute>} />
         <Route path="rfid" element={<ProtectedRoute roles={['admin','super_admin']}><RFIDPage /></ProtectedRoute>} />
         <Route path="dispositivos" element={<ProtectedRoute roles={['admin','super_admin']}><DispositivosPage /></ProtectedRoute>} />
       </Route>

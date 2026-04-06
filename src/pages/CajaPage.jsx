@@ -128,6 +128,7 @@ export default function CajaPage() {
   /* ─── CLOSE ─── */
   const handleClose = async (e) => {
     e.preventDefault();
+    if (closing) return; // double-click guard
     setClosing(true);
     const denominations = DENOMINATIONS
       .filter(d => parseInt(denomCounts[d]) > 0)

@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import { offlineQueue } from '../services/offlineQueue';
 import { DollarSign, Users, Car, AlertTriangle, TrendingUp, TrendingDown, Shield, Receipt, ArrowUpRight, ArrowDownRight, LogIn, LogOut, Wallet, CheckCircle } from 'lucide-react';
 import PushNotificationToggle from '../components/PushNotificationToggle';
+import { SkeletonDashboard } from '../components/SkeletonLoader';
 import { fmtMoney } from '../utils/formatters';
 
 const DAY_LABELS_ES = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
@@ -481,11 +482,7 @@ export default function DashboardPage() {
   }, [fetchData, fetchChartData, fetchSessionStats, fetchTodayStats]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   return (

@@ -5,7 +5,7 @@ import {
   Plus, Search, X, Wifi, WifiOff, Camera, Shield, Monitor,
   ChevronDown, ChevronUp, Play, Square, Trash2, Edit3, Settings,
   ArrowUpRight, ArrowDownLeft, ArrowLeftRight, RefreshCw, Zap,
-  Activity, MapPin, Hash, Clock, Server
+  Activity, MapPin, Hash, Clock, Server, Network, Settings2, Plug, CheckCircle2
 } from 'lucide-react';
 
 const DEVICE_TYPES = {
@@ -48,6 +48,97 @@ const MODELS = {
 const fmtTime = (d) => d ? new Date(d).toLocaleString('es-DO', { timeZone: 'America/Santo_Domingo' }) : '-';
 
 /* ─── Add/Edit Device Modal ─── */
+function DeviceGettingStarted({ onAddDevice }) {
+  const steps = [
+    {
+      number: 1,
+      icon: Network,
+      title: 'Conecta el dispositivo ZKTeco a tu red',
+      description: 'Conecta el dispositivo ZKTeco a tu red local usando un cable Ethernet. Asegurate de que el dispositivo tenga alimentacion electrica y que el LED de red este encendido.',
+      color: 'blue',
+    },
+    {
+      number: 2,
+      icon: Settings2,
+      title: 'Configura la IP del dispositivo',
+      description: 'Desde el menu del dispositivo ZKTeco, ve a Comunicacion > Ethernet y asigna una IP fija dentro de tu red (ej: 192.168.1.201). Anota la IP y el puerto (por defecto 4370).',
+      color: 'purple',
+    },
+    {
+      number: 3,
+      icon: Plug,
+      title: 'Agrega el dispositivo aqui',
+      description: 'Haz clic en "Nuevo Dispositivo" e ingresa el nombre, numero de serie, la direccion IP y el puerto del dispositivo. Selecciona el tipo (barrera, lector, camara, etc.).',
+      color: 'indigo',
+    },
+    {
+      number: 4,
+      icon: CheckCircle2,
+      title: 'Prueba la conexion',
+      description: 'Una vez agregado el dispositivo, verifica que el estado aparezca como "Online". Si aparece "Offline", revisa la configuracion de red y que el dispositivo este encendido.',
+      color: 'green',
+    },
+  ];
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 px-8 py-10 text-center">
+        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Monitor size={32} className="text-white" />
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Configura tu primer dispositivo</h2>
+        <p className="text-indigo-100 text-sm max-w-md mx-auto">
+          Los dispositivos son los puntos de entrada y salida de tu parqueo. Sigue estos pasos para conectar tu primer dispositivo ZKTeco.
+        </p>
+      </div>
+
+      <div className="px-8 py-8">
+        <div className="space-y-6">
+          {steps.map((step) => {
+            const StepIcon = step.icon;
+            const colors = {
+              blue: { bg: 'bg-blue-50', icon: 'text-blue-600', border: 'border-blue-200', number: 'bg-blue-600' },
+              purple: { bg: 'bg-purple-50', icon: 'text-purple-600', border: 'border-purple-200', number: 'bg-purple-600' },
+              indigo: { bg: 'bg-indigo-50', icon: 'text-indigo-600', border: 'border-indigo-200', number: 'bg-indigo-600' },
+              green: { bg: 'bg-green-50', icon: 'text-green-600', border: 'border-green-200', number: 'bg-green-600' },
+            };
+            const c = colors[step.color];
+
+            return (
+              <div key={step.number} className={`flex items-start gap-4 p-4 rounded-xl ${c.bg} border ${c.border}`}>
+                <div className="flex-shrink-0 flex items-center gap-3">
+                  <span className={`w-8 h-8 rounded-full ${c.number} text-white text-sm font-bold flex items-center justify-center`}>
+                    {step.number}
+                  </span>
+                  <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                    <StepIcon size={20} className={c.icon} />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-gray-800 mb-1">{step.title}</h4>
+                  <p className="text-sm text-gray-600 leading-relaxed">{step.description}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-8 text-center">
+          <button
+            onClick={onAddDevice}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium shadow-sm"
+          >
+            <Plus size={18} /> Agregar Primer Dispositivo
+          </button>
+          <p className="text-xs text-gray-400 mt-3">
+            Necesitas al menos un dispositivo configurado para registrar entradas y salidas de vehiculos.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DeviceModal({ device, onClose, onSave }) {
   const [form, setForm] = useState(device ? {
     serial_number: device.serial_number,
@@ -566,11 +657,13 @@ export default function DispositivosPage() {
         <div className="flex justify-center p-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
         </div>
+      ) : filteredDevices.length === 0 && devices.length === 0 ? (
+        <DeviceGettingStarted onAddDevice={() => { setEditing(null); setShowModal(true); }} />
       ) : filteredDevices.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
           <Server size={48} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-400 text-lg">No hay dispositivos registrados</p>
-          <p className="text-gray-400 text-sm mt-1">Agrega tu primer dispositivo ZKTeco para comenzar</p>
+          <p className="text-gray-400 text-lg">No se encontraron dispositivos</p>
+          <p className="text-gray-400 text-sm mt-1">Prueba con otro termino de busqueda</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
