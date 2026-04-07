@@ -26,7 +26,7 @@ const apiFetch = async (path, options = {}) => {
 // Auth — uses RPC (works with both Supabase remote and Express local)
 export const authAPI = {
   login: async ({ email, password }) => {
-    const result = await rpc('authenticate', { p_email: email, p_password: password });
+    const result = await rpc('authenticate', { p_email: email, p_password: password, p_ip: 'pwa-client' });
     if (!result.success) throw new Error(result.error);
     return wrap(result);
   },
