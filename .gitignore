@@ -11,3 +11,6 @@ dist/
 /blob-report/
 /playwright/.cache/
 tests/visual/*.spec.js-snapshots/
+
+# Local Netlify folder
+.netlify
