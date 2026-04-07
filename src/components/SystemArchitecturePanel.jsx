@@ -178,51 +178,61 @@ export default function SystemArchitecturePanel() {
     newChecks.frontend = 'ok';
 
     // 2. Backend API health check
-    try {
-      const t0 = performance.now();
-      const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(5000) });
-      newLatencies.backend = Math.round(performance.now() - t0);
-      if (res.ok) {
-        const data = await res.json();
-        setHealth(data);
-        setBackendInfo({
-          environment: data.environment || 'unknown',
-          uptime: data.uptime ? formatUptime(data.uptime) : 'N/A',
-          mode: data.deploymentMode?.mode || DEPLOYMENT_MODE,
-          modeLabel: data.deploymentMode?.label || DEPLOYMENT_MODE,
-          features: data.deploymentMode?.features || {},
-        });
-        newChecks.backend = 'ok';
-      } else {
-        newChecks.backend = 'warning';
+    if (DEPLOYMENT_MODE === 'remote') {
+      // In remote mode, no Express backend is expected
+      newChecks.backend = 'na';
+    } else {
+      try {
+        const t0 = performance.now();
+        const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(5000) });
+        newLatencies.backend = Math.round(performance.now() - t0);
+        if (res.ok) {
+          const data = await res.json();
+          setHealth(data);
+          setBackendInfo({
+            environment: data.environment || 'unknown',
+            uptime: data.uptime ? formatUptime(data.uptime) : 'N/A',
+            mode: data.deploymentMode?.mode || DEPLOYMENT_MODE,
+            modeLabel: data.deploymentMode?.label || DEPLOYMENT_MODE,
+            features: data.deploymentMode?.features || {},
+          });
+          newChecks.backend = 'ok';
+        } else {
+          newChecks.backend = 'warning';
+        }
+      } catch {
+        newChecks.backend = 'error';
       }
-    } catch {
-      newChecks.backend = 'error';
     }
 
     // 3. Database — check via a simple API call
-    try {
-      const t0 = performance.now();
-      const token = localStorage.getItem('pp_token') || '';
-      const res = await fetch(`${API_BASE}/api/v1/setup/status`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        signal: AbortSignal.timeout(5000),
-      });
-      newLatencies.database = Math.round(performance.now() - t0);
-      if (res.ok) {
-        const data = await res.json();
-        newChecks.database = 'ok';
-        setDbInfo({
-          setupComplete: data.isSetupComplete,
-          steps: data.steps,
-          deploymentMode: data.deploymentMode,
-          hardware: data.hardware || {},
+    if (DEPLOYMENT_MODE === 'remote') {
+      // In remote mode, DB is accessed via Supabase (checked below)
+      newChecks.database = 'na';
+    } else {
+      try {
+        const t0 = performance.now();
+        const token = localStorage.getItem('pp_token') || '';
+        const res = await fetch(`${API_BASE}/api/v1/setup/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: AbortSignal.timeout(5000),
         });
-      } else {
-        newChecks.database = 'warning';
+        newLatencies.database = Math.round(performance.now() - t0);
+        if (res.ok) {
+          const data = await res.json();
+          newChecks.database = 'ok';
+          setDbInfo({
+            setupComplete: data.isSetupComplete,
+            steps: data.steps,
+            deploymentMode: data.deploymentMode,
+            hardware: data.hardware || {},
+          });
+        } else {
+          newChecks.database = 'warning';
+        }
+      } catch {
+        newChecks.database = 'error';
       }
-    } catch {
-      newChecks.database = 'error';
     }
 
     // 4. Supabase — only relevant in remote/hybrid
@@ -246,24 +256,33 @@ export default function SystemArchitecturePanel() {
     }
 
     // 5. Socket.IO
-    try {
-      const socketUrl = SOCKET_URL || API_BASE;
-      const t0 = performance.now();
-      const res = await fetch(`${socketUrl}/socket.io/?EIO=4&transport=polling`, { signal: AbortSignal.timeout(5000) });
-      newLatencies.socket = Math.round(performance.now() - t0);
-      newChecks.socket = res.ok ? 'ok' : 'warning';
-    } catch {
-      newChecks.socket = 'error';
+    if (DEPLOYMENT_MODE === 'remote') {
+      newChecks.socket = 'na';
+    } else {
+      try {
+        const socketUrl = SOCKET_URL || API_BASE;
+        const t0 = performance.now();
+        const res = await fetch(`${socketUrl}/socket.io/?EIO=4&transport=polling`, { signal: AbortSignal.timeout(5000) });
+        newLatencies.socket = Math.round(performance.now() - t0);
+        newChecks.socket = res.ok ? 'ok' : 'warning';
+      } catch {
+        newChecks.socket = 'error';
+      }
     }
 
-    // 6. Internet
-    try {
-      const t0 = performance.now();
-      await fetch('https://httpbin.org/get', { mode: 'no-cors', signal: AbortSignal.timeout(4000) });
-      newLatencies.internet = Math.round(performance.now() - t0);
+    // 6. Internet — use Supabase connectivity as proxy (httpbin.org is unreliable)
+    if (newChecks.supabase === 'ok') {
       newChecks.internet = 'ok';
-    } catch {
-      newChecks.internet = 'error';
+      newLatencies.internet = newLatencies.supabase;
+    } else {
+      try {
+        const t0 = performance.now();
+        await fetch('https://www.google.com/generate_204', { mode: 'no-cors', signal: AbortSignal.timeout(4000) });
+        newLatencies.internet = Math.round(performance.now() - t0);
+        newChecks.internet = 'ok';
+      } catch {
+        newChecks.internet = 'error';
+      }
     }
 
     setChecks(newChecks);
