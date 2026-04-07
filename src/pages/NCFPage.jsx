@@ -299,10 +299,10 @@ function DGIIRNCSection() {
     try {
       setLoadingStats(true);
       const res = await dgiiAPI.stats();
-      setStats(res.data?.data || null);
+      setStats(res?.data || null);
     } catch (err) {
-      // Table might not exist yet - that's OK
       setStats(null);
+      console.warn('DGII stats error:', err.message);
     } finally {
       setLoadingStats(false);
     }
@@ -456,39 +456,51 @@ function DGIIRNCSection() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl shadow-sm border p-4">
-          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
-            <Building2 size={14} /> Total Registros
+      {!stats && !loadingStats ? (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-amber-700 text-sm">
+            <AlertTriangle size={16} />
+            <span>Error al cargar estadísticas DGII</span>
           </div>
-          <p className="text-2xl font-bold">{stats?.total_records?.toLocaleString() || '0'}</p>
+          <button onClick={loadStats} className="flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900 font-medium">
+            <RefreshCw size={14} /> Reintentar
+          </button>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border p-4">
-          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
-            <CheckCircle size={14} className="text-green-500" /> Activos
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl shadow-sm border p-4">
+            <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+              <Building2 size={14} /> Total Registros
+            </div>
+            <p className="text-2xl font-bold">{stats?.total_records?.toLocaleString() || '0'}</p>
           </div>
-          <p className="text-2xl font-bold text-green-600">{stats?.active_records?.toLocaleString() || '0'}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border p-4">
-          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
-            <XCircle size={14} className="text-gray-400" /> Inactivos
+          <div className="bg-white rounded-xl shadow-sm border p-4">
+            <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+              <CheckCircle size={14} className="text-green-500" /> Activos
+            </div>
+            <p className="text-2xl font-bold text-green-600">{stats?.active_records?.toLocaleString() || '0'}</p>
           </div>
-          <p className="text-2xl font-bold text-gray-400">{stats?.inactive_records?.toLocaleString() || '0'}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border p-4">
-          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
-            <Calendar size={14} /> Última Actualización
+          <div className="bg-white rounded-xl shadow-sm border p-4">
+            <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+              <XCircle size={14} className="text-gray-400" /> Inactivos
+            </div>
+            <p className="text-2xl font-bold text-gray-400">{stats?.inactive_records?.toLocaleString() || '0'}</p>
           </div>
-          <p className="text-sm font-medium mt-1">
-            {stats?.last_import?.date
-              ? new Date(stats.last_import.date).toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' })
-              : 'Nunca'}
-          </p>
-          {stats?.last_import?.records_total > 0 && (
-            <p className="text-xs text-gray-400">{stats.last_import.records_total.toLocaleString()} registros</p>
-          )}
+          <div className="bg-white rounded-xl shadow-sm border p-4">
+            <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+              <Calendar size={14} /> Última Actualización
+            </div>
+            <p className="text-sm font-medium mt-1">
+              {stats?.last_import?.date
+                ? new Date(stats.last_import.date).toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' })
+                : 'Nunca'}
+            </p>
+            {stats?.last_import?.records_total > 0 && (
+              <p className="text-xs text-gray-400">{stats.last_import.records_total.toLocaleString()} registros</p>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* RNC Search */}
       <div className="bg-white rounded-xl shadow-sm border p-4">

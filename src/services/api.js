@@ -780,8 +780,7 @@ export const dgiiAPI = {
   },
   stats: async () => {
     const result = await rpc('dgii_rnc_stats', { p_token: getToken() });
-    if (!result.success) throw new Error(result.error);
-    return wrap(result);
+    return result;
   },
   importBatch: async (records) => {
     const result = await rpc('dgii_import_rnc_batch', { p_token: getToken(), p_records: records });
