@@ -9,7 +9,8 @@ import { rfidAPI, subscriptionsAPI, devicesAPI, customersAPI } from '../services
 import { fmtMoney } from '../utils/formatters';
 import io from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || '';
+const DEPLOYMENT_MODE = import.meta.env.VITE_DEPLOYMENT_MODE || 'remote';
 
 const STATUS_BADGES = {
   available: { label: 'Disponible', bg: 'bg-green-100', text: 'text-green-700' },
@@ -68,8 +69,9 @@ export default function RFIDPage() {
   const [customerSubs, setCustomerSubs] = useState([]);
   const [selectedSubForLink, setSelectedSubForLink] = useState('');
 
-  // Socket.IO for card scanning
+  // Socket.IO for card scanning — only when a backend is reachable
   useEffect(() => {
+    if (DEPLOYMENT_MODE === 'remote' || !SOCKET_URL) return;
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
 
