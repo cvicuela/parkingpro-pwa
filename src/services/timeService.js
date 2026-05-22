@@ -6,6 +6,8 @@
  * Se re-sincroniza cada hora automaticamente.
  */
 
+import { rpc } from './supabaseClient';
+
 const SYNC_INTERVAL = 60 * 60 * 1000; // 1 hora
 const FETCH_TIMEOUT = 5000; // 5 segundos por API
 
@@ -56,6 +58,27 @@ async function fetchTimeFromAPI(api) {
  * Retorna true si logro sincronizar, false si usa hora local.
  */
 async function syncTime() {
+  // 1. Fuente primaria: hora autoritativa del servidor via Supabase RPC.
+  //    Cumple el CSP (connect-src *.supabase.co), a diferencia de las APIs externas
+  //    que el CSP bloquea (provocando que se cayera siempre a la hora del dispositivo).
+  try {
+    const sbBefore = Date.now();
+    const data = await rpc('get_server_time', {});
+    const iso = data && (data.server_time || data.serverTime);
+    const t = iso ? new Date(iso).getTime() : NaN;
+    if (!isNaN(t) && t > 1000000000000) {
+      const sbAfter = Date.now();
+      offsetMs = t - (sbBefore + sbAfter) / 2;
+      lastSyncAt = new Date();
+      syncSource = 'Supabase';
+      console.log(`[TimeService] Sincronizado con Supabase | offset: ${offsetMs > 0 ? '+' : ''}${Math.round(offsetMs)}ms`);
+      return true;
+    }
+  } catch (err) {
+    console.warn('[TimeService] Supabase get_server_time fallo:', err.message);
+  }
+
+  // 2. Respaldo: APIs externas de hora (requieren que el CSP las permita).
   const localBefore = Date.now();
 
   for (const api of TIME_APIS) {
