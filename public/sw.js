@@ -13,7 +13,7 @@
 // ---------------------------------------------------------------------------
 // Cache names
 // ---------------------------------------------------------------------------
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const STATIC_CACHE  = `parkingpro-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `parkingpro-dynamic-${CACHE_VERSION}`;
 const API_CACHE     = `parkingpro-api-${CACHE_VERSION}`;
@@ -241,11 +241,12 @@ self.addEventListener('fetch', (event) => {
 
   // ── GET routing ─────────────────────────────────────────────────────────
 
-  // 1. Static assets → cache-first
-  if (
-    STATIC_ASSET_PATTERN.test(url.pathname) ||
-    PRECACHE_ASSETS.includes(url.pathname)
-  ) {
+  // 1. Hashed static assets (.js/.css/fonts/images) → cache-first.
+  //    Deliberately NOT matching '/' or '/index.html' here (they used to match via
+  //    PRECACHE_ASSETS): the app shell must be served network-first (rule #4) so it
+  //    never goes stale after a redeploy. A cache-first shell references deleted
+  //    chunk hashes → "Failed to fetch dynamically imported module".
+  if (STATIC_ASSET_PATTERN.test(url.pathname)) {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
     return;
   }
@@ -287,6 +288,19 @@ async function cacheFirst(request, cacheName) {
 
   try {
     const response = await fetch(request);
+
+    // Guard: after a redeploy, a hashed asset that no longer exists is caught by
+    // Netlify's SPA fallback and returned as index.html (200, text/html). Caching
+    // that HTML under a .js/.css URL permanently breaks dynamic imports. Treat it
+    // as a stale-asset miss so the client's vite:preloadError handler can reload.
+    const contentType = response.headers.get('content-type') || '';
+    if (response.ok && contentType.includes('text/html')) {
+      return new Response('Stale asset (SPA fallback served HTML for an asset)', {
+        status: 409,
+        statusText: 'Stale asset',
+      });
+    }
+
     if (response.ok) {
       await cacheAndTrim(cacheName, request, response.clone(), DYNAMIC_CACHE_MAX);
     }
