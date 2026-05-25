@@ -527,18 +527,28 @@ function StatCard({ icon: Icon, label, value, color }) {
 
 /* ─── Open Caja Modal with Operator Selection ─── */
 function OpenCajaModal({ form, setForm, onSubmit, onClose, saving }) {
+  const { user } = useAuth();
+  const isAdmin = ['admin', 'super_admin'].includes(user?.role);
   const [operators, setOperators] = useState([]);
-  const [loadingOps, setLoadingOps] = useState(true);
+  const [loadingOps, setLoadingOps] = useState(isAdmin);
   const [showNewOperator, setShowNewOperator] = useState(false);
   const [newOp, setNewOp] = useState({ first_name: '', last_name: '', email: '', phone: '', password: 'operator123' });
   const [creatingOp, setCreatingOp] = useState(false);
 
   useEffect(() => {
+    // Operators can only open their own register (the backend always assigns them as the
+    // manager) and they can't list/create system users. Preselect themselves and skip the
+    // admin-only operator lookup so the form isn't blocked by an empty required dropdown.
+    if (!isAdmin) {
+      setForm(p => ({ ...p, operatorId: user?.id || '' }));
+      return;
+    }
     operatorsAPI.list()
       .then(({ data }) => setOperators(data.data || []))
       .catch(() => {})
       .finally(() => setLoadingOps(false));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
 
   const handleCreateOperator = async (e) => {
     e.preventDefault();
@@ -581,30 +591,39 @@ function OpenCajaModal({ form, setForm, onSubmit, onClose, saving }) {
         </div>
 
         <form onSubmit={onSubmit} className="p-5 space-y-4">
-          {/* Operator selection */}
+          {/* Operator selection — admins pick/register an operator; operators are the manager themselves */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Encargado de caja</label>
-            <div className="flex gap-2">
-              <select
-                value={form.operatorId || ''}
-                onChange={e => setForm(p => ({ ...p, operatorId: e.target.value }))}
-                required
-                className="flex-1 border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">Seleccionar encargado...</option>
-                {operators.map(op => (
-                  <option key={op.id} value={op.id}>
-                    {[op.first_name, op.last_name].filter(Boolean).join(' ') || op.display_name || op.email} ({op.role})
-                  </option>
-                ))}
-              </select>
-              <button type="button" onClick={() => setShowNewOperator(true)}
-                className="px-3 py-2.5 border border-dashed border-indigo-400 rounded-xl text-indigo-600 hover:bg-indigo-50 transition-colors"
-                title="Registrar nuevo operador">
-                <Plus size={18} />
-              </button>
-            </div>
-            {loadingOps && <p className="text-xs text-gray-400 mt-1">Cargando operadores...</p>}
+            {isAdmin ? (
+              <>
+                <div className="flex gap-2">
+                  <select
+                    value={form.operatorId || ''}
+                    onChange={e => setForm(p => ({ ...p, operatorId: e.target.value }))}
+                    required
+                    className="flex-1 border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Seleccionar encargado...</option>
+                    {operators.map(op => (
+                      <option key={op.id} value={op.id}>
+                        {[op.first_name, op.last_name].filter(Boolean).join(' ') || op.display_name || op.email} ({op.role})
+                      </option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={() => setShowNewOperator(true)}
+                    className="px-3 py-2.5 border border-dashed border-indigo-400 rounded-xl text-indigo-600 hover:bg-indigo-50 transition-colors"
+                    title="Registrar nuevo operador">
+                    <Plus size={18} />
+                  </button>
+                </div>
+                {loadingOps && <p className="text-xs text-gray-400 mt-1">Cargando operadores...</p>}
+              </>
+            ) : (
+              <div className="border rounded-xl px-4 py-2.5 bg-gray-50 text-gray-700 flex items-center justify-between">
+                <span>{[user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email}</span>
+                <span className="text-xs text-gray-400">tú</span>
+              </div>
+            )}
           </div>
 
           {/* Inline new operator form */}
