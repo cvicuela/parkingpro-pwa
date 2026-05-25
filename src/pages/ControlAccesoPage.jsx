@@ -768,7 +768,8 @@ export default function ControlAccesoPage() {
                   <QrCode size={12} /> También puedes hacer click en un vehículo de la tabla para abrir el cobro
                 </p>
                 <div className="flex gap-2">
-                  <button onClick={handleLostTicket} disabled={loading || !plate.trim()}
+                  <button onClick={handleLostTicket} disabled={loading}
+                    title="Escribe la placa o el # de ticket y presiona aquí"
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-100 disabled:opacity-40 transition-colors">
                     <AlertTriangle size={14} /> Ticket Perdido
                   </button>
