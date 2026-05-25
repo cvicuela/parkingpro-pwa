@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { authAPI } from '../services/api';
+import { isTokenExpired } from '../services/supabaseClient';
 
 const AuthContext = createContext(null);
 
@@ -11,6 +12,9 @@ function isProfileComplete(user) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
+      // Ignore a cached user if the token is gone/expired (otherwise the UI looks
+      // logged-in while every RPC fails with "No autorizado").
+      if (isTokenExpired()) return null;
       return JSON.parse(localStorage.getItem('pp_user'));
     } catch {
       return null;
@@ -22,6 +26,14 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const token = localStorage.getItem('pp_token');
+    if (token && isTokenExpired(token)) {
+      // Stale/expired token from a previous visit — drop it so the user is sent to login.
+      localStorage.removeItem('pp_token');
+      localStorage.removeItem('pp_user');
+      setUser(null);
+      setLoading(false);
+      return;
+    }
     if (token && !user) {
       authAPI.me()
         .then(({ data }) => {
