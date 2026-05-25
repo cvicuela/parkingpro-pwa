@@ -1,11 +1,12 @@
-import { useEffect, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useState, lazy } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { TerminalProvider, useTerminal } from './context/TerminalContext';
 import { SetupProvider, useSetup } from './context/SetupContext';
 import { startTimeService, stopTimeService } from './services/timeService';
+import { authAPI } from './services/api';
 import Layout from './components/Layout';
 import TerminalSelector from './components/TerminalSelector';
 import OfflineIndicator from './components/OfflineIndicator';
@@ -36,16 +37,59 @@ const IncidentesPage = lazy(() => import('./pages/IncidentesPage'));
 const DescuentosPage = lazy(() => import('./pages/DescuentosPage'));
 
 function ProfileCompletionGuard({ children }) {
-  const { user, isProfileIncomplete } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { user, isProfileIncomplete, updateUser } = useAuth();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (user && isProfileIncomplete() && location.pathname !== '/config') {
-      toast.warn('Completa tu perfil para continuar', { toastId: 'profile-incomplete', autoClose: 6000 });
-      navigate('/config', { replace: true });
-    }
-  }, [user, location.pathname]);
+  // Render a self-contained profile form for ANY role. (Previously this redirected to
+  // /config, but /config is admin-only — so a non-admin like an operator with no name
+  // bounced between "/" and "/config" forever. Now the form is shown inline.)
+  if (user && isProfileIncomplete()) {
+    const save = async (e) => {
+      e.preventDefault();
+      if (!firstName.trim() || !lastName.trim()) {
+        toast.error('Nombre y apellido son requeridos');
+        return;
+      }
+      setSaving(true);
+      try {
+        await authAPI.updateProfile({ firstName: firstName.trim(), lastName: lastName.trim() });
+        updateUser({ first_name: firstName.trim(), last_name: lastName.trim() });
+        toast.success('Perfil completado');
+      } catch (err) {
+        toast.error(err.message || 'Error al guardar el perfil');
+      } finally {
+        setSaving(false);
+      }
+    };
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+        <form onSubmit={save} className="w-full max-w-sm bg-white rounded-2xl shadow p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-800">Completa tu perfil</h2>
+            <p className="text-sm text-gray-500 mt-1">Necesitamos tu nombre y apellido antes de continuar.</p>
+          </div>
+          <input
+            type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)}
+            placeholder="Nombre" autoFocus required
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <input
+            type="text" value={lastName} onChange={(e) => setLastName(e.target.value)}
+            placeholder="Apellido" required
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button
+            type="submit" disabled={saving}
+            className="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-60"
+          >
+            {saving ? 'Guardando…' : 'Guardar y continuar'}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return children;
 }
