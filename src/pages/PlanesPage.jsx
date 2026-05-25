@@ -100,6 +100,13 @@ function HourlyRatesEditor({ planId }) {
       }
 
       await plansAPI.updateHourlyRates(planId, finalRates);
+      // Keep the plan's headline price coherent with the hourly schedule: base_price
+      // tracks the first hour's rate (it's what the plan card shows and the charge falls
+      // back to when no hourly rates exist). hourly_rates stays the source of truth.
+      const firstRate = finalRates.find(r => r.hour_number === 1)?.rate ?? finalRates[0]?.rate;
+      if (firstRate != null) {
+        try { await plansAPI.update(planId, { base_price: firstRate }); } catch { /* cosmetic sync; ignore */ }
+      }
       // Sync local state with what was saved so the table doesn't show stale values
       setRates(finalRates);
       toast.success('Tarifas por hora guardadas correctamente');
@@ -224,7 +231,7 @@ function PlanModal({ plan, onClose, onSave }) {
     try {
       const payload = {
         ...form,
-        base_price: parseFloat(form.base_price),
+        base_price: isHourly ? (parseFloat(form.base_price) || 50) : parseFloat(form.base_price),
         max_capacity: parseInt(form.max_capacity),
         start_hour: form.start_hour !== '' ? parseInt(form.start_hour) : null,
         end_hour: form.end_hour !== '' ? parseInt(form.end_hour) : null,
@@ -301,12 +308,22 @@ function PlanModal({ plan, onClose, onSave }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Precio (RD$) <span className="text-xs text-green-600 font-normal">ITBIS incluido</span></label>
-                <input type="number" value={form.base_price} onChange={set('base_price')} required step="0.01"
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-                {form.base_price > 0 && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Subtotal: {fmtMoney(parseFloat(form.base_price) / 1.18)} + ITBIS: {fmtMoney(parseFloat(form.base_price) - parseFloat(form.base_price) / 1.18)}
-                  </p>
+                {isHourly ? (
+                  <div className="w-full px-3 py-2 border rounded-lg bg-gray-50 text-sm text-gray-500">
+                    {isEditing
+                      ? 'Se define en la pestaña “Tarifas por Hora” ▸'
+                      : 'Crea el plan y luego configura las “Tarifas por Hora”'}
+                  </div>
+                ) : (
+                  <>
+                    <input type="number" value={form.base_price} onChange={set('base_price')} required step="0.01"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    {form.base_price > 0 && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Subtotal: {fmtMoney(parseFloat(form.base_price) / 1.18)} + ITBIS: {fmtMoney(parseFloat(form.base_price) - parseFloat(form.base_price) / 1.18)}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
               <div>
