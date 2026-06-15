@@ -9,7 +9,7 @@ import {
   Printer, Star, Eye, QrCode, Wifi, Radio, MapPin, Edit2, Clock, RefreshCw,
   Users, Lock, Unlock, Key, AlertTriangle, CreditCard, X, Check, Calendar,
   Database, ShieldAlert, Loader2, Monitor, LogIn, LogOut, ArrowLeftRight,
-  PlugZap, Zap, Activity, Cable, UserCircle
+  PlugZap, Zap, Activity, Cable
 } from 'lucide-react';
 import { getPrinters, addPrinter, removePrinter, setDefaultPrinter, getDefaultPrinter, generateEntryTicketHTML, generatePaymentReceiptHTML, generateCashReportHTML, generateDailySummaryHTML } from '../services/printService';
 import PrintPreviewModal from '../components/PrintPreviewModal';
@@ -1254,81 +1254,8 @@ function UsbRelaySubsection({ scanners, saveScanners }) {
 }
 
 
-function ProfileCompletionBanner({ user, onComplete }) {
-  const [firstName, setFirstName] = useState(user?.first_name || '');
-  const [lastName, setLastName] = useState(user?.last_name || '');
-  const [saving, setSaving] = useState(false);
-
-  const handleSaveProfile = async (e) => {
-    e.preventDefault();
-    if (!firstName.trim() || !lastName.trim()) {
-      toast.error('Nombre y apellido son requeridos');
-      return;
-    }
-    setSaving(true);
-    try {
-      await authAPI.updateProfile({ firstName: firstName.trim(), lastName: lastName.trim() });
-      toast.success('Perfil completado exitosamente');
-      onComplete({ first_name: firstName.trim(), last_name: lastName.trim() });
-    } catch (err) {
-      toast.error(err.message || 'Error al guardar perfil');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-6 mb-6">
-      <div className="flex items-start gap-4">
-        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-          <UserCircle size={28} className="text-amber-600" />
-        </div>
-        <div className="flex-1">
-          <h3 className="text-lg font-bold text-amber-800 mb-1">Completa tu perfil para continuar</h3>
-          <p className="text-sm text-amber-700 mb-4">Necesitamos tu nombre y apellido antes de que puedas usar el sistema.</p>
-          <form onSubmit={handleSaveProfile} className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="block text-xs font-medium text-amber-700 mb-1">Nombre</label>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Tu nombre"
-                required
-                className="px-3 py-2 border border-amber-300 rounded-lg text-sm w-48 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-amber-700 mb-1">Apellido</label>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Tu apellido"
-                required
-                className="px-3 py-2 border border-amber-300 rounded-lg text-sm w-48 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={saving || !firstName.trim() || !lastName.trim()}
-              className="px-5 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2 transition-colors"
-            >
-              {saving ? (
-                <><div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> Guardando...</>
-              ) : (
-                <><Save size={14} /> Guardar Perfil</>
-              )}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function ConfigPage() {
-  const { user, profileComplete, updateUser } = useAuth();
+  const { user } = useAuth();
   const [settings, setSettings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState({});
@@ -1673,11 +1600,6 @@ export default function ConfigPage() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Profile Completion Banner */}
-      {!profileComplete && (
-        <ProfileCompletionBanner user={user} onComplete={(fields) => updateUser(fields)} />
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
