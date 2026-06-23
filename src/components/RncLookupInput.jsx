@@ -43,11 +43,26 @@ export default function RncLookupInput({ value, onChange, onSelect, placeholder 
       setResults(items);
       setShowDropdown(items.length > 0);
 
-      // If exact match found, mark as valid
+      // If exact match found, auto-select and fill supplier name
       const clean = query.replace(/\D/g, '');
       if (isValidRNC(clean)) {
         const exact = items.find(r => r.rnc?.replace(/\D/g, '') === clean);
-        setValidated(exact ? (exact.status === 'active' ? 'valid' : 'inactive') : items.length === 0 ? 'not_found' : null);
+        if (exact) {
+          setValidated(exact.status === 'active' ? 'valid' : 'inactive');
+          setShowDropdown(false);
+          // Auto-fill: call onSelect so parent gets the business name
+          if (onSelect) {
+            onSelect({
+              rnc: clean,
+              business_name: exact.business_name || exact.razon_social || '',
+              trade_name: exact.trade_name || exact.nombre_comercial || '',
+              status: exact.status || '',
+              economic_activity: exact.economic_activity || '',
+            });
+          }
+        } else {
+          setValidated(items.length === 0 ? 'not_found' : null);
+        }
       } else {
         setValidated(null);
       }
